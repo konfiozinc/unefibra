@@ -1,0 +1,39 @@
+# ============================================================
+# UNEFIBRAS SAS — .gitignore
+# ============================================================
+
+# Dependencias
+node_modules/
+functions/node_modules/
+
+# Firebase local
+.firebase/
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+firestore.rules.bak
+
+# Credenciales y secretos (JAMÁS subir al repositorio)
+*serviceAccount*.json
+*service-account*.json
+*-service-account*.json
+*private-key*.json
+*.pem
+.env
+.env.*
+!.env.example
+
+# Sistema operativo
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Builds
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*

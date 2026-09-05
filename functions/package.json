@@ -1,0 +1,24 @@
+{
+  "name": "unefibras-functions",
+  "version": "1.0.0",
+  "description": "Cloud Functions de UNEFIBRAS SAS: operaciones privilegiadas, motor de vencimientos y notificaciones.",
+  "main": "src/index.js",
+  "type": "commonjs",
+  "engines": {
+    "node": "20"
+  },
+  "scripts": {
+    "serve": "firebase emulators:start --only functions,firestore",
+    "deploy": "firebase deploy --only functions",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "firebase-admin": "^12.1.0",
+    "firebase-functions": "^5.0.1"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "firebase-functions-test": "^3.2.0"
+  },
+  "private": true
+}
