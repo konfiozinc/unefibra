@@ -60,6 +60,15 @@
       "collectionGroup": "pagos",
       "queryScope": "COLLECTION",
       "fields": [
+        { "fieldPath": "estado", "order": "ASCENDING" },
+        { "fieldPath": "fechaPago", "order": "ASCENDING" },
+        { "fieldPath": "monto", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "collectionGroup": "pagos",
+      "queryScope": "COLLECTION",
+      "fields": [
         { "fieldPath": "metodoPago", "order": "ASCENDING" },
         { "fieldPath": "fechaPago", "order": "DESCENDING" }
       ]
