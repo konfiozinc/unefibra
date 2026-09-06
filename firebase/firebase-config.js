@@ -6,23 +6,15 @@
  *
  * NUNCA coloques aquí: service account, claves privadas,
  * credenciales del Admin SDK ni secretos.
- *
- * PASOS PARA ACTIVAR:
- * 1. Crea un proyecto en https://console.firebase.google.com
- * 2. Añade una "App Web" (Project settings → Your apps → Web).
- * 3. Copia aquí los valores que te entrega la consola.
- * 4. En assets/js/config.js pon  habilitado: true  y pega el
- *    mismo objeto en la propiedad `firebase.config`.
  * ============================================================ */
 
 const firebaseConfig = {
-  apiKey: "FIREBASE_API_KEY",
-  authDomain: "FIREBASE_AUTH_DOMAIN",
-  projectId: "FIREBASE_PROJECT_ID",
-  storageBucket: "FIREBASE_STORAGE_BUCKET",
-  messagingSenderId: "FIREBASE_MESSAGING_SENDER_ID",
-  appId: "FIREBASE_APP_ID"
-  // measurementId es opcional (Analytics)
+  apiKey: "AIzaSyAwQu8B6OafKszXSuL373Di4wyvotc9VWY",
+  authDomain: "une-fibra.firebaseapp.com",
+  projectId: "une-fibra",
+  storageBucket: "une-fibra.firebasestorage.app",
+  messagingSenderId: "215843872771",
+  appId: "1:215843872771:web:4620cbc4a46b9b53a0ae36"
 };
 
 // Se expone globalmente para los módulos del frontend

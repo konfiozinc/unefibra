@@ -87,14 +87,14 @@ window.UNEFIBRAS_CONFIG = {
    * colección `solicitudes_contacto` con estado "NUEVA".
    * ---------------------------------------------------------- */
   firebase: {
-    habilitado: false, // ← cambiar a true tras configurar el proyecto
+    habilitado: true, // ← conectado al proyecto une-fibra
     config: {
-      apiKey: "[TU_API_KEY]",
-      authDomain: "[TU_PROYECTO].firebaseapp.com",
-      projectId: "[TU_PROYECTO]",
-      storageBucket: "[TU_PROYECTO].appspot.com",
-      messagingSenderId: "[SENDER_ID]",
-      appId: "[APP_ID]"
+      apiKey: "AIzaSyAwQu8B6OafKszXSuL373Di4wyvotc9VWY",
+      authDomain: "une-fibra.firebaseapp.com",
+      projectId: "une-fibra",
+      storageBucket: "une-fibra.firebasestorage.app",
+      messagingSenderId: "215843872771",
+      appId: "1:215843872771:web:4620cbc4a46b9b53a0ae36"
     }
   },
 

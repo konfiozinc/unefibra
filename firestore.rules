@@ -1,0 +1,130 @@
+rules_version = '2';
+
+// ============================================================
+// UNEFIBRAS SAS — Firestore Security Rules
+// ------------------------------------------------------------
+// Principios:
+//  · Usuario no autenticado NO accede a datos administrativos.
+//  · Usuario autenticado solo accede a lo que su rol permite.
+//  · El rol se lee de  usuarios/{uid}.rol  (nunca del frontend).
+//  · Las colecciones públicas (planes, métodos de pago y el alta
+//    de solicitudes) son lo ÚNICO accesible sin sesión.
+//
+// IMPORTANTE: el documento usuarios/{uid} debe existir para cada
+// usuario autenticado (se crea vía Cloud Function/Admin SDK).
+//
+// App Check (sección 27): una vez configurado en la consola, se puede
+// reforzar añadiendo `&& request.app_check.token != null` a las reglas
+// de escritura sensibles. No se activa por defecto para no bloquear el
+// desarrollo sin credenciales.
+// ============================================================
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------------- Helpers ----------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function usuarioActual() {
+      return get(/databases/$(database)/documents/usuarios/$(request.auth.uid)).data;
+    }
+
+    function rol() {
+      return isSignedIn() ? usuarioActual().rol : '';
+    }
+
+    function esActivo() {
+      return isSignedIn() && usuarioActual().activo == true;
+    }
+
+    function esSuperAdmin() { return esActivo() && rol() == 'SUPERADMIN'; }
+    function esAdmin()      { return esActivo() && (rol() == 'ADMIN' || rol() == 'SUPERADMIN'); }
+    function esOperador()   { return esActivo() && (rol() == 'OPERADOR' || rol() == 'ADMIN' || rol() == 'SUPERADMIN'); }
+
+    // ---------------- Usuarios ----------------
+    match /usuarios/{userId} {
+      // Cada usuario lee su propio documento; el SUPERADMIN lee todos.
+      allow read: if isSignedIn() && (request.auth.uid == userId || esSuperAdmin());
+      // Solo SUPERADMIN administra usuarios (crear/editar/desactivar).
+      allow create, update, delete: if esSuperAdmin();
+    }
+
+    // ---------------- Público (landing) ----------------
+    // Planes: lectura pública (la landing muestra el precio), escritura solo admin.
+    match /planes/{planId} {
+      allow read: if true;
+      allow write: if esAdmin();
+    }
+
+    // Métodos de pago: lectura pública, administración solo SUPERADMIN.
+    match /metodos_pago/{metodoId} {
+      allow read: if true;
+      allow write: if esSuperAdmin();
+    }
+
+    // Solicitudes de contacto (formulario "Quiero Internet").
+    match /solicitudes_contacto/{solicitudId} {
+      allow create: if request.resource.data.keys().hasAll(['nombre', 'telefono'])
+                    && request.resource.data.nombre is string
+                    && request.resource.data.nombre.size() > 0
+                    && request.resource.data.nombre.size() <= 120
+                    && request.resource.data.telefono is string
+                    && request.resource.data.telefono.size() >= 7
+                    && request.resource.data.telefono.size() <= 20;
+      allow read, update: if esOperador();
+      allow delete: if esSuperAdmin();
+    }
+
+    // ---------------- Operación ----------------
+    match /clientes/{clienteId} {
+      allow read: if esOperador();
+      allow create, update: if esAdmin();
+      allow delete: if false; // NUNCA se eliminan clientes físicamente.
+    }
+
+    match /servicios/{servicioId} {
+      allow read: if esOperador();
+      allow create, update: if esAdmin();
+      allow delete: if false;
+    }
+
+    match /pagos/{pagoId} {
+      allow read: if esOperador();
+      allow create, update: if esAdmin();
+      allow delete: if esSuperAdmin();
+    }
+
+    match /historial_estados/{historialId} {
+      allow read: if esOperador();
+      allow create: if esAdmin();
+      allow update, delete: if false; // Historial inmutable.
+    }
+
+    match /notificaciones/{notificacionId} {
+      allow read: if esOperador();
+      allow create, update: if esAdmin();
+      allow delete: if false;
+    }
+
+    match /tokens_notificacion/{tokenId} {
+      allow read: if esOperador();
+      // Un cliente (portal futuro) registra su propio token tras autorizar.
+      allow create: if true;
+      allow update: if esOperador();
+      allow delete: if esAdmin();
+    }
+
+    match /auditoria/{auditoriaId} {
+      allow read: if esSuperAdmin();
+      allow create: if esOperador();
+      allow update, delete: if false; // Auditoría inmutable.
+    }
+
+    match /configuracion/{configId} {
+      allow read: if esOperador();
+      allow write: if esSuperAdmin();
+    }
+  }
+}
