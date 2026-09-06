@@ -22,7 +22,7 @@ window.UNEFIBRAS_CONFIG = {
     departamento: "Antioquia",
     pais: "Colombia",
     // --- Placeholders: reemplazar con datos reales ---
-    nit: "[NIT]",
+    nit: "9020925655",
     direccion: "[Dirección]",
     telefono: "302 858 9954",
     telefonos: ["302 858 9954", "321 749 0310"],
@@ -43,7 +43,7 @@ window.UNEFIBRAS_CONFIG = {
     // WhatsApp de la empresa: 302 858 9954 → +57 302 858 9954
     numero: "573028589954",
     // Mensaje preconstruido que se usa para el botón flotante
-    mensajeDefault: "Hola, quiero información sobre los planes de Internet y TV por fibra óptica de UneFibra."
+    mensajeDefault: "Hola, quiero información sobre los planes de Internet por fibra óptica de UneFibra."
   },
 
   /* ------------------------------------------------------------

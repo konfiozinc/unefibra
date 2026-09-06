@@ -23,6 +23,8 @@ firestore.rules.bak
 .env
 .env.*
 !.env.example
+CREDENCIALES.txt
+_*.js
 
 # Sistema operativo
 .DS_Store
