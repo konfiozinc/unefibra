@@ -17,13 +17,6 @@
       ]
     },
     {
-      "collectionGroup": "clientes",
-      "queryScope": "COLLECTION",
-      "fields": [
-        { "fieldPath": "documento", "order": "ASCENDING" }
-      ]
-    },
-    {
       "collectionGroup": "servicios",
       "queryScope": "COLLECTION",
       "fields": [
