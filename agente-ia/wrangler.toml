@@ -1,0 +1,8 @@
+# Configuración del Worker del Agente IA de UneFibra
+# Uso:  npx wrangler deploy   (con sesión/token de Cloudflare)
+name = "unefibra-agente"
+main = "worker.js"
+compatibility_date = "2026-01-01"
+
+# La clave de Gemini va como SECRETO:
+#   npx wrangler secret put GEMINI_KEY
