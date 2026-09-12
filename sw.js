@@ -3,14 +3,15 @@
  * Estrategia: cache-first para estáticos, network para el resto.
  * ============================================================ */
 
-const CACHE = "unefibras-v1";
+const CACHE = "unefibras-v2";
 const ASSETS = [
   "./",
   "./index.html",
   "./assets/css/styles.css",
   "./assets/js/config.js",
   "./assets/js/main.js",
-  "./assets/icons/icon.svg",
+  "./assets/icons/icon-192.png",
+  "./assets/img/logo.png",
   "./manifest.json"
 ];
 
