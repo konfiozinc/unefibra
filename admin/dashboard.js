@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: dashboard
+ * UneFibra SAS — Admin: dashboard
  * ------------------------------------------------------------
  * Todos los indicadores provienen de Firestore (sin datos
  * simulados). Si no hay datos, se muestran ceros reales.

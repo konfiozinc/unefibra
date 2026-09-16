@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Configuración pública de Firebase Web
+ * UneFibra SAS — Configuración pública de Firebase Web
  * ------------------------------------------------------------
  * Este archivo contiene SOLO la configuración pública del SDK
  * Web de Firebase (segura de exponer en el frontend).

@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: lista de clientes
+ * UneFibra SAS — Admin: lista de clientes
  * ------------------------------------------------------------
  * Lee clientes reales de Firestore, con búsqueda, filtros por
  * estado y orden (los pendientes se ordenan por mayor atraso).

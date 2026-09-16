@@ -1,7 +1,7 @@
 {
   "name": "unefibras-functions",
   "version": "1.0.0",
-  "description": "Cloud Functions de UNEFIBRAS SAS: operaciones privilegiadas, motor de vencimientos y notificaciones.",
+  "description": "Cloud Functions de UneFibra SAS: operaciones privilegiadas, motor de vencimientos y notificaciones.",
   "main": "src/index.js",
   "type": "commonjs",
   "engines": {

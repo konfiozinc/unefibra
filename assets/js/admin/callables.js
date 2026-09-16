@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: envoltura de Cloud Functions
+ * UneFibra SAS — Admin: envoltura de Cloud Functions
  * ------------------------------------------------------------
  * Devuelve una función callable lista para usar. Las funciones
  * validan el rol del llamador en el servidor (verificarRol).

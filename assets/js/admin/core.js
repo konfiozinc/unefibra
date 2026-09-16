@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: núcleo Firebase (módulo ES)
+ * UneFibra SAS — Admin: núcleo Firebase (módulo ES)
  * ------------------------------------------------------------
  * Inicializa Firebase App/Auth/Firestore desde la configuración
  * centralizada (assets/js/config.js). Expone `isConfigured()` y

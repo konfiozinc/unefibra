@@ -1,4 +1,4 @@
-# Plan de pruebas — UNEFIBRAS SAS
+# Plan de pruebas — UneFibra SAS
 
 > Guía de verificación funcional. Requiere un proyecto Firebase configurado
 > (`README.md → Puesta en marcha`). Puede usarse un proyecto real o los

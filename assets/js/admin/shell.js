@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: shell (sidebar + guard de autenticación)
+ * UneFibra SAS — Admin: shell (sidebar + guard de autenticación)
  * ------------------------------------------------------------
  * - requireAuth(activeKey): verifica sesión + rol y dibuja el
  *   shell (sidebar, topbar, logout). Redirige a index.html si no

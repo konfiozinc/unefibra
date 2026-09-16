@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: utilidades compartidas (módulo ES)
+ * UneFibra SAS — Admin: utilidades compartidas (módulo ES)
  * ------------------------------------------------------------
  * Fechas en zona Colombia (UTC-5), formato de moneda y badges
  * de estado. Usado por las páginas del panel.

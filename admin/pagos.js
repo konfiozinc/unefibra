@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: pagos
+ * UneFibra SAS — Admin: pagos
  * ------------------------------------------------------------
  * Registra pagos (PENDIENTE), confirma (renueva el servicio vía
  * Cloud Function) y anula. Todo con datos reales de Firestore.

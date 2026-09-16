@@ -1,4 +1,4 @@
-# Modelo de datos — UNEFIBRAS SAS (Cloud Firestore)
+# Modelo de datos — UneFibra SAS (Cloud Firestore)
 
 > Documento de referencia del esquema. La fuente de autoridad en ejecución son
 > `firebase/firestore.rules` (seguridad) y `functions/src/index.js` (lógica).

@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: usuarios y roles (SUPERADMIN)
+ * UneFibra SAS — Admin: usuarios y roles (SUPERADMIN)
  * ------------------------------------------------------------
  * Alta de usuarios (crea el usuario en Firebase Auth + documento
  * en `usuarios`), cambio de rol y activación/desactivación.

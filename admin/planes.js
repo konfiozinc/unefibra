@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: planes configurables
+ * UneFibra SAS — Admin: planes configurables
  * ------------------------------------------------------------
  * Permite crear/editar/activar/desactivar planes. El precio y la
  * duración se usan para calcular el vencimiento de los clientes.

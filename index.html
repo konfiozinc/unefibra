@@ -46,7 +46,7 @@
 
   <!-- ============ Datos estructurados (JSON-LD) ============ -->
   <!-- Los datos deben coincidir con assets/js/config.js y con el texto visible.
-       TODO: Reemplazar streetAddress/email con los datos reales definitivos.
+       TODO: Reemplazar streetAddress con la dirección real definitiva.
        TODO: Añadir "sameAs" con las URLs reales cuando existan las redes sociales. -->
   <script type="application/ld+json">
   {
@@ -54,13 +54,12 @@
     "@type": "LocalBusiness",
     "@id": "https://konfiozinc.github.io/unefibra/#empresa",
     "name": "UneFibra SAS",
-    "alternateName": "UNE FIBRA SAS",
-    "description": "Proveedor de Internet 100% fibra óptica en Medellín, Antioquia. Planes desde $50.000 COP, sin contratos de permanencia.",
+    "description": "Proveedor de Internet 100% fibra óptica en el occidente de Medellín, Antioquia. Planes desde $50.000 COP, sin contratos de permanencia.",
     "url": "https://konfiozinc.github.io/unefibra/",
     "image": "https://konfiozinc.github.io/unefibra/assets/img/og-image.png",
     "logo": "https://konfiozinc.github.io/unefibra/assets/img/logo.png",
     "telephone": "+573028589954",
-    "email": "info@unefibra.co",
+    "email": "unefibra81@gmail.com",
     "priceRange": "$$",
     "currenciesAccepted": "COP",
     "openingHours": "Mo-Sa 08:00-18:00",
@@ -71,13 +70,35 @@
       "addressRegion": "Antioquia",
       "addressCountry": "CO"
     },
-    "areaServed": {
-      "@type": "City",
-      "name": "Medellín"
-    },
+    "areaServed": [
+      { "@type": "City", "name": "Medellín" },
+      { "@type": "Place", "name": "Ciudadela Nuevo Occidente" },
+      { "@type": "Place", "name": "La Aurora" },
+      { "@type": "Place", "name": "La Libertad" },
+      { "@type": "Place", "name": "Sector Las Fresitas" },
+      { "@type": "Place", "name": "Nazaret" },
+      { "@type": "Place", "name": "El Tirol" },
+      { "@type": "Place", "name": "Robledo La Campiña" },
+      { "@type": "Place", "name": "El Cucaracho" },
+      { "@type": "Place", "name": "Mirador del Valle" },
+      { "@type": "Place", "name": "Los Cantares" },
+      { "@type": "Place", "name": "Ventó 1" },
+      { "@type": "Place", "name": "Mirador de la Cascada" },
+      { "@type": "Place", "name": "Portón Nuevo Occidente" },
+      { "@type": "Place", "name": "Pedregal Bajo" },
+      { "@type": "Place", "name": "La Montaña" },
+      { "@type": "Place", "name": "La Cascada" },
+      { "@type": "Place", "name": "Las Flores" },
+      { "@type": "Place", "name": "Las Violetas" },
+      { "@type": "Place", "name": "Sector La Campiña" },
+      { "@type": "Place", "name": "Sector El Cucaracho" },
+      { "@type": "Place", "name": "Sector Los Loquitos" },
+      { "@type": "Place", "name": "Sector Lucitania" }
+    ],
     "contactPoint": {
       "@type": "ContactPoint",
       "telephone": "+573028589954",
+      "email": "unefibra81@gmail.com",
       "contactType": "customer service",
       "areaServed": "CO",
       "availableLanguage": "es"
@@ -88,7 +109,7 @@
         "@type": "Service",
         "name": "Internet por fibra óptica",
         "serviceType": "Internet de banda ancha por fibra óptica",
-        "areaServed": "Medellín"
+        "areaServed": "Occidente de Medellín"
       }
     }
   }
@@ -267,26 +288,52 @@
       <div class="container">
         <div class="section__head">
           <span class="eyebrow">Cobertura</span>
-          <h2 class="section__title">Empezamos en Medellín</h2>
-          <p class="section__subtitle">Nuestra zona inicial de operación.</p>
+          <h2 class="section__title">Occidente de Medellín</h2>
+          <p class="section__subtitle">Sectores donde ya tenemos red de fibra óptica instalada.</p>
         </div>
 
         <div class="coverage">
           <div class="coverage__map">
+            <!-- Mapa centrado en el barrio Robledo, sector El Cucaracho.
+                 Para cambiarlo: edita la consulta `q` (cobertura.zonaMapa en config.js). -->
             <iframe
-              src="https://www.google.com/maps?q=Medell%C3%ADn%2C%20Antioquia%2C%20Colombia&z=12&output=embed"
-              title="Mapa de cobertura — Medellín, Antioquia"
+              src="https://www.google.com/maps?q=El%20Cucaracho%2C%20Robledo%2C%20Medell%C3%ADn%2C%20Antioquia%2C%20Colombia&z=15&output=embed"
+              title="Mapa de cobertura — sector El Cucaracho, barrio Robledo (Medellín)"
               loading="lazy"
               referrerpolicy="no-referrer-when-downgrade"
               allowfullscreen></iframe>
           </div>
           <div class="coverage__body">
-            <h3>Medellín, Antioquia</h3>
-            <p class="js-cobertura-nota">Iniciamos operación en Medellín, Antioquia. Próximamente ampliaremos la cobertura.</p>
+            <h3>Robledo y Nuevo Occidente</h3>
+            <p class="js-cobertura-nota">Cobertura en el occidente de Medellín y sectores aledaños. Verifica disponibilidad en tu sector al contactarnos.</p>
+            <!-- Lista estática (visible sin JavaScript y para los buscadores).
+                 config.js → cobertura.zonas es la fuente de verdad y main.js
+                 vuelve a pintar estos chips a partir de ella: mantenlas en sincronía. -->
             <ul class="coverage__zones js-cobertura-zonas">
-              <li>Medellín</li>
+              <li>Ciudadela Nuevo Occidente</li>
+              <li>La Aurora</li>
+              <li>La Libertad</li>
+              <li>Sector Las Fresitas</li>
+              <li>Nazaret</li>
+              <li>El Tirol</li>
+              <li>Robledo La Campiña</li>
+              <li>El Cucaracho</li>
+              <li>Mirador del Valle</li>
+              <li>Los Cantares</li>
+              <li>Ventó 1</li>
+              <li>Mirador de la Cascada</li>
+              <li>Portón Nuevo Occidente</li>
+              <li>Pedregal Bajo</li>
+              <li>La Montaña</li>
+              <li>La Cascada</li>
+              <li>Las Flores</li>
+              <li>Las Violetas</li>
+              <li>Sector La Campiña</li>
+              <li>Sector El Cucaracho</li>
+              <li>Sector Los Loquitos</li>
+              <li>Sector Lucitania</li>
             </ul>
-            <a class="btn btn--primary" href="#contacto">Consulta si llegamos a tu barrio</a>
+            <a class="btn btn--primary" href="#contacto">Consulta si llegamos a tu sector</a>
           </div>
         </div>
       </div>
@@ -536,7 +583,7 @@
              El texto visible queda como respaldo si falla el JavaScript. -->
         <a class="footer__item js-emp-telefono" href="tel:+573028589954">302 858 9954</a>
         <a class="footer__item js-emp-telefono-2" href="tel:+573217490310">321 749 0310</a>
-        <a class="footer__item js-emp-email" href="mailto:info@unefibra.co">info@unefibra.co</a>
+        <a class="footer__item js-emp-email" href="mailto:unefibra81@gmail.com">unefibra81@gmail.com</a>
         <span class="footer__item js-emp-direccion">Calle 100 # 15-20, Medellín</span>
         <span class="footer__item js-emp-horario">Lunes a sábado, 8:00 a.m. – 6:00 p.m.</span>
         <a class="footer__item js-whatsapp" href="#" data-mensaje="Hola, quiero información sobre UneFibra.">WhatsApp</a>
@@ -544,12 +591,12 @@
 
       <div class="footer__col footer__legal">
         <h3>Empresa</h3>
-        <span class="footer__item js-emp-legal">UNE FIBRA SAS</span>
+        <span class="footer__item js-emp-legal">UneFibra SAS</span>
         <span class="footer__item js-emp-nit">NIT: 9020925655</span>
       </div>
     </div>
     <div class="container footer__bottom">
-      <span>© <span id="year"></span> UNE FIBRA SAS. Todos los derechos reservados.</span>
+      <span>© <span id="year"></span> UneFibra SAS. Todos los derechos reservados.</span>
       <span>Medellín, Antioquia, Colombia.</span>
     </div>
   </footer>

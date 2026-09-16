@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Cloud Functions
+ * UneFibra SAS — Cloud Functions
  * ------------------------------------------------------------
  * Operaciones privilegiadas + motor de vencimientos + push.
  *
@@ -746,7 +746,7 @@ exports.seedDemo = functions.https.onCall(async (data, context) => {
       documento: c.doc,
       telefono: "3000000000",
       whatsapp: "3000000000",
-      email: "demo@unefibras.co",
+      email: "demo@unefibra.co",
       direccion: "Calle DEMO 123",
       barrio: c.barrio,
       ciudad: "Medellín",

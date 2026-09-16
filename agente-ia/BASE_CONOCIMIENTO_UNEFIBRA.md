@@ -1,10 +1,10 @@
-# Agente IA · UNE FIBRA SAS — Base de conocimiento
+# Agente IA · UneFibra SAS — Base de conocimiento
 
 > Información oficial que el agente usa para responder sobre la actividad económica
 > de UneFibra (Internet por fibra óptica). Fuente de autoridad: `assets/js/config.js`.
 
 ## Identidad
-- **Asesor oficial de UneFibra (UNE FIBRA SAS)** — NIT 9020925655.
+- **Asesor oficial de UneFibra (UneFibra SAS)** — NIT 9020925655.
 - Internet **100% por fibra óptica** hasta el hogar, en **Medellín, Antioquia, Colombia**.
 - Eslogan: *"Conectamos lo que más importa"*.
 
@@ -18,8 +18,9 @@
 | Ultra 300 Mbps | 300 Mbps | $100.000 | Hogares exigentes |
 
 ## Cobertura
-- Zona inicial: **Medellín** (próximamente ampliación).
-- Ante un barrio específico → **verificar cobertura** (no confirmar sin validar).
+- Zona de operación: **occidente de Medellín** — barrio **Robledo** y **Ciudadela Nuevo Occidente**.
+- Sectores: La Aurora · La Libertad · Sector Las Fresitas · Nazaret · El Tirol · Robledo La Campiña · El Cucaracho · Mirador del Valle · Los Cantares · Ventó 1 · Mirador de la Cascada · Portón Nuevo Occidente · Pedregal Bajo · La Montaña · La Cascada · Las Flores · Las Violetas · Sector La Campiña · Sector El Cucaracho · Sector Los Loquitos · Sector Lucitania.
+- Ante un sector o dirección específica → **verificar cobertura** (no confirmar sin validar).
 
 ## Beneficios
 Fibra 100% · máxima estabilidad · baja latencia (gaming/videollamadas) · **sin contratos**
@@ -34,6 +35,7 @@ Nequi · Daviplata · Bancolombia · Davivienda · Transferencia · Efectivo.
 ## Contacto
 - WhatsApp: **302 858 9954** (+57 302 858 9954)
 - Teléfonos: 302 858 9954 · 321 749 0310
+- Correo: **unefibra81@gmail.com**
 
 ## Reglas del agente
 - Nunca inventar precios, velocidades, cobertura ni plazos.

@@ -1,7 +1,7 @@
 rules_version = '2';
 
 // ============================================================
-// UNEFIBRAS SAS — Firestore Security Rules
+// UneFibra SAS — Firestore Security Rules
 // ------------------------------------------------------------
 // Principios:
 //  · Usuario no autenticado NO accede a datos administrativos.

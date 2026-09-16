@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: notificaciones
+ * UneFibra SAS — Admin: notificaciones
  * ------------------------------------------------------------
  * Lista el registro de notificaciones (colección `notificaciones`)
  * y permite enviar una notificación push manual vía Cloud Function.

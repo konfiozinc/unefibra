@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: auditoría (SUPERADMIN)
+ * UneFibra SAS — Admin: auditoría (SUPERADMIN)
  * ------------------------------------------------------------
  * Registro inmutable de operaciones importantes (colección
  * `auditoria`), con búsqueda por acción/entidad/usuario.

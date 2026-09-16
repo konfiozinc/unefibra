@@ -1,6 +1,6 @@
-# UNEFIBRAS SAS — Plataforma Web
+# UneFibra SAS — Plataforma Web
 
-Sistema operativo digital de **UNEFIBRAS SAS**, prestadora de servicios de Internet
+Sistema operativo digital de **UneFibra SAS**, prestadora de servicios de Internet
 por fibra óptica en Medellín, Antioquia, Colombia.
 
 Composición:
@@ -10,7 +10,7 @@ Composición:
 - **Backend Firebase** — Firestore, Authentication, Cloud Functions, FCM.
 
 > Estado del proyecto: **FASES 1–10 completadas** — sistema web integral de
-> UNEFIBRAS SAS entregado (código completo y documentado). La activación en vivo
+> UneFibra SAS entregado (código completo y documentado). La activación en vivo
 > requiere conectar las credenciales Firebase del propietario
 > (ver `docs/DESPLEGUE.md` y `docs/PLAN_PRUEBAS.md`).
 
@@ -90,12 +90,26 @@ Todo vive en `assets/js/config.js` (sección `empresa`) y en el texto visible de
 
 | Dato | Estado | Dónde |
 |---|---|---|
-| NIT 9020925655 · teléfonos · WhatsApp | ✅ Confirmado | `config.js → empresa` / `whatsapp` |
+| Email (`unefibra81@gmail.com`) | ✅ Confirmado | `config.js → empresa.email` + JSON-LD + footer |
+| Teléfonos · WhatsApp | ✅ Confirmado | `config.js → empresa` / `whatsapp` |
+| Cobertura (22 sectores del occidente de Medellín) | ✅ Confirmado | `config.js → cobertura.zonas` + copia estática en `index.html` |
+| Nombre legal (`UneFibra SAS`) | ✅ Indicado por el cliente | `config.js → empresa.nombreLegal` + footer + JSON-LD |
 | Dirección (`Calle 100 # 15-20, Medellín`) | ⚠️ Provisional | `config.js → empresa.direccion` + JSON-LD de `index.html` |
-| Email (`info@unefibra.co`) | ⚠️ Provisional | `config.js → empresa.email` + JSON-LD |
+| NIT (`9020925655`) | ⚠️ Provisional | `config.js → empresa.nit` + footer |
 | Facebook / Instagram / TikTok | ❌ La cuenta no existe aún | `config.js → empresa.redes` |
 | Velocidades y precios | ✅ Confirmado | `config.js → planes[]` |
 | App Check (reCAPTCHA v3) | ❌ Desactivado | `config.js → appCheck` |
+
+**Marca**: siempre `UneFibra` (pegado, U y F mayúsculas) y `UneFibra SAS` como
+nombre legal. No usar "UNE FIBRA", "UNEFIBRAS", "Une fibra" ni "UNEFIBRAS SAS".
+Ojo: los identificadores técnicos `window.UNEFIBRAS_CONFIG`, `unefibras-functions`
+y la caché `unefibras-v3` **no** son marca y no se renombran.
+
+**Cobertura**: `cobertura.zonas` es la fuente de verdad y `main.js` pinta los chips
+desde ahí; la misma lista está escrita de forma estática en `index.html`
+(`#cobertura`) para que se vea sin JavaScript y la indexen los buscadores. Al
+cambiar la cobertura, mantén ambas en sincronía. El mapa apunta al sector
+El Cucaracho (barrio Robledo) mediante `cobertura.zonaMapa`.
 
 Sobre las redes sociales: `empresa.redes.confirmadas` está en `false`, así que la
 landing **no** pinta ningún enlace a redes (evita enlaces muertos o cuentas de

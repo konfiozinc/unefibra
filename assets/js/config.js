@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Configuración centralizada
+ * UneFibra SAS — Configuración centralizada
  * ------------------------------------------------------------
  * Toda la información pública editable vive aquí (sección 41
  * del Expediente Técnico Maestro). No dupliques estos datos en
@@ -10,9 +10,14 @@
  * están pendientes de confirmación por parte de la empresa.
  *
  * Estado de los datos (revisado):
- *   ✔ NIT, teléfonos, WhatsApp  → confirmados
- *   ⚠ dirección, email          → provisionales (proporcionados por el cliente)
+ *   ✔ email, teléfonos, WhatsApp, cobertura → confirmados por el cliente
+ *   ⚠ dirección, NIT            → provisionales (pendientes de verificar)
  *   ⚠ redes sociales            → las cuentas todavía no existen
+ *
+ * Marca: SIEMPRE "UneFibra" (pegado, con U y F mayúsculas) y
+ * "UneFibra SAS" como nombre legal. Nunca la escribas en mayúsculas
+ * sostenidas, en plural ni separada con espacio (revisa index.html,
+ * metadatos y JSON-LD antes de publicar). Ver README.md.
  * ============================================================ */
 
 window.UNEFIBRAS_CONFIG = {
@@ -21,23 +26,28 @@ window.UNEFIBRAS_CONFIG = {
    * ---------------------------------------------------------- */
   empresa: {
     nombre: "UneFibra",
-    nombreLegal: "UNE FIBRA SAS",
+    // TODO: Verificar contra el RUT / Cámara de Comercio. El cliente indicó
+    // "UneFibra SAS"; si el registro mercantil usa otra forma (por ejemplo,
+    // las palabras separadas y en mayúsculas sostenidas), el aviso legal del
+    // footer debería usar la razón social registrada tal cual aparece en el RUT.
+    nombreLegal: "UneFibra SAS",
     slogan: "Conectamos lo que más importa",
     ciudad: "Medellín",
     departamento: "Antioquia",
     pais: "Colombia",
+
+    // TODO: Reemplazar con dato real (pendiente de confirmación por la empresa).
     nit: "9020925655",
 
-    // TODO: Reemplazar con dato real (provisional, confirmado por el cliente).
+    // TODO: Reemplazar con dato real (provisional, indicado por el cliente).
     // Si la dirección cambia, actualízala también en el JSON-LD de index.html.
     direccion: "Calle 100 # 15-20, Medellín",
 
     telefono: "302 858 9954",
     telefonos: ["302 858 9954", "321 749 0310"],
 
-    // TODO: Reemplazar con dato real cuando exista la cuenta corporativa.
-    // (El dominio unefibra.co ya está en uso por el panel administrativo.)
-    email: "info@unefibra.co",
+    // Correo oficial indicado por el cliente.
+    email: "unefibra81@gmail.com",
 
     // Horario de atención (se muestra en el footer y en el JSON-LD).
     horario: "Lunes a sábado, 8:00 a.m. – 6:00 p.m.",
@@ -106,11 +116,44 @@ window.UNEFIBRAS_CONFIG = {
   ],
 
   /* ------------------------------------------------------------
-   * Cobertura (zona inicial de operación)
+   * Cobertura — occidente de Medellín (lista oficial del cliente).
+   * OJO: la landing también lleva esta lista escrita de forma
+   * estática en index.html (#cobertura) para que se vea sin
+   * JavaScript y la indexen los buscadores. Este arreglo manda:
+   * main.js vuelve a renderizar los chips a partir de aquí, así
+   * que al cambiar la cobertura basta con editar este archivo
+   * (y, opcionalmente, la copia estática del HTML).
+   * La lista original repetía "Sector Las Fresitas": se dejó una
+   * sola vez.
    * ---------------------------------------------------------- */
   cobertura: {
-    zonas: ["Medellín"],
-    nota: "Iniciamos operación en Medellín, Antioquia. Próximamente ampliaremos la cobertura."
+    zonas: [
+      "Ciudadela Nuevo Occidente",
+      "La Aurora",
+      "La Libertad",
+      "Sector Las Fresitas",
+      "Nazaret",
+      "El Tirol",
+      "Robledo La Campiña",
+      "El Cucaracho",
+      "Mirador del Valle",
+      "Los Cantares",
+      "Ventó 1",
+      "Mirador de la Cascada",
+      "Portón Nuevo Occidente",
+      "Pedregal Bajo",
+      "La Montaña",
+      "La Cascada",
+      "Las Flores",
+      "Las Violetas",
+      "Sector La Campiña",
+      "Sector El Cucaracho",
+      "Sector Los Loquitos",
+      "Sector Lucitania"
+    ],
+    // Zona de referencia para el mapa de la landing (barrio Robledo).
+    zonaMapa: "El Cucaracho, Robledo, Medellín, Antioquia, Colombia",
+    nota: "Cobertura en el occidente de Medellín y sectores aledaños. Verifica disponibilidad en tu sector al contactarnos."
   },
 
   /* ------------------------------------------------------------
@@ -176,35 +219,27 @@ window.UNEFIBRAS_CONFIG = {
   ],
 
   /* ------------------------------------------------------------
-   * Barrios sugeridos (autocompletado del formulario).
-   * Son barrios reales de Medellín usados como sugerencia; no
-   * implican cobertura confirmada (esa se valida al contactar).
+   * Barrios/sectores sugeridos (autocompletado del formulario).
+   * Se deja vacío a propósito: main.js usa la lista de cobertura
+   * (`cobertura.zonas`) para no sugerir sectores donde no hay
+   * servicio. Si algún día quieres sugerencias distintas de la
+   * cobertura, llena este arreglo y tendrá prioridad.
    * ---------------------------------------------------------- */
-  barriosSugeridos: [
-    "Belén",
-    "Laureles",
-    "La América",
-    "Robledo",
-    "Castilla",
-    "Doce de Octubre",
-    "Aranjuez",
-    "Manrique",
-    "Buenos Aires",
-    "El Poblado",
-    "Guayabal",
-    "San Javier",
-    "La Candelaria",
-    "Villa Hermosa"
-  ]
+  barriosSugeridos: []
 };
 
 /* ------------------------------------------------------------
  * NOTA sobre secciones estáticas de index.html
  * ------------------------------------------------------------
- * Las secciones "Garantías" y "Testimonios" viven directamente en
- * index.html (no se renderizan desde este archivo) para que su
- * contenido sea visible sin ejecutar JavaScript y para que los
- * buscadores lo indexen. Para editarlas, abre index.html.
+ * Las secciones "Garantías", "Testimonios" y la lista de sectores
+ * de "Cobertura" viven directamente en index.html (no se
+ * renderizan desde este archivo) para que su contenido sea visible
+ * sin ejecutar JavaScript y para que los buscadores lo indexen.
+ * Para editarlas, abre index.html.
+ *
+ * La cobertura es la excepción parcial: `cobertura.zonas` de este
+ * archivo es la fuente de verdad y main.js vuelve a pintar los
+ * chips en el HTML. Mantén ambas listas en sincronía al cambiarlas.
  *
  * Los testimonios actuales son PLACEHOLDERS plausibles
  * (// TODO: Reemplazar con testimonios reales) y NO se declaran

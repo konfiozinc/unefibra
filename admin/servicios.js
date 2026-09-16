@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: lista de servicios
+ * UneFibra SAS — Admin: lista de servicios
  * ------------------------------------------------------------
  * Lee la colección `servicios` (entidad distinta del cliente) y
  * la cruza con clientes/planes para mostrar un listado útil.

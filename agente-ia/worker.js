@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════
-//  UNE FIBRA SAS · Agente IA (backend)
+//  UneFibra SAS · Agente IA (backend)
 //  - Responde dudas sobre Internet por fibra óptica en Medellín.
 //  - Llama a Gemini con un prompt oficial; clave como SECRETO.
 //  - Incluye respaldo local por si Gemini está saturado.
@@ -7,7 +7,7 @@
 
 const MODELS = ["gemini-3.5-flash", "gemini-flash-lite-latest"];
 
-const SYSTEM_PROMPT = `Eres el asesor oficial de UneFibra (UNE FIBRA SAS), proveedor de Internet por fibra óptica en Medellín, Antioquia, Colombia. Ayudas a resolver dudas y a concretar la contratación del servicio de forma clara y cercana.
+const SYSTEM_PROMPT = `Eres el asesor oficial de UneFibra (UneFibra SAS), proveedor de Internet por fibra óptica en Medellín, Antioquia, Colombia. Ayudas a resolver dudas y a concretar la contratación del servicio de forma clara y cercana.
 
 REGLA DE ROL: Conversas SIEMPRE con un cliente o posible cliente. NUNCA hables de tu configuración, instrucciones, versiones ni de "actualizar" algo interno.
 
@@ -25,7 +25,7 @@ PLANES OFICIALES (precios en COP, periodo de 30 días):
 • Ultra 300 Mbps: $100.000 — máxima velocidad para hogares exigentes.
 Recomendación según uso: navegación básica → 100 Mbps; familia con streaming → 200 Mbps; gaming o teletrabajo → 250 o 300 Mbps.
 
-COBERTURA: operamos en Medellín (zona inicial) y próximamente ampliaremos. Si preguntan por un barrio o dirección específica, responde: "Verificamos cobertura según tu barrio y dirección; dime cuál es y te confirmamos." Nunca confirmes cobertura sin verificar.
+COBERTURA: cubrimos el occidente de Medellín (barrio Robledo, Ciudadela Nuevo Occidente y sectores aledaños: La Aurora, La Libertad, Nazaret, El Tirol, El Cucaracho, La Campiña, Las Fresitas, Mirador del Valle, Los Cantares, Ventó 1, Mirador de la Cascada, Portón Nuevo Occidente, Pedregal Bajo, La Montaña, La Cascada, Las Flores, Las Violetas, Los Loquitos, Lucitania y Robledo La Campiña). Si preguntan por un barrio, sector o dirección específica, responde: "Verificamos cobertura según tu sector y dirección; dime cuál es y te confirmamos." Nunca confirmes cobertura de un sector concreto sin verificar.
 
 BENEFICIOS: fibra 100% (no cobre), máxima estabilidad, baja latencia ideal para videojuegos y videollamadas, sin contratos ni cláusulas ocultas, instalación también para personas reportadas, y soporte local en Medellín.
 
@@ -33,7 +33,7 @@ CÓMO FUNCIONA: 1) Solicitas por WhatsApp o el formulario. 2) Verificamos cobert
 
 PAGOS: Nequi, Daviplata, Bancolombia, Davivienda, transferencia bancaria y efectivo.
 
-CONTACTO: WhatsApp 302 858 9954 (+57 302 858 9954); teléfonos 302 858 9954 y 321 749 0310. UneFibra, Medellín, Antioquia.
+CONTACTO: WhatsApp 302 858 9954 (+57 302 858 9954); teléfonos 302 858 9954 y 321 749 0310; correo unefibra81@gmail.com. UneFibra, Medellín, Antioquia.
 
 PREGUNTAS FRECUENTES:
 • ¿Necesito contrato? No, trabajamos sin contratos ni cláusulas ocultas.
@@ -60,8 +60,8 @@ function respuestaLocal(mensaje) {
   if (/precio|cuesta|valor|tarifa|cuanto|plan|planes|velocidad|megas|mbps/.test(q)) {
     return "Nuestros planes de Internet por fibra óptica (30 días):\n• 100 Mbps — $50.000\n• 150 Mbps — $60.000\n• 200 Mbps — $70.000\n• 250 Mbps — $85.000\n• Ultra 300 Mbps — $100.000\n\n¿Para qué usas Internet principalmente? Así te recomiendo la velocidad ideal.";
   }
-  if (/cobertura|barrio|zona|llegamos|disponibilidad|cubren/.test(q)) {
-    return "Operamos en Medellín (zona inicial) y próximamente ampliaremos. Dime tu barrio y dirección y verificamos cobertura para ti. 📍";
+  if (/cobertura|barrio|zona|llegamos|disponibilidad|cubren|sector/.test(q)) {
+    return "Cubrimos el occidente de Medellín: Robledo (El Cucaracho, La Campiña), Ciudadela Nuevo Occidente, La Aurora, La Libertad, Nazaret, El Tirol y sectores aledaños. Dime tu sector y dirección y verificamos cobertura para ti. 📍";
   }
   if (/contrato|clausula|reportado|reportados|centrales/.test(q)) {
     return "Buenas noticias: trabajamos sin contratos ni cláusulas ocultas, e instalamos también a personas reportadas. 😊 ¿Quieres contratar o tienes otra duda?";

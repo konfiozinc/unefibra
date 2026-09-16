@@ -65,14 +65,17 @@
     if (/precio|cuesta|valor|tarifa|cuanto|plan|planes|velocidad|megas|mbps/.test(q)) {
       return "Planes de Internet por fibra (30 días):\n100 Mbps $50.000 · 150 Mbps $60.000 · 200 Mbps $70.000 · 250 Mbps $85.000 · 300 Mbps $100.000.\n\n¿Para qué usas Internet? Te recomiendo la velocidad.";
     }
-    if (/cobertura|barrio|zona|llegamos|cubren|disponibilidad/.test(q)) {
-      return "Operamos en Medellín (zona inicial). Dime tu barrio y dirección y verificamos cobertura. 📍";
+    if (/cobertura|barrio|zona|llegamos|cubren|disponibilidad|sector/.test(q)) {
+      return "Cubrimos el occidente de Medellín: Ciudadela Nuevo Occidente, Robledo (El Cucaracho, La Campiña), Nazaret, La Aurora, La Libertad, El Tirol y sectores aledaños. Dime tu barrio o sector y verificamos. 📍";
     }
     if (/contrato|reportado|reportados|clausula/.test(q)) {
       return "Sin contratos ni cláusulas, e instalamos también a reportados. 😊";
     }
     if (/pago|pagar|nequi|daviplata|bancolombia|davivienda|transferencia|efectivo/.test(q)) {
       return "Aceptamos Nequi, Daviplata, Bancolombia, Davivienda, transferencia y efectivo. 💳";
+    }
+    if (/correo|email|e-mail|escribir|contacto/.test(q)) {
+      return "Puedes escribirnos a unefibra81@gmail.com o por WhatsApp al 302 858 9954. 📧";
     }
     if (/falla|no funciona|caido|lento|soporte|sin servicio/.test(q)) {
       return "Escríbenos por WhatsApp al 302 858 9954 con tu nombre y dirección; soporte te atiende. 🙏";

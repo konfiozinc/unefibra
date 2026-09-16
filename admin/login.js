@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: login
+ * UneFibra SAS — Admin: login
  * ------------------------------------------------------------
  * Autentica con Firebase Auth (email/password) y verifica que el
  * usuario exista en `usuarios/{uid}` y esté activo antes de entrar.

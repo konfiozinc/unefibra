@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Service Worker (PWA)
+ * UneFibra SAS — Service Worker (PWA)
  * Estrategia:
  *   · Navegaciones → network-first (con fallback a caché)
  *   · CSS/JS       → stale-while-revalidate (respuesta rápida y

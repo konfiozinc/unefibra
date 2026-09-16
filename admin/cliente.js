@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: ficha individual del cliente
+ * UneFibra SAS — Admin: ficha individual del cliente
  * ------------------------------------------------------------
  * Muestra datos personales, servicio, pagos recientes e historial
  * de estados (todo real desde Firestore) y permite acciones

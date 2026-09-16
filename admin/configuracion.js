@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: configuración (SUPERADMIN)
+ * UneFibra SAS — Admin: configuración (SUPERADMIN)
  * ------------------------------------------------------------
  *  · Métodos de pago (colección `metodos_pago`): alta, activar/
  *    desactivar y eliminar. Se muestran en la landing.

@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Landing page
+ * UneFibra SAS — Landing page
  * Toda la información editable proviene de assets/js/config.js
  * (window.UNEFIBRAS_CONFIG). Nada se hardcodea aquí.
  * ============================================================ */
@@ -164,10 +164,16 @@
       });
     }
 
-    // Repoblar barrios sugeridos
+    // Repoblar barrios sugeridos.
+    // Si no hay lista propia, se usan los sectores con cobertura real:
+    // así el formulario nunca sugiere zonas donde no hay servicio.
     const dl = $("#barrios");
     if (dl) {
-      (CFG.barriosSugeridos || []).forEach((b) => {
+      const sugeridos = (CFG.barriosSugeridos && CFG.barriosSugeridos.length)
+        ? CFG.barriosSugeridos
+        : ((CFG.cobertura && CFG.cobertura.zonas) || []);
+      dl.innerHTML = ""; // evita duplicar si el HTML ya trae opciones
+      sugeridos.forEach((b) => {
         const opt = document.createElement("option");
         opt.value = b;
         dl.appendChild(opt);

@@ -1,5 +1,5 @@
 /* ============================================================
- * UNEFIBRAS SAS — Admin: placeholder honesto de módulos
+ * UneFibra SAS — Admin: placeholder honesto de módulos
  * ------------------------------------------------------------
  * Renderiza el shell y un aviso claro de que el módulo se
  * implementará en una fase posterior. NO usa datos simulados.
