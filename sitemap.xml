@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Sitemap de la landing pública de UneFibra.
+  OJO: GitHub Pages sirve este archivo en /unefibra/sitemap.xml.
+  Como el dominio konfiozinc.github.io es de otro repositorio, los
+  buscadores no leen un robots.txt dentro de /unefibra/: envía este
+  sitemap manualmente desde Google Search Console.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://konfiozinc.github.io/unefibra/</loc>
+    <lastmod>2026-09-15</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

@@ -47,9 +47,11 @@ React/Vite porque GitHub Pages no ejecuta build y este alcance no lo justifica.
 unefibras/
 ├── index.html                 # Landing (FASE 2)
 ├── manifest.json · sw.js      # PWA (FASE 2)
+├── sitemap.xml                # SEO — enviar a Google Search Console
 ├── assets/
-│   ├── css/                   # styles.css (landing) · admin.css (panel)
+│   ├── css/                   # styles.css (landing) · admin.css (panel) · agente.css
 │   ├── js/                    # config.js, main.js · admin/ (core, shell, stub)
+│   ├── fonts/                 # Inter + Sora (woff2 autoalojadas, subset latin)
 │   ├── img/  icons/
 ├── admin/                     # Panel privado (login + dashboard + módulos)
 │   ├── index.html  login.js   #   autenticación
@@ -81,21 +83,33 @@ unefibras/
    - `firebase/firebase-config.js`
    - `assets/js/config.js` → `firebase.config` (y pon `habilitado: true`)
 
-### 2. Reemplazar placeholders
+### 2. Datos empresariales: qué está confirmado y qué falta
 
-Todos los datos empresariales pendientes están marcados con `[PLACEHOLDER]`
-o `FIREBASE_...` y viven **solo** en `assets/js/config.js` y
-`firebase/firebase-config.js`:
+Todo vive en `assets/js/config.js` (sección `empresa`) y en el texto visible de
+`index.html`. Los pendientes están marcados con `// TODO: Reemplazar con dato real`.
 
-| Dato | Dónde |
-|---|---|
-| API Key / projectId / appId | `firebase/firebase-config.js` + `assets/js/config.js` |
-| NIT, dirección, teléfono, email, redes | `assets/js/config.js → empresa` |
-| Número de WhatsApp | `assets/js/config.js → whatsapp.numero` |
-| Velocidades y precios | `assets/js/config.js → planes[]` |
+| Dato | Estado | Dónde |
+|---|---|---|
+| NIT 9020925655 · teléfonos · WhatsApp | ✅ Confirmado | `config.js → empresa` / `whatsapp` |
+| Dirección (`Calle 100 # 15-20, Medellín`) | ⚠️ Provisional | `config.js → empresa.direccion` + JSON-LD de `index.html` |
+| Email (`info@unefibra.co`) | ⚠️ Provisional | `config.js → empresa.email` + JSON-LD |
+| Facebook / Instagram / TikTok | ❌ La cuenta no existe aún | `config.js → empresa.redes` |
+| Velocidades y precios | ✅ Confirmado | `config.js → planes[]` |
+| App Check (reCAPTCHA v3) | ❌ Desactivado | `config.js → appCheck` |
 
-**No se inventa** información legal ni de cobertura: se dejan placeholders
-claramente identificados hasta disponer de los datos reales.
+Sobre las redes sociales: `empresa.redes.confirmadas` está en `false`, así que la
+landing **no** pinta ningún enlace a redes (evita enlaces muertos o cuentas de
+terceros). Cuando existan las cuentas reales: pega las URLs, pon
+`confirmadas: true` y añádelas también en `sameAs` del JSON-LD.
+
+Los testimonios de la sección `#testimonios` y las garantías de `#garantias` son
+texto estático en `index.html` (para que se lean sin JavaScript y los indexen los
+buscadores). Los testimonios actuales son **placeholders plausibles** y deben
+reemplazarse por casos reales antes de darlos por definitivos; por eso **no** se
+declaran como `review`/`aggregateRating` en el JSON-LD.
+
+**No se inventa** información legal ni de cobertura: lo que falta queda
+identificado con su `TODO` hasta disponer del dato real.
 
 ### 3. Firebase CLI (funciones + reglas + índices)
 

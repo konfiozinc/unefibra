@@ -1,17 +1,26 @@
 /* ============================================================
  * UNEFIBRAS SAS — Service Worker (PWA)
- * Estrategia: cache-first para estáticos, network para el resto.
+ * Estrategia:
+ *   · Navegaciones → network-first (con fallback a caché)
+ *   · CSS/JS       → stale-while-revalidate (respuesta rápida y
+ *                    actualización en segundo plano, para que un
+ *                    despliegue nuevo no quede "congelado")
+ *   · Imágenes/fuentes → cache-first
  * ============================================================ */
 
-const CACHE = "unefibras-v2";
+const CACHE = "unefibras-v3";
 const ASSETS = [
   "./",
   "./index.html",
   "./assets/css/styles.css",
+  "./assets/css/agente.css",
   "./assets/js/config.js",
   "./assets/js/main.js",
   "./assets/icons/icon-192.png",
   "./assets/img/logo.png",
+  "./assets/img/logo.webp",
+  "./assets/fonts/inter-latin-var.woff2",
+  "./assets/fonts/sora-latin-var.woff2",
   "./manifest.json"
 ];
 
@@ -52,7 +61,25 @@ self.addEventListener("fetch", (event) => {
     return;
   }
 
-  // Estáticos: cache-first
+  // Estilos y scripts: stale-while-revalidate
+  if (request.destination === "style" || request.destination === "script") {
+    event.respondWith(
+      caches.open(CACHE).then((cache) =>
+        cache.match(request).then((cached) => {
+          const red = fetch(request)
+            .then((res) => {
+              if (res && res.status === 200) cache.put(request, res.clone());
+              return res;
+            })
+            .catch(() => cached);
+          return cached || red;
+        })
+      )
+    );
+    return;
+  }
+
+  // Resto de estáticos (imágenes, fuentes): cache-first
   event.respondWith(
     caches.match(request).then((cached) => {
       if (cached) return cached;

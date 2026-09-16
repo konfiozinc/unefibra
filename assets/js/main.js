@@ -54,15 +54,68 @@
   }
 
   // ---------------- Datos de empresa ----------------
+  // Convierte "302 858 9954" en un enlace tel: internacional (+57).
+  function telHref(numero) {
+    const limpio = String(numero || "").replace(/[^\d+]/g, "");
+    if (!limpio) return null;
+    return limpio.startsWith("+") ? `tel:${limpio}` : `tel:+57${limpio}`;
+  }
+
   function initEmpresa() {
     const emp = CFG.empresa || {};
     const set = (sel, val) => { const el = $(sel); if (el && val != null) el.textContent = val; };
-    set(".js-emp-telefono", emp.telefono);
+
     set(".js-emp-email", emp.email);
     set(".js-emp-direccion", emp.direccion);
+    set(".js-emp-horario", emp.horario);
     set(".js-emp-legal", emp.nombreLegal);
     set(".js-emp-nit", emp.nit ? `NIT: ${emp.nit}` : "NIT: [NIT]");
-    document.title = `${emp.nombre} — ${emp.slogan} en ${emp.ciudad}`;
+
+    // Teléfonos: texto + enlace tel: (los dos primeros de config.js)
+    const tels = (emp.telefonos && emp.telefonos.length) ? emp.telefonos : [emp.telefono];
+    [".js-emp-telefono", ".js-emp-telefono-2"].forEach((sel, i) => {
+      const el = $(sel);
+      if (!el || !tels[i]) return;
+      el.textContent = tels[i];
+      const href = telHref(tels[i]);
+      if (href) el.href = href;
+    });
+
+    // Email: texto + enlace mailto:
+    const mail = $(".js-emp-email");
+    if (mail && emp.email) mail.href = `mailto:${emp.email}`;
+
+    // El título SEO manda: no se sobrescribe con el nombre/slogan.
+    if (CFG.seo && CFG.seo.titulo) {
+      document.title = CFG.seo.titulo;
+    } else if (emp.nombre) {
+      document.title = `${emp.nombre} — ${emp.slogan} en ${emp.ciudad}`;
+    }
+  }
+
+  // ---------------- Redes sociales ----------------
+  // Solo se pintan cuando `empresa.redes.confirmadas` es true: así la
+  // landing nunca enlaza a cuentas inexistentes o de terceros.
+  const ICONOS_REDES = {
+    facebook: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M13.5 21v-8h2.7l.4-3h-3.1V8.1c0-.9.3-1.5 1.6-1.5h1.6V3.9c-.3 0-1.3-.1-2.4-.1-2.4 0-4.1 1.5-4.1 4.2V10H7.5v3h2.7v8h3.3z"/></svg>',
+    instagram: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true" focusable="false"><rect x="3.5" y="3.5" width="17" height="17" rx="5"/><circle cx="12" cy="12" r="4"/><circle cx="17.2" cy="6.9" r="1.1" fill="currentColor" stroke="none"/></svg>',
+    tiktok: '<svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M16.6 3h-2.8v11.3a2.6 2.6 0 1 1-2.6-2.6c.3 0 .5 0 .7.1V8.9a5.5 5.5 0 0 0-.7 0 5.5 5.5 0 1 0 5.5 5.5V8.6c1 .8 2.2 1.3 3.6 1.3V7.1a3.9 3.9 0 0 1-3.7-4.1z"/></svg>'
+  };
+  const NOMBRES_REDES = { facebook: "Facebook", instagram: "Instagram", tiktok: "TikTok" };
+
+  function initRedes() {
+    const cont = $("#footer-redes");
+    const redes = CFG.empresa && CFG.empresa.redes;
+    if (!cont || !redes || !redes.confirmadas) return;
+
+    const html = Object.keys(NOMBRES_REDES)
+      .filter((k) => typeof redes[k] === "string" && /^https?:\/\//i.test(redes[k]) && !/TODO/i.test(redes[k]))
+      .map((k) => `<li><a href="${redes[k]}" target="_blank" rel="noopener noreferrer me" aria-label="UneFibra en ${NOMBRES_REDES[k]} (se abre en una pestaña nueva)">${ICONOS_REDES[k]}</a></li>`)
+      .join("");
+
+    if (!html) return;
+    cont.innerHTML = html;
+    cont.hidden = false;
   }
 
   // ---------------- Planes ----------------
@@ -90,6 +143,11 @@
     if (!cont) return;
     const planes = (CFG.planes && CFG.planes.length) ? CFG.planes : [];
     cont.innerHTML = planes.map((p) => renderPlan(p)).join("");
+
+    // Los botones "Quiero este plan" se acaban de crear: sin esta llamada
+    // se quedaban con href="#" (enlace muerto) porque initWhatsApp() ya
+    // había corrido antes de que existieran en el DOM.
+    initWhatsApp();
 
     // Velocidad máxima mostrada en el hero (señal visual)
     const vel = $(".js-velocidad");
@@ -128,87 +186,195 @@
     }
   }
 
+  // ---------------- Firebase (carga diferida) ----------------
+  // Antes se inyectaba con document.write, lo que bloqueaba el parser:
+  // si gstatic.com tardaba en responder, la página se quedaba sin
+  // JavaScript (sin planes, sin enlaces de WhatsApp y sin formulario).
+  // Ahora se carga cuando la página ya está visible o al interactuar
+  // con el formulario, y el sitio funciona igual si nunca llega.
+  const FIREBASE_SCRIPTS = [
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js",
+    "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"
+  ];
+
+  function cargarFirebase() {
+    if (cargarFirebase.promesa) return cargarFirebase.promesa;
+
+    const cfg = CFG.firebase || {};
+    if (!cfg.habilitado) {
+      cargarFirebase.promesa = Promise.resolve(null);
+      return cargarFirebase.promesa;
+    }
+
+    cargarFirebase.promesa = FIREBASE_SCRIPTS
+      .reduce((cadena, url) => cadena.then(() => new Promise((res) => {
+        const s = document.createElement("script");
+        s.src = url;
+        s.async = false;
+        s.onload = () => res(true);
+        s.onerror = () => res(false); // sin Firebase el formulario sigue por WhatsApp
+        document.head.appendChild(s);
+      })), Promise.resolve())
+      .then(() => {
+        if (!window.firebase) return null;
+        try {
+          if (!firebase.apps.length) firebase.initializeApp(cfg.config);
+          return firebase.firestore();
+        } catch (e) {
+          console.warn("Firebase no se pudo inicializar; se usará WhatsApp como respaldo.", e);
+          return null;
+        }
+      });
+
+    return cargarFirebase.promesa;
+  }
+
+  function programarCargaFirebase() {
+    const cfg = CFG.firebase || {};
+    if (!cfg.habilitado) return;
+    if ("requestIdleCallback" in window) {
+      requestIdleCallback(() => cargarFirebase(), { timeout: 3000 });
+    } else {
+      window.addEventListener("load", () => setTimeout(() => cargarFirebase(), 1200), { once: true });
+    }
+  }
+
   // ---------------- Formulario "Quiero Internet" ----------------
   function initForm() {
     const form = $("#form-solicitud");
     if (!form) return;
     const status = $("#form-status");
     const btn = $("#form-submit");
+    const fallback = $("#form-wa-fallback");
+
+    // Campos obligatorios (el barrio se usa para verificar cobertura).
+    const OBLIGATORIOS = [
+      { campo: "nombre", etiqueta: "tu nombre" },
+      { campo: "telefono", etiqueta: "tu teléfono" },
+      { campo: "barrio", etiqueta: "tu barrio" }
+    ];
 
     const firebaseActivo = CFG.firebase && CFG.firebase.habilitado;
     let db = null;
 
-    if (firebaseActivo && window.firebase) {
-      try {
-        if (!firebase.apps.length) firebase.initializeApp(CFG.firebase.config);
-        db = firebase.firestore();
-      } catch (e) {
-        console.warn("Firebase no se pudo inicializar; se usará WhatsApp como respaldo.", e);
-      }
+    // Firebase puede llegar después del primer render (carga diferida).
+    // Se espera con un límite: si no está listo, la solicitud ya se envió
+    // por WhatsApp y no se hace esperar al usuario.
+    async function obtenerDb(limiteMs = 7000) {
+      if (db) return db;
+      db = await Promise.race([
+        cargarFirebase(),
+        new Promise((res) => setTimeout(() => res(null), limiteMs))
+      ]);
+      return db;
+    }
+
+    // Al primer contacto con el formulario, adelantamos la carga de Firebase.
+    if (firebaseActivo) {
+      form.addEventListener("focusin", () => cargarFirebase(), { once: true });
+      form.addEventListener("pointerdown", () => cargarFirebase(), { once: true });
+    }
+
+    // Mensaje de WhatsApp construido con los datos del formulario.
+    function mensajeSolicitud(datos) {
+      return [
+        "Hola, quiero solicitar Internet por fibra óptica de UneFibra.",
+        datos.nombre ? `Nombre: ${datos.nombre}` : "",
+        datos.telefono ? `Teléfono: ${datos.telefono}` : "",
+        datos.whatsapp ? `WhatsApp: ${datos.whatsapp}` : "",
+        datos.barrio ? `Barrio: ${datos.barrio}` : "",
+        datos.ciudad ? `Ciudad: ${datos.ciudad}` : "",
+        datos.direccion ? `Dirección: ${datos.direccion}` : "",
+        datos.planInteres ? `Plan: ${datos.planInteres}` : "",
+        datos.observaciones ? `Observaciones: ${datos.observaciones}` : ""
+      ].filter(Boolean).join("\n");
     }
 
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       status.className = "form__note";
       status.textContent = "";
+      if (fallback) {
+        fallback.hidden = true;
+        fallback.removeAttribute("href");
+      }
 
       const data = Object.fromEntries(new FormData(form).entries());
-      const nombre = (data.nombre || "").trim();
-      const telefono = (data.telefono || "").trim();
+      const limpio = (k) => (data[k] || "").trim();
+      const nombre = limpio("nombre");
+      const telefono = limpio("telefono");
+      const barrio = limpio("barrio");
+      data.nombre = nombre;
+      data.telefono = telefono;
+      data.barrio = barrio;
 
-      // Validación básica
-      if (!nombre || !telefono) {
-        status.textContent = "Por favor completa al menos tu nombre y teléfono.";
+      // Validación básica: que los campos clave no estén vacíos.
+      const faltan = OBLIGATORIOS.filter((f) => !data[f.campo]);
+      if (faltan.length) {
+        status.textContent = `Por favor completa ${faltan.map((f) => f.etiqueta).join(", ")}.`;
         status.className = "form__note err";
+        const primerCampo = form.querySelector(`[name="${faltan[0].campo}"]`);
+        if (primerCampo) primerCampo.focus();
         return;
       }
 
+      // 1) WhatsApp: se abre con los datos ya cargados.
+      //    Se hace dentro del gesto del usuario para que el navegador no lo bloquee.
+      const url = urlWhatsApp(mensajeSolicitud(data));
+      const ventana = window.open(url, "_blank");
+      if (ventana) {
+        try { ventana.opener = null; } catch (e) { /* sin acceso: no es crítico */ }
+        status.textContent = "Abrimos WhatsApp con tus datos para completar la solicitud.";
+        status.className = "form__note ok";
+      } else {
+        // Ventana bloqueada: se ofrece el enlace directo.
+        if (fallback) {
+          fallback.href = url;
+          fallback.hidden = false;
+        }
+        status.textContent = "Tu navegador bloqueó la ventana de WhatsApp.";
+        status.className = "form__note err";
+      }
+
+      // 2) Si hay backend, la solicitud también queda registrada en Firestore.
       btn.disabled = true;
       btn.textContent = "Enviando…";
 
       try {
-        if (db) {
+        const baseDatos = await obtenerDb();
+        if (baseDatos) {
           // Firestore: colección solicitudes_contacto con estado NUEVA
-          await db.collection("solicitudes_contacto").add({
+          await baseDatos.collection("solicitudes_contacto").add({
             nombre,
             telefono,
-            whatsapp: (data.whatsapp || "").trim() || telefono,
-            direccion: (data.direccion || "").trim() || null,
-            barrio: (data.barrio || "").trim() || null,
-            ciudad: (data.ciudad || "").trim() || "Medellín",
+            whatsapp: limpio("whatsapp") || telefono,
+            direccion: limpio("direccion") || null,
+            barrio,
+            ciudad: limpio("ciudad") || "Medellín",
             planInteres: data.planInteres || null,
-            observaciones: (data.observaciones || "").trim() || null,
+            observaciones: limpio("observaciones") || null,
             estado: "NUEVA",
             createdAt: new Date().toISOString()
           });
-          status.textContent = "¡Solicitud enviada! Te contactaremos pronto.";
+          status.textContent = ventana
+            ? "¡Solicitud registrada! Completa el envío en la pestaña de WhatsApp."
+            : "¡Solicitud registrada! Te contactaremos pronto.";
           status.className = "form__note ok";
           form.reset();
-        } else {
-          // Respaldo real (sin backend): abrir WhatsApp con los datos.
-          const mensaje = [
-            "Hola, quiero solicitar Internet por fibra óptica de UneFibra.",
-            `Nombre: ${nombre}`,
-            `Teléfono: ${telefono}`,
-            data.whatsapp ? `WhatsApp: ${data.whatsapp}` : "",
-            data.direccion ? `Dirección: ${data.direccion}` : "",
-            data.barrio ? `Barrio: ${data.barrio}` : "",
-            data.ciudad ? `Ciudad: ${data.ciudad}` : "",
-            data.planInteres ? `Plan: ${data.planInteres}` : "",
-            data.observaciones ? `Observaciones: ${data.observaciones}` : ""
-          ].filter(Boolean).join("\n");
-
-          status.textContent = "Se abrirá WhatsApp para completar tu solicitud.";
-          status.className = "form__note ok";
-          window.open(urlWhatsApp(mensaje), "_blank", "noopener");
+        } else if (!ventana) {
+          console.warn("Sin Firebase y con WhatsApp bloqueado: la solicitud no se pudo enviar.");
         }
       } catch (err) {
         console.error("Error al enviar la solicitud:", err);
-        status.textContent = "No fue posible enviar la solicitud. Intenta nuevamente.";
-        status.className = "form__note err";
+        if (!ventana) {
+          status.textContent = "No fue posible enviar la solicitud. Intenta nuevamente.";
+          status.className = "form__note err";
+        } else {
+          console.warn("Falló el registro en Firestore, pero WhatsApp sí se abrió.");
+        }
       } finally {
         btn.disabled = false;
-        btn.textContent = "Enviar solicitud";
+        btn.textContent = "Solicitar información";
       }
     });
   }
@@ -235,10 +401,12 @@
     initNav();
     initWhatsApp();
     initEmpresa();
+    initRedes();
     initPlanes();
     initCobertura();
     initForm();
     initYear();
     initPWA();
+    programarCargaFirebase();
   });
 })();
