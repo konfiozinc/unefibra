@@ -100,6 +100,17 @@ code { background: rgba(148,163,184,0.14); padding: 1px 6px; border-radius: 6px;
 }
 .topbar__title { font-family: var(--font-display); font-weight: 700; font-size: 1.05rem; }
 .topbar__user { color: var(--text-muted); font-size: 0.88rem; }
+
+/* Botón hamburguesa (solo móvil) y fondo oscurecido del menú lateral */
+.menu-toggle {
+  display: none; flex-direction: column; justify-content: center; gap: 5px;
+  width: 44px; height: 44px; padding: 0 10px; border-radius: 10px;
+  background: none; border: 1px solid var(--line);
+}
+.menu-toggle span { width: 20px; height: 2px; background: var(--text); border-radius: 2px; transition: 0.2s; }
+.scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.55); z-index: 125; }
+.scrim[hidden] { display: none; }
+
 .content { padding: 22px; display: grid; gap: 20px; }
 
 /* ---------------- Dashboard ---------------- */
@@ -141,14 +152,32 @@ code { background: rgba(148,163,184,0.14); padding: 1px 6px; border-radius: 6px;
   .cards { grid-template-columns: repeat(3, 1fr); }
 }
 @media (max-width: 720px) {
-  #app-shell { flex-direction: column; }
-  .sidebar { width: 100%; flex-direction: row; align-items: center; overflow-x: auto; padding: 10px 12px; gap: 10px; }
-  .side__brand { white-space: nowrap; }
-  .side__nav { display: flex; gap: 6px; flex: 1; overflow-x: auto; }
-  .side__link { white-space: nowrap; }
-  .side__foot { margin-top: 0; flex-direction: row; align-items: center; }
-  .side__foot .btn { white-space: nowrap; }
-  .content { padding: 16px; }
+  .menu-toggle { display: flex; }
+  #app-shell { display: block; }
+
+  /* La sidebar pasa a ser un panel deslizante (drawer) */
+  .sidebar {
+    position: fixed; top: 0; left: 0; bottom: 0; z-index: 130;
+    width: min(300px, 84vw); padding: 20px 16px; gap: 20px;
+    flex-direction: column; align-items: stretch; overflow-y: auto;
+    transform: translateX(-102%); transition: transform 0.25s ease;
+  }
+  .sidebar.is-open { transform: translateX(0); box-shadow: 0 0 60px rgba(0, 0, 0, 0.55); }
+  .side__nav { display: grid; gap: 4px; }
+  .side__link { white-space: normal; padding: 13px 14px; }
+  .side__foot { margin-top: auto; display: grid; gap: 10px; }
+  body.nav-locked { overflow: hidden; }
+
+  .topbar { padding: 12px 14px; gap: 10px; }
+  .topbar__title { font-size: 1rem; min-width: 0; }
+  .topbar__user { font-size: 0.82rem; max-width: 38vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .content { padding: 14px; }
+
+  /* Toques más cómodos y scroll táctil de tablas */
+  .btn { min-height: 42px; }
+  .chip { padding: 9px 16px; }
+  .table-wrap { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+  .modal { padding: 20px 16px; }
 }
 
 /* ---------------- Tablas y listas ---------------- */

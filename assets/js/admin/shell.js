@@ -42,7 +42,7 @@ function renderShell(activeKey, rol, nombre) {
   const titulo = activo ? activo.label : "UneFibra";
 
   shell.innerHTML = `
-    <aside class="sidebar">
+    <aside class="sidebar" id="sidebar">
       <a class="side__brand" href="dashboard.html">UneFibra<span>Panel</span></a>
       <nav class="side__nav">${enlaces}</nav>
       <div class="side__foot">
@@ -50,8 +50,12 @@ function renderShell(activeKey, rol, nombre) {
         <button class="btn btn--ghost btn--block" id="btn-logout">Cerrar sesión</button>
       </div>
     </aside>
+    <div class="scrim" id="scrim" hidden></div>
     <div class="layout">
       <header class="topbar">
+        <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="sidebar">
+          <span></span><span></span><span></span>
+        </button>
         <span class="topbar__title">${titulo}</span>
         <span class="topbar__user">${nombre}</span>
       </header>
@@ -62,6 +66,43 @@ function renderShell(activeKey, rol, nombre) {
     await signOut(auth);
     location.replace("index.html");
   });
+
+  initMobileNav();
+}
+
+/**
+ * Navegación móvil: el menú hamburguesa abre/cierra la sidebar como un
+ * panel deslizante (drawer) con fondo oscurecido. En escritorio no hace nada
+ * porque el botón está oculto por CSS.
+ */
+function initMobileNav() {
+  const toggle = document.getElementById("menu-toggle");
+  const sidebar = document.getElementById("sidebar");
+  const scrim = document.getElementById("scrim");
+  if (!toggle || !sidebar || !scrim) return;
+
+  const cerrar = () => {
+    sidebar.classList.remove("is-open");
+    scrim.hidden = true;
+    toggle.setAttribute("aria-expanded", "false");
+    toggle.setAttribute("aria-label", "Abrir menú");
+    document.body.classList.remove("nav-locked");
+  };
+  const abrir = () => {
+    sidebar.classList.add("is-open");
+    scrim.hidden = false;
+    toggle.setAttribute("aria-expanded", "true");
+    toggle.setAttribute("aria-label", "Cerrar menú");
+    document.body.classList.add("nav-locked");
+  };
+
+  toggle.addEventListener("click", () => {
+    if (sidebar.classList.contains("is-open")) cerrar();
+    else abrir();
+  });
+  scrim.addEventListener("click", cerrar);
+  sidebar.querySelectorAll(".side__link").forEach((a) => a.addEventListener("click", cerrar));
+  window.addEventListener("keydown", (e) => { if (e.key === "Escape") cerrar(); });
 }
 
 /**
