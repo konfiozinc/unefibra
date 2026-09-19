@@ -13,6 +13,7 @@ import { doc, getDoc } from "firebase/firestore";
 
 const NAV = [
   { key: "dashboard", label: "Dashboard", href: "dashboard.html", min: "OPERADOR" },
+  { key: "solicitudes", label: "Solicitudes", href: "solicitudes.html", min: "OPERADOR" },
   { key: "clientes", label: "Clientes", href: "clientes.html", min: "OPERADOR" },
   { key: "servicios", label: "Servicios", href: "servicios.html", min: "OPERADOR" },
   { key: "pagos", label: "Pagos", href: "pagos.html", min: "OPERADOR" },

@@ -46,6 +46,8 @@ code { background: rgba(148,163,184,0.14); padding: 1px 6px; border-radius: 6px;
 .btn--primary:hover { transform: translateY(-1px); box-shadow: 0 10px 26px -10px rgba(0,176,240,0.55); }
 .btn--ghost { background: rgba(148,163,184,0.08); color: var(--text); border-color: var(--line); }
 .btn--ghost:hover { border-color: var(--cyan); color: var(--cyan); }
+.btn--whatsapp { background: #128c7e; color: #ffffff; border-color: transparent; }
+.btn--whatsapp:hover { background: #0e7165; color: #ffffff; }
 .btn--block { width: 100%; }
 .btn--sm { padding: 6px 12px; font-size: 0.82rem; border-radius: 9px; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; }
