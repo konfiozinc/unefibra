@@ -65,7 +65,7 @@ unefibras/
 ├── functions/
 │   ├── src/index.js           # Cloud Functions
 │   └── package.json
-├── docs/                      # MODELO_DATOS.md · PLAN_PRUEBAS.md · DESPLEGUE.md
+├── docs/                      # MODELO_DATOS.md · PLAN_PRUEBAS.md · DESPLEGUE.md · AGENTE_WHATSAPP_BUSINESS.md
 ├── .github/workflows/deploy.yml
 └── README.md
 ```
@@ -106,10 +106,17 @@ Ojo: los identificadores técnicos `window.UNEFIBRAS_CONFIG`, `unefibras-functio
 y la caché `unefibras-v3` **no** son marca y no se renombran.
 
 **Cobertura**: `cobertura.zonas` es la fuente de verdad y `main.js` pinta los chips
-desde ahí; la misma lista está escrita de forma estática en `index.html`
-(`#cobertura`) para que se vea sin JavaScript y la indexen los buscadores. Al
-cambiar la cobertura, mantén ambas en sincronía. El mapa apunta al sector
-El Cucaracho (barrio Robledo) mediante `cobertura.zonaMapa`.
+dentro del botón desplegable "Cobertura" (`<details>` en `#cobertura`); la lista
+también está escrita de forma estática en `index.html` para que se vea sin
+JavaScript y la indexen los buscadores. Al cambiar la cobertura, mantén ambas en
+sincronía. El mapa apunta al sector El Cucaracho (barrio Robledo) mediante
+`cobertura.zonaMapa`.
+
+El **agente IA** tiene dos canales: el chat del sitio (`assets/js/agente.js` con
+respaldo local + backend en `agente-ia/worker.js`) y el agente de WhatsApp
+Business. La base de conocimiento lista para pegar en Meta/WhatsApp Business
+está en `docs/AGENTE_WHATSAPP_BUSINESS.md`; mantenla sincronizada con
+`config.js` y con `agente-ia/BASE_CONOCIMIENTO_UNEFIBRA.md`.
 
 Sobre las redes sociales: `empresa.redes.confirmadas` está en `false`, así que la
 landing **no** pinta ningún enlace a redes (evita enlaces muertos o cuentas de

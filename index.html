@@ -93,7 +93,7 @@
       { "@type": "Place", "name": "Sector La Campiña" },
       { "@type": "Place", "name": "Sector El Cucaracho" },
       { "@type": "Place", "name": "Sector Los Loquitos" },
-      { "@type": "Place", "name": "Sector Lucitania" }
+      { "@type": "Place", "name": "Sector Lusitania" }
     ],
     "contactPoint": {
       "@type": "ContactPoint",
@@ -177,9 +177,16 @@
     <!-- ============ HERO ============ -->
     <section class="hero" id="inicio">
       <div class="hero__fiber" aria-hidden="true">
-        <i class="beam beam--1"></i>
-        <i class="beam beam--2"></i>
-        <i class="beam beam--3"></i>
+        <span class="fiber fiber--1"><span class="fiber__trace"></span><span class="fiber__pulse"></span></span>
+        <span class="fiber fiber--2"><span class="fiber__trace"></span><span class="fiber__pulse"></span></span>
+        <span class="fiber fiber--3"><span class="fiber__trace"></span><span class="fiber__pulse"></span></span>
+        <span class="fiber fiber--4"><span class="fiber__trace"></span><span class="fiber__pulse"></span></span>
+        <span class="fiber fiber--5"><span class="fiber__trace"></span><span class="fiber__pulse"></span></span>
+        <span class="fiber-dot fiber-dot--1"></span>
+        <span class="fiber-dot fiber-dot--2"></span>
+        <span class="fiber-dot fiber-dot--3"></span>
+        <span class="fiber-dot fiber-dot--4"></span>
+        <span class="fiber-dot fiber-dot--5"></span>
       </div>
       <div class="container hero__inner">
         <div class="hero__content">
@@ -191,7 +198,7 @@
           </p>
           <div class="hero__cta">
             <a class="btn btn--primary btn--lg" href="#contacto">Quiero Internet</a>
-            <a class="btn btn--ghost btn--lg js-whatsapp" href="#" data-mensaje="Hola, me interesa el servicio de Internet por fibra óptica de UneFibra.">
+            <a class="btn btn--whatsapp btn--lg js-whatsapp" href="#" data-mensaje="Hola, me interesa el servicio de Internet por fibra óptica de UneFibra.">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 1 1 4.1-1.1l-.3.2-2.9.8.8-2.8.2-.3A8 8 0 0 1 12 20Zm4.5-5.6c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.2-.2-.2-.4-.4Z"/></svg>
               WhatsApp
             </a>
@@ -305,34 +312,47 @@
           </div>
           <div class="coverage__body">
             <h3>Robledo y Nuevo Occidente</h3>
-            <p class="js-cobertura-nota">Cobertura en el occidente de Medellín y sectores aledaños. Verifica disponibilidad en tu sector al contactarnos.</p>
-            <!-- Lista estática (visible sin JavaScript y para los buscadores).
-                 config.js → cobertura.zonas es la fuente de verdad y main.js
-                 vuelve a pintar estos chips a partir de ella: mantenlas en sincronía. -->
-            <ul class="coverage__zones js-cobertura-zonas">
-              <li>Ciudadela Nuevo Occidente</li>
-              <li>La Aurora</li>
-              <li>La Libertad</li>
-              <li>Sector Las Fresitas</li>
-              <li>Nazaret</li>
-              <li>El Tirol</li>
-              <li>Robledo La Campiña</li>
-              <li>El Cucaracho</li>
-              <li>Mirador del Valle</li>
-              <li>Los Cantares</li>
-              <li>Ventó 1</li>
-              <li>Mirador de la Cascada</li>
-              <li>Portón Nuevo Occidente</li>
-              <li>Pedregal Bajo</li>
-              <li>La Montaña</li>
-              <li>La Cascada</li>
-              <li>Las Flores</li>
-              <li>Las Violetas</li>
-              <li>Sector La Campiña</li>
-              <li>Sector El Cucaracho</li>
-              <li>Sector Los Loquitos</li>
-              <li>Sector Lucitania</li>
-            </ul>
+
+            <!-- Listado de sectores dentro de un botón desplegable (accesible:
+                 <details>/<summary> funciona sin JavaScript). La lista queda en
+                 el DOM para que la indexen los buscadores; config.js →
+                 cobertura.zonas es la fuente de verdad y main.js la repinta. -->
+            <details class="coverage-details" id="coverage-details">
+              <summary class="coverage__toggle">
+                <span>Cobertura</span>
+                <svg class="coverage__chevron" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                  <path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+              </summary>
+              <div class="coverage__panel">
+                <p class="js-cobertura-nota">Cobertura en el occidente de Medellín y sectores aledaños. Verifica disponibilidad en tu sector al contactarnos.</p>
+                <ul class="coverage__zones js-cobertura-zonas">
+                  <li>Ciudadela Nuevo Occidente</li>
+                  <li>La Aurora</li>
+                  <li>La Libertad</li>
+                  <li>Sector Las Fresitas</li>
+                  <li>Nazaret</li>
+                  <li>El Tirol</li>
+                  <li>Robledo La Campiña</li>
+                  <li>El Cucaracho</li>
+                  <li>Mirador del Valle</li>
+                  <li>Los Cantares</li>
+                  <li>Ventó 1</li>
+                  <li>Mirador de la Cascada</li>
+                  <li>Portón Nuevo Occidente</li>
+                  <li>Pedregal Bajo</li>
+                  <li>La Montaña</li>
+                  <li>La Cascada</li>
+                  <li>Las Flores</li>
+                  <li>Las Violetas</li>
+                  <li>Sector La Campiña</li>
+                  <li>Sector El Cucaracho</li>
+                  <li>Sector Los Loquitos</li>
+                  <li>Sector Lusitania</li>
+                </ul>
+              </div>
+            </details>
+
             <a class="btn btn--primary" href="#contacto">Consulta si llegamos a tu sector</a>
           </div>
         </div>
@@ -494,10 +514,22 @@
             <li>Sin costo por la solicitud</li>
             <li>Sin compromiso</li>
           </ul>
-          <a class="btn btn--ghost js-whatsapp" href="#" data-mensaje="Hola, quiero contratar Internet por fibra óptica de UneFibra.">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 1 1 4.1-1.1l-.3.2-2.9.8.8-2.8.2-.3A8 8 0 0 1 12 20Zm4.5-5.6c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.2-.2-.2-.4-.4Z"/></svg>
-            Escríbenos por WhatsApp
-          </a>
+
+          <!-- Botones de contacto con los colores y la forma oficiales de cada canal -->
+          <div class="contact__actions">
+            <a class="btn btn--whatsapp js-whatsapp" href="#" data-mensaje="Hola, quiero contratar Internet por fibra óptica de UneFibra.">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 1 1 4.1-1.1l-.3.2-2.9.8.8-2.8.2-.3A8 8 0 0 1 12 20Zm4.5-5.6c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.2-.2-.2-.4-.4Z"/></svg>
+              WhatsApp
+            </a>
+            <a class="btn btn--call" href="tel:+573028589954">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+              Llamar
+            </a>
+            <a class="btn btn--mail" href="mailto:unefibra81@gmail.com">
+              <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm8 7.2L5.4 7.6 5 8.4l7 4.4 7-4.4-.4-.8L12 12.2z"/></svg>
+              Correo
+            </a>
+          </div>
         </div>
 
         <form class="form" id="form-solicitud" aria-labelledby="contacto-title" novalidate>
@@ -579,6 +611,18 @@
 
       <div class="footer__col">
         <h3>Contacto</h3>
+        <!-- Botones de canal con los colores oficiales -->
+        <div class="footer__actions">
+          <a class="footer__action footer__action--whatsapp js-whatsapp" href="#" aria-label="WhatsApp de UneFibra" data-mensaje="Hola, quiero información sobre UneFibra.">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 1 1 4.1-1.1l-.3.2-2.9.8.8-2.8.2-.3A8 8 0 0 1 12 20Zm4.5-5.6c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.2-.2-.2-.4-.4Z"/></svg>
+          </a>
+          <a class="footer__action footer__action--call" href="tel:+573028589954" aria-label="Llamar a UneFibra">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
+          </a>
+          <a class="footer__action footer__action--mail" href="mailto:unefibra81@gmail.com" aria-label="Enviar correo a UneFibra">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm8 7.2L5.4 7.6 5 8.4l7 4.4 7-4.4-.4-.8L12 12.2z"/></svg>
+          </a>
+        </div>
         <!-- Los valores se sincronizan desde assets/js/config.js (js-emp-*).
              El texto visible queda como respaldo si falla el JavaScript. -->
         <a class="footer__item js-emp-telefono" href="tel:+573028589954">302 858 9954</a>

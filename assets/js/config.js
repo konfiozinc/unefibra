@@ -10,9 +10,9 @@
  * están pendientes de confirmación por parte de la empresa.
  *
  * Estado de los datos (revisado):
- *   ✔ email, teléfonos, WhatsApp, cobertura → confirmados por el cliente
- *   ⚠ dirección, NIT            → provisionales (pendientes de verificar)
- *   ⚠ redes sociales            → las cuentas todavía no existen
+ *   ✔ nombre legal, NIT, email, teléfonos, WhatsApp y cobertura → confirmados
+ *   ⚠ dirección               → provisional (pendiente de confirmar)
+ *   ⚠ redes sociales          → las cuentas todavía no existen
  *
  * Marca: SIEMPRE "UneFibra" (pegado, con U y F mayúsculas) y
  * "UneFibra SAS" como nombre legal. Nunca la escribas en mayúsculas
@@ -26,17 +26,14 @@ window.UNEFIBRAS_CONFIG = {
    * ---------------------------------------------------------- */
   empresa: {
     nombre: "UneFibra",
-    // TODO: Verificar contra el RUT / Cámara de Comercio. El cliente indicó
-    // "UneFibra SAS"; si el registro mercantil usa otra forma (por ejemplo,
-    // las palabras separadas y en mayúsculas sostenidas), el aviso legal del
-    // footer debería usar la razón social registrada tal cual aparece en el RUT.
+    // Nombre legal confirmado por el cliente.
     nombreLegal: "UneFibra SAS",
     slogan: "Conectamos lo que más importa",
     ciudad: "Medellín",
     departamento: "Antioquia",
     pais: "Colombia",
 
-    // TODO: Reemplazar con dato real (pendiente de confirmación por la empresa).
+    // NIT confirmado por el cliente.
     nit: "9020925655",
 
     // TODO: Reemplazar con dato real (provisional, indicado por el cliente).
@@ -149,7 +146,7 @@ window.UNEFIBRAS_CONFIG = {
       "Sector La Campiña",
       "Sector El Cucaracho",
       "Sector Los Loquitos",
-      "Sector Lucitania"
+      "Sector Lusitania"
     ],
     // Zona de referencia para el mapa de la landing (barrio Robledo).
     zonaMapa: "El Cucaracho, Robledo, Medellín, Antioquia, Colombia",

@@ -19,7 +19,7 @@
 
 ## Cobertura
 - Zona de operación: **occidente de Medellín** — barrio **Robledo** y **Ciudadela Nuevo Occidente**.
-- Sectores: La Aurora · La Libertad · Sector Las Fresitas · Nazaret · El Tirol · Robledo La Campiña · El Cucaracho · Mirador del Valle · Los Cantares · Ventó 1 · Mirador de la Cascada · Portón Nuevo Occidente · Pedregal Bajo · La Montaña · La Cascada · Las Flores · Las Violetas · Sector La Campiña · Sector El Cucaracho · Sector Los Loquitos · Sector Lucitania.
+- Sectores: La Aurora · La Libertad · Sector Las Fresitas · Nazaret · El Tirol · Robledo La Campiña · El Cucaracho · Mirador del Valle · Los Cantares · Ventó 1 · Mirador de la Cascada · Portón Nuevo Occidente · Pedregal Bajo · La Montaña · La Cascada · Las Flores · Las Violetas · Sector La Campiña · Sector El Cucaracho · Sector Los Loquitos · Sector Lusitania.
 - Ante un sector o dirección específica → **verificar cobertura** (no confirmar sin validar).
 
 ## Beneficios

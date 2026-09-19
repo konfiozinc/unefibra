@@ -169,6 +169,14 @@ button { font: inherit; cursor: pointer; }
 .btn--block { width: 100%; }
 .btn:disabled { opacity: 0.6; cursor: not-allowed; transform: none; }
 
+/* ---------------- Botones de canal (colores y forma oficiales) ---------------- */
+.btn--whatsapp { background: #128c7e; color: #ffffff; border-color: transparent; }
+.btn--whatsapp:hover { background: #0e7165; transform: translateY(-2px); box-shadow: 0 12px 30px -8px rgba(18, 140, 126, 0.55); }
+.btn--call { background: #1a73e8; color: #ffffff; border-color: transparent; }
+.btn--call:hover { background: #1765cc; transform: translateY(-2px); box-shadow: 0 12px 30px -8px rgba(26, 115, 232, 0.55); }
+.btn--mail { background: #c5221f; color: #ffffff; border-color: transparent; }
+.btn--mail:hover { background: #a51c19; transform: translateY(-2px); box-shadow: 0 12px 30px -8px rgba(197, 34, 31, 0.55); }
+
 /* ---------------- Header ---------------- */
 .site-header {
   position: sticky; top: 0; z-index: 100;
@@ -179,9 +187,29 @@ button { font: inherit; cursor: pointer; }
 }
 .header-inner { display: flex; align-items: center; gap: 16px; height: var(--header-h); }
 
-.brand { display: flex; align-items: center; gap: 10px; }
-.brand__logo { height: 46px; width: auto; }
-.footer__logo { height: 44px; width: auto; margin-bottom: 8px; }
+.brand { position: relative; display: flex; align-items: center; gap: 10px; }
+/* Halo de luz detrás del logo: como es azul oscuro sobre fondo navy, este
+   resplandor cian lo separa del fondo y lo hace legible y "especial". */
+.brand::before {
+  content: ""; position: absolute; left: 50%; top: 50%; z-index: 0;
+  width: 176px; height: 84px; transform: translate(-50%, -50%);
+  background: radial-gradient(closest-side, rgba(190, 240, 255, 0.32), rgba(0, 229, 255, 0.16) 55%, transparent 78%);
+  filter: blur(3px); border-radius: 50%; pointer-events: none;
+}
+.brand picture, .brand img { position: relative; z-index: 1; }
+.brand__logo {
+  height: 60px; width: auto;
+  filter: drop-shadow(0 0 7px rgba(0, 229, 255, 0.65)) drop-shadow(0 0 18px rgba(0, 176, 240, 0.4));
+  animation: logo-glow 3.4s ease-in-out infinite;
+}
+.footer__logo {
+  height: 56px; width: auto; margin-bottom: 10px;
+  filter: drop-shadow(0 0 8px rgba(0, 229, 255, 0.6)) drop-shadow(0 0 20px rgba(0, 176, 240, 0.35));
+}
+@keyframes logo-glow {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(0, 229, 255, 0.45)) drop-shadow(0 0 14px rgba(0, 176, 240, 0.28)); }
+  50% { filter: drop-shadow(0 0 12px rgba(0, 229, 255, 0.85)) drop-shadow(0 0 26px rgba(0, 176, 240, 0.55)); }
+}
 .brand__name { font-family: var(--font-display); font-size: 1.15rem; font-weight: 700; letter-spacing: 0.5px; }
 .brand__name b { color: var(--cyan); }
 
@@ -220,22 +248,64 @@ button { font: inherit; cursor: pointer; }
   background-size: 44px 44px;
   mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
 }
-/* Hilos de fibra óptica animados */
-.hero__fiber .beam {
-  position: absolute; left: -60%; width: 120%; height: 2px;
-  background: linear-gradient(90deg, transparent, rgba(0, 176, 240, 0.9), rgba(0, 96, 224, 0.9), transparent);
-  filter: drop-shadow(0 0 8px rgba(0, 176, 240, 0.75));
-  animation: beam-slide 8s linear infinite;
-  opacity: 0;
+/* Hilos de fibra óptica animados (estilo del logo: azul -> cian con puntas
+   brillantes). Cada fibra tiene un pulso de luz que recorre el hilo y termina
+   en una punta blanca con halo cian, como el extremo de una fibra encendida. */
+.hero__fiber .fiber {
+  position: absolute; left: -12%; top: var(--top, 30%); width: 124%; height: 2px;
+  transform: rotate(var(--rot, -14deg)); transform-origin: 50% 50%; pointer-events: none;
 }
-.hero__fiber .beam--1 { top: 22%; transform: rotate(-14deg); }
-.hero__fiber .beam--2 { top: 48%; transform: rotate(10deg); animation-delay: -3s; }
-.hero__fiber .beam--3 { top: 74%; transform: rotate(-7deg); animation-delay: -6s; }
-@keyframes beam-slide {
-  0% { left: -60%; opacity: 0; }
-  12% { opacity: 1; }
+.fiber__trace {
+  position: absolute; inset: 0; border-radius: 999px; opacity: 0.55;
+  background: linear-gradient(90deg, transparent 0%, rgba(8, 40, 136, 0.85) 18%,
+    rgba(8, 88, 232, 0.9) 48%, rgba(8, 184, 248, 0.9) 72%, rgba(8, 216, 248, 0.95) 100%);
+  box-shadow: 0 0 6px rgba(8, 184, 248, 0.4);
+}
+.fiber__pulse {
+  position: absolute; top: 50%; left: -8%; width: 84px; height: 8px;
+  transform: translateY(-50%); border-radius: 999px;
+  background: linear-gradient(90deg, transparent 0%, rgba(8, 88, 232, 0.7) 30%,
+    rgba(8, 216, 248, 0.95) 68%, #ffffff 100%);
+  box-shadow: 0 0 16px 4px rgba(0, 229, 255, 0.75), 0 0 34px 10px rgba(0, 176, 240, 0.35);
+  animation: fiber-run var(--dur, 6s) cubic-bezier(0.45, 0, 0.25, 1) infinite;
+  animation-delay: var(--delay, 0s);
+}
+/* Punta de la fibra: núcleo blanco con halo cian (como en el logo) */
+.fiber__pulse::before {
+  content: ""; position: absolute; right: -2px; top: 50%; width: 10px; height: 10px;
+  transform: translate(50%, -50%); border-radius: 50%; background: #ffffff;
+  box-shadow: 0 0 6px 2px rgba(255, 255, 255, 0.9), 0 0 16px 5px rgba(0, 229, 255, 0.95),
+    0 0 34px 12px rgba(0, 176, 240, 0.55);
+}
+@keyframes fiber-run {
+  0% { left: -8%; opacity: 0; }
+  8% { opacity: 1; }
   88% { opacity: 1; }
-  100% { left: 110%; opacity: 0; }
+  100% { left: 104%; opacity: 0; }
+}
+
+.fiber--1 { --top: 20%; --rot: -13deg; --dur: 7s; --delay: 0s; }
+.fiber--2 { --top: 38%; --rot: 9deg;   --dur: 9s; --delay: -2.2s; }
+.fiber--3 { --top: 58%; --rot: -7deg;  --dur: 8s; --delay: -4.5s; }
+.fiber--4 { --top: 76%; --rot: 13deg;  --dur: 10s; --delay: -6.5s; }
+.fiber--5 { --top: 88%; --rot: -11deg; --dur: 8.5s; --delay: -3s; }
+
+/* Partículas flotantes de luz (acentos de fibra) */
+.fiber-dot {
+  position: absolute; width: 5px; height: 5px; border-radius: 50%; background: #08d8f8; opacity: 0;
+  box-shadow: 0 0 8px 2px rgba(0, 229, 255, 0.9), 0 0 18px 5px rgba(0, 176, 240, 0.5);
+  animation: fiber-float var(--dur, 9s) ease-in-out infinite; animation-delay: var(--delay, 0s);
+}
+.fiber-dot--1 { left: 14%; top: 26%; --dur: 9s; }
+.fiber-dot--2 { left: 30%; top: 70%; --dur: 11s; --delay: -3s; }
+.fiber-dot--3 { left: 68%; top: 18%; --dur: 10s; --delay: -5s; }
+.fiber-dot--4 { left: 82%; top: 62%; --dur: 12s; --delay: -2s; }
+.fiber-dot--5 { left: 46%; top: 46%; --dur: 8.5s; --delay: -7s; }
+@keyframes fiber-float {
+  0%, 100% { transform: translateY(0); opacity: 0; }
+  15% { opacity: 0.8; }
+  50% { transform: translateY(-22px); opacity: 0.9; }
+  85% { opacity: 0.1; }
 }
 
 .hero__inner { position: relative; display: grid; gap: 40px; }
@@ -335,9 +405,25 @@ button { font: inherit; cursor: pointer; }
 }
 .coverage__map iframe { width: 100%; height: 100%; border: 0; display: block; }
 
-.coverage__body h3 { font-family: var(--font-display); font-size: 1.4rem; margin-bottom: 8px; }
-.coverage__body p { color: var(--text-muted); margin-bottom: 16px; }
-.coverage__zones { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 22px; }
+.coverage__body h3 { font-family: var(--font-display); font-size: 1.4rem; margin-bottom: 12px; }
+
+/* Listado de cobertura dentro de un botón desplegable (<details>) */
+.coverage-details { margin: 0 0 16px; }
+.coverage__toggle {
+  list-style: none; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  width: 100%; padding: 14px 18px; cursor: pointer; border-radius: 14px;
+  background: linear-gradient(120deg, rgba(0, 176, 240, 0.14), rgba(0, 96, 224, 0.14));
+  border: 1px solid rgba(0, 176, 240, 0.4);
+  font-family: var(--font-display); font-weight: 700; font-size: 1.02rem; color: var(--text);
+  transition: border-color 0.2s, background 0.2s;
+}
+.coverage__toggle::-webkit-details-marker { display: none; }
+.coverage__toggle:hover { border-color: var(--cyan); background: linear-gradient(120deg, rgba(0, 176, 240, 0.2), rgba(0, 96, 224, 0.2)); }
+.coverage__chevron { width: 20px; height: 20px; color: var(--cyan); flex: none; transition: transform 0.25s ease; }
+.coverage-details[open] .coverage__chevron { transform: rotate(180deg); }
+.coverage__panel { padding-top: 14px; }
+.coverage__panel p { color: var(--text-muted); margin-bottom: 14px; }
+.coverage__zones { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; }
 .coverage__zones li { background: var(--surface); border: 1px solid var(--line); border-radius: 999px; padding: 6px 14px; font-size: 0.9rem; }
 
 /* ---------------- Por qué ---------------- */
@@ -362,6 +448,7 @@ button { font: inherit; cursor: pointer; }
 .contact__points { display: grid; gap: 8px; margin: 6px 0 14px; }
 .contact__points li { display: flex; gap: 8px; align-items: center; color: var(--text-muted); }
 .contact__points li::before { content: "•"; color: var(--cyan); font-weight: 700; }
+.contact__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 2px; }
 
 .form {
   background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius-lg);
@@ -444,6 +531,19 @@ button { font: inherit; cursor: pointer; }
 .footer__col h3 { font-family: var(--font-display); font-size: 0.95rem; margin-bottom: 6px; color: var(--text); }
 .footer__col a, .footer__item { color: var(--text-muted); font-size: 0.92rem; }
 .footer__col a:hover { color: var(--cyan); }
+
+/* Botones de canal del footer (colores oficiales) */
+.footer__actions { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 12px; }
+.footer__action {
+  width: 42px; height: 42px; display: grid; place-items: center; border-radius: 50%;
+  color: #ffffff; transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.footer__action svg { width: 22px; height: 22px; }
+.footer__action:hover { transform: translateY(-2px); color: #ffffff; }
+.footer__action--whatsapp { background: #25d366; box-shadow: 0 6px 16px -6px rgba(37, 211, 102, 0.7); }
+.footer__action--call { background: #1a73e8; box-shadow: 0 6px 16px -6px rgba(26, 115, 232, 0.7); }
+.footer__action--mail { background: #c5221f; box-shadow: 0 6px 16px -6px rgba(197, 34, 31, 0.7); }
+
 .footer__bottom {
   margin-top: 36px; padding-top: 20px; border-top: 1px solid var(--line);
   display: flex; flex-wrap: wrap; gap: 8px; justify-content: space-between;
@@ -451,13 +551,13 @@ button { font: inherit; cursor: pointer; }
 }
 
 /* ---------------- WhatsApp flotante ---------------- */
-/* Se ubica AL LADO del botón del agente IA: agente.css lo fija en la
-   misma esquina (right:18px, bottom:18px, z-index 9999) y lo tapaba por
-   completo, dejando el botón de WhatsApp inclicable. */
+/* Posición VERTICAL: el botón de WhatsApp va encima del botón del agente IA
+   (agente.css lo fija en right:18px / bottom:18px), uno sobre el otro. */
 .whatsapp-float {
-  position: fixed; right: 88px; bottom: 18px; z-index: 90;
+  position: fixed; right: 18px; bottom: 88px; z-index: 90;
   width: 56px; height: 56px; border-radius: 50%; display: grid; place-items: center;
-  background: #25d366; color: #fff; box-shadow: 0 10px 30px -8px rgba(37, 211, 102, 0.6);
+  background: #25d366; color: #fff;
+  box-shadow: 0 10px 30px -8px rgba(37, 211, 102, 0.6), 0 0 0 2px rgba(7, 18, 31, 0.55);
   transition: transform 0.15s ease;
 }
 .whatsapp-float:hover { transform: scale(1.08); }

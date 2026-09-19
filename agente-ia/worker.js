@@ -25,7 +25,7 @@ PLANES OFICIALES (precios en COP, periodo de 30 días):
 • Ultra 300 Mbps: $100.000 — máxima velocidad para hogares exigentes.
 Recomendación según uso: navegación básica → 100 Mbps; familia con streaming → 200 Mbps; gaming o teletrabajo → 250 o 300 Mbps.
 
-COBERTURA: cubrimos el occidente de Medellín (barrio Robledo, Ciudadela Nuevo Occidente y sectores aledaños: La Aurora, La Libertad, Nazaret, El Tirol, El Cucaracho, La Campiña, Las Fresitas, Mirador del Valle, Los Cantares, Ventó 1, Mirador de la Cascada, Portón Nuevo Occidente, Pedregal Bajo, La Montaña, La Cascada, Las Flores, Las Violetas, Los Loquitos, Lucitania y Robledo La Campiña). Si preguntan por un barrio, sector o dirección específica, responde: "Verificamos cobertura según tu sector y dirección; dime cuál es y te confirmamos." Nunca confirmes cobertura de un sector concreto sin verificar.
+COBERTURA: cubrimos el occidente de Medellín (barrio Robledo, Ciudadela Nuevo Occidente y sectores aledaños: La Aurora, La Libertad, Nazaret, El Tirol, El Cucaracho, La Campiña, Las Fresitas, Mirador del Valle, Los Cantares, Ventó 1, Mirador de la Cascada, Portón Nuevo Occidente, Pedregal Bajo, La Montaña, La Cascada, Las Flores, Las Violetas, Los Loquitos, Lusitania y Robledo La Campiña). Si preguntan por un barrio, sector o dirección específica, responde: "Verificamos cobertura según tu sector y dirección; dime cuál es y te confirmamos." Nunca confirmes cobertura de un sector concreto sin verificar.
 
 BENEFICIOS: fibra 100% (no cobre), máxima estabilidad, baja latencia ideal para videojuegos y videollamadas, sin contratos ni cláusulas ocultas, instalación también para personas reportadas, y soporte local en Medellín.
 
