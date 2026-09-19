@@ -6,6 +6,10 @@
 node_modules/
 functions/node_modules/
 
+# Cloudflare Workers (cache local de wrangler)
+.wrangler/
+agente-ia/.wrangler/
+
 # Firebase local
 .firebase/
 firebase-debug.log
