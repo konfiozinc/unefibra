@@ -71,7 +71,7 @@ export function textoDias(fechaVencimiento) {
 /** Enlace de WhatsApp con mensaje dinámico (número desde config). */
 export function urlWhatsApp(mensaje) {
   const CFG = window.UNEFIBRAS_CONFIG;
-  const numero = (CFG && CFG.whatsapp && CFG.whatsapp.numero) || "573028589954";
+  const numero = (CFG && CFG.whatsapp && CFG.whatsapp.numero) || "573044654987";
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
 }
 

@@ -40,11 +40,17 @@ window.UNEFIBRAS_CONFIG = {
     // Si la dirección cambia, actualízala también en el JSON-LD de index.html.
     direccion: "Calle 100 # 15-20, Medellín",
 
-    telefono: "302 858 9954",
-    telefonos: ["302 858 9954", "321 749 0310"],
+    // Teléfono para LLAMADAS (lo usa el botón "Llamar").
+    // Los datos de contacto NO se muestran como texto en la página:
+    // viven aquí y los botones construyen el enlace al hacer clic.
+    telefono: "321 749 0310",
+    telefonos: ["321 749 0310"],
 
-    // Correo oficial indicado por el cliente.
-    email: "unefibra81@gmail.com",
+    // Número anterior: se conserva documentado, ya no se publica.
+    telefonoAnterior: "302 858 9954",
+
+    // Correo corporativo oficial.
+    email: "unefibrasas@gmail.com",
 
     // Horario de atención (se muestra en el footer y en el JSON-LD).
     horario: "Lunes a sábado, 8:00 a.m. – 6:00 p.m.",
@@ -84,18 +90,18 @@ window.UNEFIBRAS_CONFIG = {
    * Ejemplo real: "573001234567"
    * ---------------------------------------------------------- */
   whatsapp: {
-    // WhatsApp de la empresa: 302 858 9954 → +57 302 858 9954
-    numero: "573028589954",
+    // WhatsApp principal de la empresa: 304 465 4987 → +57 304 465 4987
+    numero: "573044654987",
+    // Número anterior (302 858 9954): se conserva documentado, ya no se usa.
+    numeroAnterior: "573028589954",
     // Mensaje preconstruido que se usa para el botón flotante
     mensajeDefault: "Hola, quiero información sobre los planes de Internet por fibra óptica de UneFibra."
   },
 
   /* ------------------------------------------------------------
-   * Planes públicos (extraídos del volante UFIBRA.jpeg)
-   * Velocidad y precio SON configurables. En la plataforma estos
-   * valores se leen desde Firestore (colección `planes`); aquí se
-   * define el valor inicial y el fallback cuando Firebase aún no
-   * está configurado.
+   * Planes públicos — nombres y precios confirmados por el cliente.
+   * (Básico 100 · Familiar 150 · Plus 200 · Premium 250 · Ultra 300)
+   * `destacado: true` marca el plan recomendado en la landing.
    * ---------------------------------------------------------- */
   planBeneficios: [
     "100% fibra óptica hasta tu hogar",
@@ -105,11 +111,11 @@ window.UNEFIBRAS_CONFIG = {
     "Instalación también para reportados"
   ],
   planes: [
-    { nombre: "Básico 100 Mbps", velocidad: "100 Mbps", precio: 50000,  descripcion: "Ideal para navegar, redes sociales y streaming en HD." },
-    { nombre: "150 Mbps", velocidad: "150 Mbps", precio: 60000,  descripcion: "Para hogares con varios dispositivos conectados." },
-    { nombre: "200 Mbps", velocidad: "200 Mbps", precio: 70000,  descripcion: "Teletrabajo, estudio y streaming 4K sin interrupciones." },
-    { nombre: "250 Mbps", velocidad: "250 Mbps", precio: 85000,  descripcion: "Más velocidad para jugar y descargar sin límites." },
-    { nombre: "Ultra 300 Mbps", velocidad: "300 Mbps", precio: 100000, descripcion: "Máxima velocidad para hogares exigentes." }
+    { nombre: "Básico 100 Mbps",   velocidad: "100 Mbps", precio: 50000,  descripcion: "Ideal para navegar, redes sociales y streaming en HD." },
+    { nombre: "Familiar 150 Mbps", velocidad: "150 Mbps", precio: 60000,  descripcion: "Para hogares con varios dispositivos conectados.", destacado: true },
+    { nombre: "Plus 200 Mbps",     velocidad: "200 Mbps", precio: 70000,  descripcion: "Teletrabajo, estudio y streaming 4K sin interrupciones." },
+    { nombre: "Premium 250 Mbps",  velocidad: "250 Mbps", precio: 85000,  descripcion: "Más velocidad para jugar y descargar sin límites." },
+    { nombre: "Ultra 300 Mbps",    velocidad: "300 Mbps", precio: 100000, descripcion: "Máxima velocidad para hogares exigentes." }
   ],
 
   /* ------------------------------------------------------------
@@ -194,9 +200,9 @@ window.UNEFIBRAS_CONFIG = {
    * ---------------------------------------------------------- */
   planesInteres: [
     "Básico 100 Mbps",
-    "150 Mbps",
-    "200 Mbps",
-    "250 Mbps",
+    "Familiar 150 Mbps",
+    "Plus 200 Mbps",
+    "Premium 250 Mbps",
     "Ultra 300 Mbps"
   ],
 

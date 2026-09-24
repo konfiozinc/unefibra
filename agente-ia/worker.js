@@ -33,7 +33,7 @@ CÓMO FUNCIONA: 1) Solicitas por WhatsApp o el formulario. 2) Verificamos cobert
 
 PAGOS: Nequi, Daviplata, Bancolombia, Davivienda, transferencia bancaria y efectivo.
 
-CONTACTO: WhatsApp 302 858 9954 (+57 302 858 9954); teléfonos 302 858 9954 y 321 749 0310; correo unefibra81@gmail.com. UneFibra, Medellín, Antioquia.
+CONTACTO: WhatsApp 304 465 4987 (+57 304 465 4987), que es el canal principal; teléfono para llamadas 321 749 0310; correo unefibrasas@gmail.com. UneFibra, Medellín, Antioquia.
 
 PREGUNTAS FRECUENTES:
 • ¿Necesito contrato? No, trabajamos sin contratos ni cláusulas ocultas.
@@ -42,7 +42,7 @@ PREGUNTAS FRECUENTES:
 • ¿Puedo cambiar de plan? Sí; escríbenos por WhatsApp y lo gestionamos.
 • ¿Qué velocidad me conviene? Depende del uso: 100 Mbps básico, 200 Mbps familia/streaming, 250–300 Mbps gaming/teletrabajo.
 
-REGLAS FINALES: nunca inventes precios, velocidades, cobertura ni plazos; usa solo los datos de estas instrucciones. Si algo no lo sabes, deriva a WhatsApp. Nunca des asesoría técnica avanzada. Cierra siempre con UNA pregunta concreta. Si el cliente quiere contratar, reportar una falla o dar sus datos, oriéntalo al WhatsApp 302 858 9954. No ofrezcas por ahora TV, telefonía fija ni planes empresariales: indica que el servicio actual es Internet por fibra óptica y deriva a WhatsApp.`;
+REGLAS FINALES: nunca inventes precios, velocidades, cobertura ni plazos; usa solo los datos de estas instrucciones. Si algo no lo sabes, deriva a WhatsApp. Nunca des asesoría técnica avanzada. Cierra siempre con UNA pregunta concreta. Si el cliente quiere contratar, reportar una falla o dar sus datos, oriéntalo al WhatsApp 304 465 4987. No ofrezcas por ahora TV, telefonía fija ni planes empresariales: indica que el servicio actual es Internet por fibra óptica y deriva a WhatsApp.`;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -70,12 +70,12 @@ function respuestaLocal(mensaje) {
     return "Aceptamos Nequi, Daviplata, Bancolombia, Davivienda, transferencia bancaria y efectivo. 💳 ¿Quieres que te contactemos para empezar?";
   }
   if (/falla|daño|no funciona|sin servicio|internet caido|lento|soporte/.test(q)) {
-    return "Lamento el inconveniente. Escríbenos por WhatsApp al 302 858 9954 con tu nombre y dirección, y soporte te atiende. 🙏";
+    return "Lamento el inconveniente. Escríbenos por WhatsApp al 304 465 4987 con tu nombre y dirección, y soporte te atiende. 🙏";
   }
   if (/hola|buenas|buenos dias|buenas tardes|saludo/.test(q)) {
     return "¡Hola! 👋 Soy el asesor de UneFibra. Internet por fibra óptica 100% en Medellín, sin contratos y con instalación hasta tu hogar.\n\n¿En qué te puedo ayudar?";
   }
-  return "Con gusto te ayudo 😊. Cuéntame qué necesitas: planes y precios, cobertura en tu barrio, proceso de instalación o métodos de pago.\n\nTambién puedes escribirnos por WhatsApp al 302 858 9954.";
+  return "Con gusto te ayudo 😊. Cuéntame qué necesitas: planes y precios, cobertura en tu barrio, proceso de instalación o métodos de pago.\n\nTambién puedes escribirnos por WhatsApp al 304 465 4987.";
 }
 
 async function callGemini(model, payload, timeoutMs, key) {

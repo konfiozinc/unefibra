@@ -7,7 +7,7 @@
   "use strict";
 
   var BACKEND = "https://unefibra-agente.konfiozinc.workers.dev";
-  var WHATSAPP = "573028589954";
+  var WHATSAPP = "573044654987";
 
   var history = [];
   var open = false;
@@ -75,12 +75,12 @@
       return "Aceptamos Nequi, Daviplata, Bancolombia, Davivienda, transferencia y efectivo. 💳";
     }
     if (/correo|email|e-mail|escribir|contacto/.test(q)) {
-      return "Puedes escribirnos a unefibra81@gmail.com o por WhatsApp al 302 858 9954. 📧";
+      return "Puedes escribirnos a unefibrasas@gmail.com o por WhatsApp al 304 465 4987. 📧";
     }
     if (/falla|no funciona|caido|lento|soporte|sin servicio/.test(q)) {
-      return "Escríbenos por WhatsApp al 302 858 9954 con tu nombre y dirección; soporte te atiende. 🙏";
+      return "Escríbenos por WhatsApp al 304 465 4987 con tu nombre y dirección; soporte te atiende. 🙏";
     }
-    return "Con gusto te ayudo 😊. Cuéntame: ¿planes y precios, cobertura, instalación o pagos? También puedes escribirnos por WhatsApp al 302 858 9954.";
+    return "Con gusto te ayudo 😊. Cuéntame: ¿planes y precios, cobertura, instalación o pagos? También puedes escribirnos por WhatsApp al 304 465 4987.";
   }
 
   function send(text) {
@@ -103,7 +103,7 @@
         var reply = (d && d.reply ? String(d.reply) : "").trim() || localFallback(text);
         addMsg(reply, "bot");
         history.push({ role: "assistant", content: reply });
-        if (/whatsapp|302 858 9954/.test(reply)) addWa();
+        if (/whatsapp|304 465 4987/.test(reply)) addWa();
       })
       .catch(function () {
         typing(false);

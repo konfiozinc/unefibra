@@ -33,9 +33,9 @@ ni cláusulas ocultas · instalación **también para reportados** · soporte lo
 Nequi · Daviplata · Bancolombia · Davivienda · Transferencia · Efectivo.
 
 ## Contacto
-- WhatsApp: **302 858 9954** (+57 302 858 9954)
-- Teléfonos: 302 858 9954 · 321 749 0310
-- Correo: **unefibra81@gmail.com**
+- WhatsApp: **304 465 4987** (+57 304 465 4987) — canal principal
+- Llamadas: 321 749 0310
+- Correo: **unefibrasas@gmail.com**
 
 ## Reglas del agente
 - Nunca inventar precios, velocidades, cobertura ni plazos.

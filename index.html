@@ -59,8 +59,8 @@
     "url": "https://konfiozinc.github.io/unefibra/",
     "image": "https://konfiozinc.github.io/unefibra/assets/img/og-image.png",
     "logo": "https://konfiozinc.github.io/unefibra/assets/img/logo.png",
-    "telephone": "+573028589954",
-    "email": "unefibra81@gmail.com",
+    "telephone": "+573044654987",
+    "email": "unefibrasas@gmail.com",
     "priceRange": "$$",
     "currenciesAccepted": "COP",
     "openingHours": "Mo-Sa 08:00-18:00",
@@ -98,8 +98,8 @@
     ],
     "contactPoint": {
       "@type": "ContactPoint",
-      "telephone": "+573028589954",
-      "email": "unefibra81@gmail.com",
+      "telephone": "+573044654987",
+      "email": "unefibrasas@gmail.com",
       "contactType": "customer service",
       "areaServed": "CO",
       "availableLanguage": "es"
@@ -467,7 +467,7 @@
               <span class="testimonial__avatar" aria-hidden="true">MG</span>
               <span class="testimonial__data">
                 <strong>María Gómez</strong>
-                <span class="testimonial__place">Belén, Medellín</span>
+                <span class="testimonial__place">Robledo, Medellín</span>
               </span>
             </figcaption>
           </figure>
@@ -480,7 +480,7 @@
               <span class="testimonial__avatar" aria-hidden="true">CP</span>
               <span class="testimonial__data">
                 <strong>Carlos Pérez</strong>
-                <span class="testimonial__place">Laureles, Medellín</span>
+                <span class="testimonial__place">Nuevo Occidente, Medellín</span>
               </span>
             </figcaption>
           </figure>
@@ -516,21 +516,30 @@
             <li>Sin compromiso</li>
           </ul>
 
-          <!-- Botones de contacto con los colores y la forma oficiales de cada canal -->
+          <!-- Botones de contacto con los colores y la forma oficiales de cada canal.
+               Los números y el correo NO están escritos en el HTML: main.js los toma
+               de config.js y construye el enlace al abrir la página. -->
           <div class="contact__actions">
             <a class="btn btn--whatsapp js-whatsapp" href="#" data-mensaje="Hola, quiero contratar Internet por fibra óptica de UneFibra.">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 1 1 4.1-1.1l-.3.2-2.9.8.8-2.8.2-.3A8 8 0 0 1 12 20Zm4.5-5.6c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.2-.2-.2-.4-.4Z"/></svg>
               WhatsApp
             </a>
-            <a class="btn btn--call" href="tel:+573028589954">
+            <a class="btn btn--call js-tel" href="#">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
               Llamar
             </a>
-            <a class="btn btn--mail" href="mailto:unefibra81@gmail.com">
+            <a class="btn btn--mail js-mail" href="#">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm8 7.2L5.4 7.6 5 8.4l7 4.4 7-4.4-.4-.8L12 12.2z"/></svg>
               Correo
             </a>
           </div>
+
+          <!-- QR con el logo de la empresa: se genera con `node tools/generar-qr.js`
+               y apunta al WhatsApp oficial (config.js → whatsapp.numero). -->
+          <figure class="qr-card">
+            <img src="assets/img/qr-whatsapp.png" alt="Código QR para escribir a UneFibra por WhatsApp" width="250" height="250" loading="lazy" decoding="async" />
+            <figcaption>Escanea con tu celular y escríbenos por WhatsApp</figcaption>
+          </figure>
         </div>
 
         <form class="form" id="form-solicitud" aria-labelledby="contacto-title" novalidate>
@@ -617,21 +626,21 @@
           <a class="footer__action footer__action--whatsapp js-whatsapp" href="#" aria-label="WhatsApp de UneFibra" data-mensaje="Hola, quiero información sobre UneFibra.">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 1 1 4.1-1.1l-.3.2-2.9.8.8-2.8.2-.3A8 8 0 0 1 12 20Zm4.5-5.6c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.2-.2-.2-.4-.4Z"/></svg>
           </a>
-          <a class="footer__action footer__action--call" href="tel:+573028589954" aria-label="Llamar a UneFibra">
+          <a class="footer__action footer__action--call js-tel" href="#" aria-label="Llamar a UneFibra">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.2.2 2.4.6 3.6.1.3 0 .7-.2 1l-2.3 2.2z"/></svg>
           </a>
-          <a class="footer__action footer__action--mail" href="mailto:unefibra81@gmail.com" aria-label="Enviar correo a UneFibra">
+          <a class="footer__action footer__action--mail js-mail" href="#" aria-label="Enviar correo a UneFibra">
             <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M4 5h16a1 1 0 0 1 1 1v12a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1zm8 7.2L5.4 7.6 5 8.4l7 4.4 7-4.4-.4-.8L12 12.2z"/></svg>
           </a>
+          <a class="footer__action footer__action--map js-mapa" href="#" target="_blank" rel="noopener" aria-label="Ver ubicación en Google Maps">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a7 7 0 0 0-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 0 0-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>
+          </a>
         </div>
-        <!-- Los valores se sincronizan desde assets/js/config.js (js-emp-*).
-             El texto visible queda como respaldo si falla el JavaScript. -->
-        <a class="footer__item js-emp-telefono" href="tel:+573028589954">302 858 9954</a>
-        <a class="footer__item js-emp-telefono-2" href="tel:+573217490310">321 749 0310</a>
-        <a class="footer__item js-emp-email" href="mailto:unefibra81@gmail.com">unefibra81@gmail.com</a>
-        <span class="footer__item js-emp-direccion">Calle 100 # 15-20, Medellín</span>
+        <!-- Los datos (teléfonos, correo y dirección) NO se escriben en el HTML:
+             main.js los lee de config.js y construye cada enlace. -->
         <span class="footer__item js-emp-horario">Lunes a sábado, 8:00 a.m. – 6:00 p.m.</span>
-        <a class="footer__item js-whatsapp" href="#" data-mensaje="Hola, quiero información sobre UneFibra.">WhatsApp</a>
+        <a class="footer__item js-whatsapp" href="#" data-mensaje="Hola, quiero información sobre UneFibra.">Escríbenos por WhatsApp</a>
+        <a class="footer__item js-mapa" href="#" target="_blank" rel="noopener">Ver ubicación en el mapa</a>
       </div>
 
       <div class="footer__col footer__legal">

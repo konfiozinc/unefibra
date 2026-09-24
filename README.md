@@ -90,15 +90,23 @@ Todo vive en `assets/js/config.js` (sección `empresa`) y en el texto visible de
 
 | Dato | Estado | Dónde |
 |---|---|---|
-| Email (`unefibra81@gmail.com`) | ✅ Confirmado | `config.js → empresa.email` + JSON-LD + footer |
-| Teléfonos · WhatsApp | ✅ Confirmado | `config.js → empresa` / `whatsapp` |
+| Email (`unefibrasas@gmail.com`) | ✅ Confirmado | `config.js → empresa.email` (solo detrás del botón Correo) |
+| WhatsApp (`304 465 4987`) | ✅ Confirmado | `config.js → whatsapp.numero` (único canal de WhatsApp) |
+| Llamadas (`321 749 0310`) | ✅ Confirmado | `config.js → empresa.telefono` (solo detrás del botón Llamar) |
+| Números anteriores | 🔒 Conservados sin publicar | `config.js → telefonoAnterior` / `whatsapp.numeroAnterior` |
 | Cobertura (22 sectores del occidente de Medellín) | ✅ Confirmado | `config.js → cobertura.zonas` + copia estática en `index.html` |
-| Nombre legal (`UneFibra SAS`) | ✅ Indicado por el cliente | `config.js → empresa.nombreLegal` + footer + JSON-LD |
-| Dirección (`Calle 100 # 15-20, Medellín`) | ⚠️ Provisional | `config.js → empresa.direccion` + JSON-LD de `index.html` |
-| NIT (`9020925655`) | ⚠️ Provisional | `config.js → empresa.nit` + footer |
+| Nombre legal (`UneFibra SAS`) | ✅ Confirmado | `config.js → empresa.nombreLegal` + footer + JSON-LD |
+| Dirección (`Calle 100 # 15-20, Medellín`) | ⚠️ Provisional | `config.js → empresa.direccion` (solo detrás del botón Ver ubicación + JSON-LD) |
+| NIT (`9020925655`) | ✅ Confirmado | `config.js → empresa.nit` + footer |
 | Facebook / Instagram / TikTok | ❌ La cuenta no existe aún | `config.js → empresa.redes` |
-| Velocidades y precios | ✅ Confirmado | `config.js → planes[]` |
+| Planes (Básico 100 · Familiar 150 · Plus 200 · Premium 250 · Ultra 300) | ✅ Confirmado | `config.js → planes[]` |
 | App Check (reCAPTCHA v3) | ❌ Desactivado | `config.js → appCheck` |
+
+**Datos de contacto ocultos**: los teléfonos, el correo y la dirección **no se
+escriben en `index.html`**. Viven en `config.js` y `main.js` (`initContacto()`)
+los inyecta en los botones (`.js-tel`, `.js-mail`, `.js-mapa`, `.js-whatsapp`)
+al cargar la página, así no quedan como texto plano ni en enlaces `tel:`/`mailto:`
+del HTML.
 
 **Marca**: siempre `UneFibra` (pegado, U y F mayúsculas) y `UneFibra SAS` como
 nombre legal. No usar "UNE FIBRA", "UNEFIBRAS", "Une fibra" ni "UNEFIBRAS SAS".

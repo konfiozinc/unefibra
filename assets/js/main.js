@@ -40,7 +40,7 @@
 
   // ---------------- WhatsApp ----------------
   function urlWhatsApp(mensaje) {
-    const numero = (CFG.whatsapp && CFG.whatsapp.numero) || "573028589954";
+    const numero = (CFG.whatsapp && CFG.whatsapp.numero) || "573044654987";
     return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
   }
 
@@ -53,8 +53,32 @@
     });
   }
 
+  // ---------------- Contacto protegido ----------------
+  // Los teléfonos, el correo y la dirección NO viven en el HTML: se leen de
+  // config.js y se inyectan aquí, así no quedan expuestos como texto plano.
+  function initContacto() {
+    const emp = CFG.empresa || {};
+
+    // Botón "Llamar" → tel: (número principal de llamadas)
+    const tel = telHref(emp.telefono || (emp.telefonos && emp.telefonos[0]));
+    if (tel) $$(".js-tel").forEach((el) => { el.href = tel; });
+
+    // Botón "Correo" → mailto:
+    if (emp.email) {
+      const asunto = encodeURIComponent("Solicitud de información — UneFibra");
+      const cuerpo = encodeURIComponent("Hola, me interesa conocer más sobre los planes de Internet por fibra óptica de UneFibra.");
+      $$(".js-mail").forEach((el) => { el.href = `mailto:${emp.email}?subject=${asunto}&body=${cuerpo}`; });
+    }
+
+    // Botón "Ver ubicación" → Google Maps
+    if (emp.direccion) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(emp.direccion)}`;
+      $$(".js-mapa").forEach((el) => { el.href = url; el.target = "_blank"; el.rel = "noopener"; });
+    }
+  }
+
   // ---------------- Datos de empresa ----------------
-  // Convierte "302 858 9954" en un enlace tel: internacional (+57).
+  // Convierte "321 749 0310" en un enlace tel: internacional (+57).
   function telHref(numero) {
     const limpio = String(numero || "").replace(/[^\d+]/g, "");
     if (!limpio) return null;
@@ -125,7 +149,7 @@
     const beneficios = (CFG.planBeneficios || plan.beneficios || []).map((b) => `<li>${b}</li>`).join("");
 
     return `
-      <article class="plan-card">
+      <article class="plan-card${plan.destacado ? " plan-card--featured" : ""}">
         <h3 class="plan-card__name">${plan.nombre}</h3>
         <span class="plan-card__tech">${plan.tecnologia || "Fibra óptica"}</span>
         <p class="plan-card__price">${precio} <span>COP / ${duracion} ${plan.unidadDuracion || "días"}</span></p>
@@ -406,6 +430,7 @@
   document.addEventListener("DOMContentLoaded", () => {
     initNav();
     initWhatsApp();
+    initContacto();
     initEmpresa();
     initRedes();
     initPlanes();

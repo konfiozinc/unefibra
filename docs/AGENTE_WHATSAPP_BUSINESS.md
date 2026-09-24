@@ -97,9 +97,9 @@ Nequi · Daviplata · Bancolombia · Davivienda · Transferencia · Efectivo.
 
 ## 6. Contacto oficial
 
-- **WhatsApp:** 302 858 9954 (+57 302 858 9954)
-- **Teléfonos:** 302 858 9954 · 321 749 0310
-- **Correo:** unefibra81@gmail.com
+- **WhatsApp:** 304 465 4987 (+57 304 465 4987) — canal principal
+- **Llamadas:** 321 749 0310 (+57 321 749 0310)
+- **Correo:** unefibrasas@gmail.com
 - **Horario:** lunes a sábado, 8:00 a.m. – 6:00 p.m.
 - **Sitio web:** https://konfiozinc.github.io/unefibra/
 - **Dirección (provisional):** Calle 100 # 15-20, Medellín
@@ -119,7 +119,7 @@ Nequi · Daviplata · Bancolombia · Davivienda · Transferencia · Efectivo.
 ## 8. Cuándo derivar a un humano (WhatsApp)
 
 - El cliente quiere **contratar**, dejar sus datos, reportar una **falla** o
-  confirmar una **instalación** → "Escríbenos por WhatsApp al **302 858 9954**
+  confirmar una **instalación** → "Escríbenos por WhatsApp al **304 465 4987**
   con tu nombre, sector y dirección, y te atendemos enseguida 💬".
 - Dudas técnicas avanzadas, quejas, descuentos o casos no cubiertos aquí.
 
