@@ -1,0 +1,13 @@
+# robots.txt — UneFibra SAS
+# ------------------------------------------------------------
+# NOTA IMPORTANTE (GitHub Pages de proyecto):
+#   los buscadores leen  https://konfiozinc.github.io/robots.txt
+#   (la raíz del dominio), NO  https://konfiozinc.github.io/unefibra/robots.txt.
+#   Por eso este archivo no se aplica hoy. Se conserva por completitud y
+#   para cuando el sitio tenga dominio propio (unefibra.co) o hosting raíz.
+
+User-agent: *
+Allow: /
+Disallow: /admin/
+
+Sitemap: https://konfiozinc.github.io/unefibra/sitemap.xml

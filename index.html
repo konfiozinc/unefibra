@@ -199,6 +199,9 @@
           </p>
           <div class="hero__cta">
             <a class="btn btn--primary btn--lg" href="#contacto">Quiero Internet</a>
+            <button type="button" class="btn btn--ghost btn--lg" id="btn-cobertura" aria-haspopup="dialog" aria-controls="modal-cobertura">
+              ¿Tengo cobertura?
+            </button>
             <a class="btn btn--whatsapp btn--lg js-whatsapp" href="#" data-mensaje="Hola, me interesa el servicio de Internet por fibra óptica de UneFibra.">
               <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 1 1 4.1-1.1l-.3.2-2.9.8.8-2.8.2-.3A8 8 0 0 1 12 20Zm4.5-5.6c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.2-.2-.2-.4-.4Z"/></svg>
               WhatsApp
@@ -278,15 +281,90 @@
           <p class="section__subtitle">Internet por fibra óptica con instalación hasta tu hogar.</p>
         </div>
 
-        <!-- Renderizado desde assets/js/config.js (precio NO hardcodeado) -->
-        <div class="plans" id="planes-container" aria-live="polite"></div>
+        <!-- Tarjetas de planes ESCRITAS ESTÁTICAMENTE (sin JavaScript) para
+             que las vean los buscadores y los visitantes sin JS.
+             main.js las vuelve a renderizar desde config.js → planes[].
+             ⚠️ Si cambias un nombre o un precio en config.js, replica el
+             cambio aquí para no perder el SEO. -->
+        <div class="plans" id="planes-container" aria-live="polite">
+          <article class="plan-card">
+            <h3 class="plan-card__name">Básico 100 Mbps</h3>
+            <span class="plan-card__tech">Fibra óptica</span>
+            <p class="plan-card__price">$50.000 <span>COP / 30 días</span></p>
+            <p class="plan-card__desc">Ideal para navegar, redes sociales y streaming en HD.</p>
+            <ul class="plan-card__list">
+              <li>100% fibra óptica hasta tu hogar</li>
+              <li>Máxima velocidad y estabilidad</li>
+              <li>Soporte cercano y confiable</li>
+              <li>Sin contratos ni cláusulas ocultas</li>
+              <li>Instalación también para reportados</li>
+            </ul>
+            <a class="btn btn--primary btn--block js-whatsapp" href="#" data-mensaje="Hola, me interesa el plan Básico 100 Mbps de UneFibra ($50.000 por 30 días).">Quiero este plan</a>
+          </article>
+
+          <article class="plan-card plan-card--featured">
+            <h3 class="plan-card__name">Familiar 150 Mbps</h3>
+            <span class="plan-card__tech">Fibra óptica</span>
+            <p class="plan-card__price">$60.000 <span>COP / 30 días</span></p>
+            <p class="plan-card__desc">Para hogares con varios dispositivos conectados.</p>
+            <ul class="plan-card__list">
+              <li>100% fibra óptica hasta tu hogar</li>
+              <li>Máxima velocidad y estabilidad</li>
+              <li>Soporte cercano y confiable</li>
+              <li>Sin contratos ni cláusulas ocultas</li>
+              <li>Instalación también para reportados</li>
+            </ul>
+            <a class="btn btn--primary btn--block js-whatsapp" href="#" data-mensaje="Hola, me interesa el plan Familiar 150 Mbps de UneFibra ($60.000 por 30 días).">Quiero este plan</a>
+          </article>
+
+          <article class="plan-card">
+            <h3 class="plan-card__name">Plus 200 Mbps</h3>
+            <span class="plan-card__tech">Fibra óptica</span>
+            <p class="plan-card__price">$70.000 <span>COP / 30 días</span></p>
+            <p class="plan-card__desc">Teletrabajo, estudio y streaming 4K sin interrupciones.</p>
+            <ul class="plan-card__list">
+              <li>100% fibra óptica hasta tu hogar</li>
+              <li>Máxima velocidad y estabilidad</li>
+              <li>Soporte cercano y confiable</li>
+              <li>Sin contratos ni cláusulas ocultas</li>
+              <li>Instalación también para reportados</li>
+            </ul>
+            <a class="btn btn--primary btn--block js-whatsapp" href="#" data-mensaje="Hola, me interesa el plan Plus 200 Mbps de UneFibra ($70.000 por 30 días).">Quiero este plan</a>
+          </article>
+
+          <article class="plan-card">
+            <h3 class="plan-card__name">Premium 250 Mbps</h3>
+            <span class="plan-card__tech">Fibra óptica</span>
+            <p class="plan-card__price">$85.000 <span>COP / 30 días</span></p>
+            <p class="plan-card__desc">Más velocidad para jugar y descargar sin límites.</p>
+            <ul class="plan-card__list">
+              <li>100% fibra óptica hasta tu hogar</li>
+              <li>Máxima velocidad y estabilidad</li>
+              <li>Soporte cercano y confiable</li>
+              <li>Sin contratos ni cláusulas ocultas</li>
+              <li>Instalación también para reportados</li>
+            </ul>
+            <a class="btn btn--primary btn--block js-whatsapp" href="#" data-mensaje="Hola, me interesa el plan Premium 250 Mbps de UneFibra ($85.000 por 30 días).">Quiero este plan</a>
+          </article>
+
+          <article class="plan-card">
+            <h3 class="plan-card__name">Ultra 300 Mbps</h3>
+            <span class="plan-card__tech">Fibra óptica</span>
+            <p class="plan-card__price">$100.000 <span>COP / 30 días</span></p>
+            <p class="plan-card__desc">Máxima velocidad para hogares exigentes.</p>
+            <ul class="plan-card__list">
+              <li>100% fibra óptica hasta tu hogar</li>
+              <li>Máxima velocidad y estabilidad</li>
+              <li>Soporte cercano y confiable</li>
+              <li>Sin contratos ni cláusulas ocultas</li>
+              <li>Instalación también para reportados</li>
+            </ul>
+            <a class="btn btn--primary btn--block js-whatsapp" href="#" data-mensaje="Hola, me interesa el plan Ultra 300 Mbps de UneFibra ($100.000 por 30 días).">Quiero este plan</a>
+          </article>
+        </div>
 
         <noscript>
-          <div class="plan-card">
-            <h3>Planes de Internet</h3>
-            <p class="plan-card__price">desde $50.000 <span>COP / 30 días</span></p>
-            <p>100, 150, 200, 250 y 300 Mbps por fibra óptica.</p>
-          </div>
+          <p class="section__subtitle">Todos los planes incluyen instalación y soporte. Escríbenos por WhatsApp para contratar.</p>
         </noscript>
       </div>
     </section>
@@ -654,6 +732,30 @@
       <span>Medellín, Antioquia, Colombia.</span>
     </div>
   </footer>
+
+  <!-- ============ MODAL: VERIFICADOR DE COBERTURA ============ -->
+  <div class="modal-backdrop" id="modal-cobertura" hidden>
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-cob-title">
+      <h2 id="modal-cob-title">¿Tenemos cobertura en tu sector?</h2>
+      <p class="modal__hint">Escribe tu barrio o sector y te lo confirmamos al instante.</p>
+
+      <div class="field">
+        <label for="cob-sector">Barrio o sector</label>
+        <input type="text" id="cob-sector" list="cob-lista" placeholder="Ej. El Cucaracho" autocomplete="off" />
+        <datalist id="cob-lista"></datalist>
+      </div>
+
+      <p class="modal__msg" id="cob-resultado" role="status" aria-live="polite"></p>
+
+      <div class="modal__actions">
+        <button type="button" class="btn btn--ghost" id="cob-cerrar">Cerrar</button>
+        <button type="button" class="btn btn--primary" id="cob-verificar">Verificar cobertura</button>
+      </div>
+
+      <a class="btn btn--whatsapp btn--block js-whatsapp" id="cob-cta" href="#" hidden>Consultar por WhatsApp</a>
+      <p class="modal__foot">¿No aparece tu sector? Escríbenos y lo verificamos con el equipo técnico.</p>
+    </div>
+  </div>
 
   <!-- WhatsApp flotante -->
   <a class="whatsapp-float js-whatsapp" href="#" aria-label="Contactar por WhatsApp" data-mensaje="Hola, me interesa el servicio de Internet por fibra óptica de UneFibra.">

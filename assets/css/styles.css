@@ -605,3 +605,33 @@ button { font: inherit; cursor: pointer; }
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; scroll-behavior: auto !important; transition: none !important; }
 }
+
+/* ------------------------------------------------------------
+   Modal — Verificador de cobertura
+   ------------------------------------------------------------ */
+.modal-backdrop {
+  position: fixed; inset: 0; z-index: 200; display: grid; place-items: center;
+  padding: 20px; background: rgba(4, 12, 28, 0.74);
+}
+.modal-backdrop[hidden] { display: none; }
+.modal {
+  width: min(460px, 100%); max-height: 90vh; overflow-y: auto;
+  background: linear-gradient(160deg, var(--surface-2), var(--surface));
+  border: 1px solid var(--line); border-radius: var(--radius-lg);
+  padding: 26px 22px; box-shadow: var(--shadow);
+}
+.modal h2 { font-family: var(--font-display); font-size: 1.25rem; line-height: 1.25; margin-bottom: 6px; }
+.modal__hint { color: var(--text-muted); font-size: 0.92rem; margin-bottom: 16px; }
+.modal .field { display: grid; gap: 6px; margin-bottom: 14px; }
+.modal .field label { font-size: 0.85rem; font-weight: 600; color: var(--text-muted); }
+.modal .field input {
+  width: 100%; background: var(--bg-soft); border: 1px solid var(--line); color: var(--text);
+  border-radius: 10px; padding: 12px 14px; font: inherit;
+}
+.modal .field input:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0, 176, 240, 0.18); }
+.modal__msg { font-size: 0.92rem; min-height: 22px; margin-bottom: 12px; }
+.modal__msg.ok { color: var(--green); }
+.modal__msg.warn { color: #fbbf24; }
+.modal__actions { display: flex; gap: 10px; justify-content: flex-end; flex-wrap: wrap; margin-bottom: 14px; }
+.modal__foot { color: var(--text-muted); font-size: 0.82rem; margin-top: 12px; text-align: center; }
+body.modal-open { overflow: hidden; }

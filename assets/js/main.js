@@ -410,6 +410,99 @@
   }
 
   // ---------------- PWA ----------------
+  // ---------------- Verificador de cobertura (modal) ----------------
+  // Compara lo que escribe el visitante con cobertura.zonas (config.js).
+  // Es un ORIENTADOR comercial, no un diagnóstico técnico: si no hay
+  // coincidencia, se ofrece verificar con el equipo (no se niega el servicio).
+  function normalizar(texto) {
+    return (texto || "")
+      .toString()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .trim();
+  }
+
+  function initCoberturaModal() {
+    const modal = $("#modal-cobertura");
+    const btnAbrir = $("#btn-cobertura");
+    if (!modal || !btnAbrir) return;
+
+    const input = $("#cob-sector");
+    const lista = $("#cob-lista");
+    const resultado = $("#cob-resultado");
+    const cta = $("#cob-cta");
+    const btnVerificar = $("#cob-verificar");
+    const btnCerrar = $("#cob-cerrar");
+    const zonas = (CFG.cobertura && CFG.cobertura.zonas) || [];
+
+    if (lista) {
+      zonas.forEach((z) => {
+        const opt = document.createElement("option");
+        opt.value = z;
+        lista.appendChild(opt);
+      });
+    }
+
+    function abrirModal() {
+      modal.hidden = false;
+      document.body.classList.add("modal-open");
+      resultado.textContent = "";
+      resultado.className = "modal__msg";
+      cta.hidden = true;
+      if (input) { input.value = ""; input.focus(); }
+    }
+
+    function cerrarModal() {
+      modal.hidden = true;
+      document.body.classList.remove("modal-open");
+      btnAbrir.focus();
+    }
+
+    function verificar() {
+      const valor = normalizar(input && input.value);
+      if (!valor) {
+        resultado.textContent = "Escribe tu barrio o sector para verificar.";
+        resultado.className = "modal__msg warn";
+        cta.hidden = true;
+        return;
+      }
+
+      const encontrado = zonas.find((z) => {
+        const nz = normalizar(z);
+        return nz === valor || nz.indexOf(valor) !== -1 || valor.indexOf(nz) !== -1;
+      });
+
+      if (encontrado) {
+        resultado.textContent = "🟢 ¡Sí! Tenemos cobertura registrada en " + encontrado + ". Solicita tu instalación.";
+        resultado.className = "modal__msg ok";
+        cta.hidden = false;
+        cta.textContent = "Solicitar instalación por WhatsApp";
+        cta.dataset.mensaje = "Hola, quiero contratar Internet UneFibra. Vivo en " + encontrado + " y quiero confirmar cobertura e instalación.";
+      } else {
+        resultado.textContent = "🟡 Aún no tenemos cobertura registrada en ese sector. Escríbenos y lo verificamos con el equipo técnico.";
+        resultado.className = "modal__msg warn";
+        cta.hidden = false;
+        cta.textContent = "Consultar por WhatsApp";
+        cta.dataset.mensaje = "Hola, quiero saber si UneFibra tiene cobertura en " + ((input && input.value) || "mi sector") + ".";
+      }
+      initWhatsApp(); // reconstruye el href del CTA con el mensaje contextual
+    }
+
+    btnAbrir.addEventListener("click", abrirModal);
+    if (btnCerrar) btnCerrar.addEventListener("click", cerrarModal);
+    if (btnVerificar) btnVerificar.addEventListener("click", verificar);
+    if (input) {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") { e.preventDefault(); verificar(); }
+      });
+    }
+    modal.addEventListener("click", (e) => { if (e.target === modal) cerrarModal(); });
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !modal.hidden) cerrarModal();
+    });
+  }
+
   function initPWA() {
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -435,6 +528,7 @@
     initRedes();
     initPlanes();
     initCobertura();
+    initCoberturaModal();
     initForm();
     initYear();
     initPWA();
