@@ -330,6 +330,20 @@
       }
 
       const data = Object.fromEntries(new FormData(form).entries());
+
+      // Honeypot anti-spam (tarea 3.6): un humano nunca rellena el campo
+      // oculto. Si trae datos, se descarta en silencio (sin avisar al bot)
+      // y no se envía nada a WhatsApp ni a Firestore.
+      if ((data.website || "").trim()) {
+        status.textContent = "Solicitud recibida. Te contactaremos pronto.";
+        status.className = "form__note ok";
+        form.reset();
+        return;
+      }
+
+      // Medición de conversión (inerte si no hay analytics configurado).
+      window.ufTrack && window.ufTrack("form_submit", {});
+
       const limpio = (k) => (data[k] || "").trim();
       const nombre = limpio("nombre");
       const telefono = limpio("telefono");
@@ -503,6 +517,111 @@
     });
   }
 
+  // ---------------- Analytics (tarea 3.1 — inerte sin IDs) ----------------
+  // Carga GA4 y Meta Pixel SOLO si config.js trae los IDs. Mientras estén
+  // vacíos no se inyecta ningún script externo: sin peticiones fallidas y
+  // sin rastrear al visitante sin autorización.
+  function initAnalytics() {
+    const cfg = CFG.analytics || {};
+    const ga4 = (cfg.ga4Id || "").trim();
+    const pixel = (cfg.metaPixelId || "").trim();
+
+    if (ga4) {
+      const s = document.createElement("script");
+      s.async = true;
+      s.src = "https://www.googletagmanager.com/gtag/js?id=" + encodeURIComponent(ga4);
+      document.head.appendChild(s);
+      window.dataLayer = window.dataLayer || [];
+      window.gtag = function () { window.dataLayer.push(arguments); };
+      window.gtag("js", new Date());
+      window.gtag("config", ga4);
+    }
+
+    if (pixel) {
+      /* Snippet oficial del píxel de Meta */
+      !(function (f, b, e, v, n, t, s) {
+        if (f.fbq) return;
+        n = f.fbq = function () { n.callMethod ? n.callMethod.apply(n, arguments) : n.queue.push(arguments); };
+        if (!f._fbq) f._fbq = n;
+        n.push = n; n.loaded = !0; n.version = "2.0"; n.queue = [];
+        t = b.createElement(e); t.async = !0; t.src = v;
+        s = b.getElementsByTagName(e)[0]; s.parentNode.insertBefore(t, s);
+      })(window, document, "script", "https://connect.facebook.net/en_US/fbevents.js");
+      window.fbq("init", pixel);
+      window.fbq("track", "PageView");
+    }
+
+    // Medidor unificado: no hace nada si no hay destino cargado.
+    window.ufTrack = function (evento, params) {
+      try {
+        if (window.gtag) window.gtag("event", evento, params || {});
+        if (window.fbq) window.fbq("trackCustom", evento, params || {});
+      } catch (e) { /* sin analytics: silencio */ }
+    };
+
+    // Eventos pedidos: clic en CTA (cta_click), formulario (form_submit,
+    // disparado en initForm) y visualización del QR (qr_view).
+    document.addEventListener("click", (e) => {
+      const el = e.target.closest(".btn, .js-whatsapp, .js-tel, .js-mail");
+      if (!el) return;
+      window.ufTrack("cta_click", {
+        texto: (el.textContent || "").trim().slice(0, 40),
+        destino: el.getAttribute("href") || ""
+      });
+    }, { passive: true });
+
+    const qr = document.querySelector("img[alt*='QR' i], .qr img, .qr__img");
+    if (qr && "IntersectionObserver" in window) {
+      const io = new IntersectionObserver((entries) => {
+        entries.forEach((en) => {
+          if (en.isIntersecting) { window.ufTrack("qr_view", {}); io.disconnect(); }
+        });
+      });
+      io.observe(qr);
+    }
+  }
+
+  // ---------------- Recomendador de velocidad ----------------
+  // Orientador COMERCIAL por reglas — NO es un diagnóstico técnico.
+  // Suma 3 respuestas (3 a 9 puntos) y sugiere uno de los planes reales.
+  function initRecomendador() {
+    const btn = $("#reco-ver");
+    if (!btn) return;
+
+    const selPersonas = $("#reco-personas");
+    const selEquipos = $("#reco-equipos");
+    const selUso = $("#reco-uso");
+    const salida = $("#reco-resultado");
+    const cta = $("#reco-cta");
+    const planes = (CFG.planes || []).slice().sort((a, b) => a.precio - b.precio);
+
+    btn.addEventListener("click", () => {
+      if (!planes.length) return;
+
+      const puntaje = Number((selPersonas && selPersonas.value) || 1)
+        + Number((selEquipos && selEquipos.value) || 1)
+        + Number((selUso && selUso.value) || 0);
+
+      let indice;
+      if (puntaje <= 4) indice = 0;
+      else if (puntaje <= 6) indice = 1;
+      else if (puntaje <= 8) indice = 2;
+      else indice = 3;
+
+      const plan = planes[Math.min(indice, planes.length - 1)];
+      salida.innerHTML = "Según tus respuestas te sugerimos <strong>" + plan.nombre + "</strong> (" +
+        plan.velocidad + "). Es una orientación comercial: si tienes dudas, escríbenos y lo revisamos contigo.";
+
+      if (cta) {
+        cta.hidden = false;
+        cta.dataset.mensaje = "Hola, según el recomendador de la web me interesa el plan " + plan.nombre +
+          " de UneFibra. ¿Me confirman cobertura e instalación?";
+        initWhatsApp();
+      }
+      window.ufTrack && window.ufTrack("plan_select", { plan: plan.nombre });
+    });
+  }
+
   function initPWA() {
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -530,6 +649,8 @@
     initCobertura();
     initCoberturaModal();
     initForm();
+    initAnalytics();
+    initRecomendador();
     initYear();
     initPWA();
     programarCargaFirebase();

@@ -160,6 +160,7 @@
         <a href="#garantias">Garantías</a>
         <a href="#cobertura">Cobertura</a>
         <a href="#como-funciona">Cómo funciona</a>
+        <a href="#faq">Preguntas</a>
         <a href="#contacto">Contacto</a>
       </nav>
 
@@ -272,6 +273,42 @@
       </div>
     </section>
 
+    <!-- ============ INTERNET PARA... ============ -->
+    <section class="section" id="para-quien">
+      <div class="container">
+        <div class="section__head">
+          <span class="eyebrow">Internet para…</span>
+          <h2 class="section__title">¿Para qué necesitas la conexión?</h2>
+          <p class="section__subtitle">Te orientamos según el uso que le darás en tu hogar.</p>
+        </div>
+
+        <div class="grid grid--3">
+          <article class="feature">
+            <div class="feature__icon" aria-hidden="true">🏠</div>
+            <h3 class="feature__title">Hogar</h3>
+            <p class="feature__text">Navegar, redes sociales y streaming en varios equipos a la vez. Con un plan de entrada suele ser suficiente.</p>
+          </article>
+          <article class="feature">
+            <div class="feature__icon" aria-hidden="true">💻</div>
+            <h3 class="feature__title">Teletrabajo</h3>
+            <p class="feature__text">Videollamadas, VPN y envío de archivos. Un plan medio evita los cortes en reuniones.</p>
+          </article>
+          <article class="feature">
+            <div class="feature__icon" aria-hidden="true">🎮</div>
+            <h3 class="feature__title">Gaming</h3>
+            <p class="feature__text">Aquí importan más la estabilidad y la baja latencia de la fibra que la velocidad máxima.</p>
+          </article>
+          <article class="feature">
+            <div class="feature__icon" aria-hidden="true">📺</div>
+            <h3 class="feature__title">Entretenimiento</h3>
+            <p class="feature__text">Varias plataformas y pantallas en simultáneo. Un plan medio o alto evita las pausas de carga.</p>
+          </article>
+        </div>
+
+        <p class="section__foot">¿Sigues con dudas? <a class="js-whatsapp" href="#" data-mensaje="Hola, quiero que me ayuden a elegir el plan de Internet de UneFibra.">Escríbenos por WhatsApp</a> y te orientamos.</p>
+      </div>
+    </section>
+
     <!-- ============ PLANES ============ -->
     <section class="section section--alt" id="planes">
       <div class="container">
@@ -366,6 +403,92 @@
         <noscript>
           <p class="section__subtitle">Todos los planes incluyen instalación y soporte. Escríbenos por WhatsApp para contratar.</p>
         </noscript>
+
+        <!-- Comparador responsive (scroll horizontal accesible en móvil).
+             Solo datos confirmados. Permanencia y soporte provienen de la
+             sección "Garantías" (confirmada por la empresa). -->
+        <div class="compare">
+          <h3 class="compare__title">Compara los planes</h3>
+          <div class="compare__scroll" tabindex="0" role="region" aria-label="Tabla comparativa de planes">
+            <table class="compare__table">
+              <caption class="visually-hidden">Comparación de los planes de fibra óptica de UneFibra</caption>
+              <thead>
+                <tr>
+                  <th scope="col">Plan</th>
+                  <th scope="col">Velocidad</th>
+                  <th scope="col">Precio / 30 días</th>
+                  <th scope="col">Ideal para</th>
+                  <th scope="col">Permanencia</th>
+                  <th scope="col">Soporte</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <th scope="row">Básico</th><td>100 Mbps</td><td>$50.000</td>
+                  <td>Navegar y redes sociales</td><td>Sin permanencia</td><td>Por WhatsApp</td>
+                </tr>
+                <tr>
+                  <th scope="row">Familiar</th><td>150 Mbps</td><td>$60.000</td>
+                  <td>Varios dispositivos en casa</td><td>Sin permanencia</td><td>Por WhatsApp</td>
+                </tr>
+                <tr>
+                  <th scope="row">Plus</th><td>200 Mbps</td><td>$70.000</td>
+                  <td>Teletrabajo y streaming 4K</td><td>Sin permanencia</td><td>Por WhatsApp</td>
+                </tr>
+                <tr>
+                  <th scope="row">Premium</th><td>250 Mbps</td><td>$85.000</td>
+                  <td>Gaming y descargas</td><td>Sin permanencia</td><td>Por WhatsApp</td>
+                </tr>
+                <tr>
+                  <th scope="row">Ultra</th><td>300 Mbps</td><td>$100.000</td>
+                  <td>Hogares de alto consumo</td><td>Sin permanencia</td><td>Por WhatsApp</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <p class="compare__note">
+            Todos los planes son 100% fibra óptica y duran 30 días calendario.
+            <!-- TODO: confirmar con el cliente si la instalación tiene costo y si incluye equipo/router. -->
+          </p>
+        </div>
+
+        <!-- Recomendador de velocidad: orientador comercial por reglas.
+             NO es un diagnóstico técnico. La lógica vive en main.js. -->
+        <div class="reco" id="recomendador">
+          <h3 class="compare__title">¿Qué velocidad necesitas?</h3>
+          <p class="compare__note">Responde tres preguntas y te orientamos. Es una guía comercial, no un diagnóstico técnico.</p>
+
+          <div class="reco__grid">
+            <label class="field" for="reco-personas">
+              <span>¿Cuántas personas usan el Internet?</span>
+              <select id="reco-personas">
+                <option value="1">1 a 2 personas</option>
+                <option value="2">3 a 4 personas</option>
+                <option value="3">5 o más personas</option>
+              </select>
+            </label>
+            <label class="field" for="reco-equipos">
+              <span>Dispositivos conectados a la vez</span>
+              <select id="reco-equipos">
+                <option value="1">1 a 3 equipos</option>
+                <option value="2">4 a 8 equipos</option>
+                <option value="3">Más de 8 equipos</option>
+              </select>
+            </label>
+            <label class="field" for="reco-uso">
+              <span>¿Streaming 4K, gaming o teletrabajo?</span>
+              <select id="reco-uso">
+                <option value="0">Casi nunca</option>
+                <option value="1">A veces</option>
+                <option value="2">Sí, uso intensivo</option>
+              </select>
+            </label>
+          </div>
+
+          <button type="button" class="btn btn--primary" id="reco-ver">Ver recomendación</button>
+          <p class="reco__result" id="reco-resultado" role="status" aria-live="polite"></p>
+          <a class="btn btn--whatsapp" id="reco-cta" href="#" hidden>Consultar este plan por WhatsApp</a>
+        </div>
       </div>
     </section>
 
@@ -579,6 +702,82 @@
       </div>
     </section>
 
+    <!-- ============ FAQ ============ -->
+    <!-- Las respuestas marcadas con TODO necesitan confirmación del cliente.
+         Las ya redactadas se apoyan en la sección "Garantías" (permanencia,
+         soporte e instalación), que la empresa confirmó. -->
+    <section class="section" id="faq">
+      <div class="container">
+        <div class="section__head">
+          <span class="eyebrow">Preguntas frecuentes</span>
+          <h2 class="section__title">Lo que suelen preguntarnos</h2>
+          <p class="section__subtitle">Toca cada pregunta para ver la respuesta.</p>
+        </div>
+
+        <div class="faq">
+          <details class="faq__item">
+            <summary class="faq__q">¿Qué diferencia hay entre el cobre y la fibra óptica?</summary>
+            <div class="faq__a"><p>La fibra transmite la información con luz por un hilo de vidrio; el cobre lo hace con señales eléctricas. En la práctica, la fibra da más velocidad, más estabilidad y mejor comportamiento cuando hay muchos equipos conectados al mismo tiempo.</p></div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">¿Debo pagar la instalación?</summary>
+            <!-- TODO: confirmar con el cliente si la instalación tiene costo, cuánto y en qué casos. -->
+            <div class="faq__a"><p>La instalación la realiza nuestro equipo técnico en tu hogar. Escríbenos por WhatsApp y te confirmamos las condiciones según tu sector.</p></div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">¿Hay una velocidad mínima garantizada?</summary>
+            <!-- TODO: confirmar con el cliente el porcentaje de velocidad garantizada (si aplica). -->
+            <div class="faq__a"><p>Los planes van de 100 a 300 Mbps según el que elijas. La velocidad que recibes puede variar por factores de tu hogar como el Wi-Fi o los equipos conectados; si notas algo raro, escríbenos y lo revisamos.</p></div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">¿Qué pasa si se daña la línea o tengo una falla?</summary>
+            <div class="faq__a"><p>Reportas la falla por WhatsApp a cualquier hora y te acompañamos hasta resolverla, tal como lo indican nuestras garantías de soporte.</p></div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">¿Puedo cambiar de plan?</summary>
+            <!-- TODO: confirmar con el cliente el procedimiento del cambio de plan y si tiene costo. -->
+            <div class="faq__a"><p>Sí. Escríbenos por WhatsApp indicando a qué plan quieres pasar y te contamos cómo se aplica el cambio.</p></div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">¿Hay contrato de permanencia?</summary>
+            <div class="faq__a"><p>No. En UneFibra pagas mes a mes: no manejamos contratos de permanencia ni cláusulas de amarre.</p></div>
+          </details>
+
+          <details class="faq__item">
+            <summary class="faq__q">¿Cómo verifico si tengo cobertura en mi sector?</summary>
+            <div class="faq__a"><p>Usa el botón <strong>«¿Tengo cobertura?»</strong> al inicio de la página: escribes tu barrio o sector y te decimos al instante si está dentro de nuestra red del occidente de Medellín.</p></div>
+          </details>
+        </div>
+      </div>
+    </section>
+
+    <!-- FAQPage: debe coincidir con las preguntas visibles de arriba. -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      "mainEntity": [
+        { "@type": "Question", "name": "¿Qué diferencia hay entre el cobre y la fibra óptica?",
+          "acceptedAnswer": { "@type": "Answer", "text": "La fibra transmite la información con luz por un hilo de vidrio; el cobre lo hace con señales eléctricas. En la práctica, la fibra da más velocidad, más estabilidad y mejor comportamiento cuando hay muchos equipos conectados al mismo tiempo." } },
+        { "@type": "Question", "name": "¿Debo pagar la instalación?",
+          "acceptedAnswer": { "@type": "Answer", "text": "La instalación la realiza nuestro equipo técnico en tu hogar. Escríbenos por WhatsApp y te confirmamos las condiciones según tu sector." } },
+        { "@type": "Question", "name": "¿Hay una velocidad mínima garantizada?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Los planes van de 100 a 300 Mbps según el que elijas. La velocidad puede variar por factores de tu hogar como el Wi-Fi o los equipos conectados." } },
+        { "@type": "Question", "name": "¿Qué pasa si se daña la línea o tengo una falla?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Reportas la falla por WhatsApp a cualquier hora y te acompañamos hasta resolverla." } },
+        { "@type": "Question", "name": "¿Puedo cambiar de plan?",
+          "acceptedAnswer": { "@type": "Answer", "text": "Sí. Escríbenos por WhatsApp indicando a qué plan quieres pasar y te contamos cómo se aplica el cambio." } },
+        { "@type": "Question", "name": "¿Hay contrato de permanencia?",
+          "acceptedAnswer": { "@type": "Answer", "text": "No. En UneFibra pagas mes a mes: no manejamos contratos de permanencia ni cláusulas de amarre." } }
+      ]
+    }
+    </script>
+
     <!-- ============ CONTACTO / QUIERO INTERNET ============ -->
     <section class="section section--alt" id="contacto">
       <div class="container contact-grid">
@@ -663,6 +862,13 @@
           <label class="field" for="f-observaciones">
             <span>Observaciones</span>
             <textarea id="f-observaciones" name="observaciones" rows="3" placeholder="Cuéntanos algo más (opcional)"></textarea>
+          </label>
+
+          <!-- Honeypot anti-spam: los humanos no lo ven (CSS .hp). Si un bot
+               lo rellena, main.js descarta el envío en silencio. -->
+          <label class="field hp" for="f-website" aria-hidden="true">
+            <span>No rellenar este campo</span>
+            <input type="text" id="f-website" name="website" tabindex="-1" autocomplete="off" />
           </label>
 
           <button type="submit" class="btn btn--primary btn--lg btn--block" id="form-submit">Solicitar información</button>

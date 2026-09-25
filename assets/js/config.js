@@ -85,6 +85,19 @@ window.UNEFIBRAS_CONFIG = {
   },
 
   /* ------------------------------------------------------------
+   * Analytics (tarea 3.1) — PENDIENTE DEL CLIENTE.
+   * Mientras los IDs estén vacíos NO se carga ningún script externo:
+   * así no hay peticiones fallidas ni rastreo sin autorización.
+   * Cuando el cliente los entregue, basta pegar los IDs aquí.
+   * ---------------------------------------------------------- */
+  analytics: {
+    // TODO: Reemplazar con el ID real de Google Analytics 4 (formato "G-XXXXXXXXXX").
+    ga4Id: "",
+    // TODO: Reemplazar con el ID real del píxel de Meta (solo números).
+    metaPixelId: ""
+  },
+
+  /* ------------------------------------------------------------
    * WhatsApp
    * Número en formato internacional SIN "+" ni espacios.
    * Ejemplo real: "573001234567"
