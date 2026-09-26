@@ -39,6 +39,12 @@ desktop.ini
 dist/
 build/
 
+# Blog público
+# Se genera con `node tools/generar-blog.js` desde los artículos PUBLICADO de
+# Firestore. La carpeta blog/ SÍ se versiona: así el sitio funciona aunque el
+# pipeline no llegue a ejecutarse. El despliegue la regenera desde la base de
+# datos, que sigue siendo la única fuente de verdad del contenido.
+
 # Logs
 *.log
 npm-debug.log*

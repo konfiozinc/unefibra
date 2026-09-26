@@ -43,6 +43,10 @@ window.UNEFIBRAS_CONFIG = {
     // Teléfono para LLAMADAS (lo usa el botón "Llamar").
     // Los datos de contacto NO se muestran como texto en la página:
     // viven aquí y los botones construyen el enlace al hacer clic.
+    // OJO: "321 749 0310" (voz) y "304 465 4987" (WhatsApp) son DOS líneas
+    // reales y distintas — confirmado por el cliente. No unificar.
+    // El JSON-LD de index.html declara ambas: `telephone` lleva la de voz y
+    // el segundo `contactPoint` la de WhatsApp (con su enlace wa.me).
     telefono: "321 749 0310",
     telefonos: ["321 749 0310"],
 

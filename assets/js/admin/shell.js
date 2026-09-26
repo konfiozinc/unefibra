@@ -18,6 +18,7 @@ const NAV = [
   { key: "servicios", label: "Servicios", href: "servicios.html", min: "OPERADOR" },
   { key: "pagos", label: "Pagos", href: "pagos.html", min: "OPERADOR" },
   { key: "planes", label: "Planes", href: "planes.html", min: "ADMIN" },
+  { key: "blog", label: "Blog", href: "blog.html", min: "ADMIN" },
   { key: "notificaciones", label: "Notificaciones", href: "notificaciones.html", min: "ADMIN" },
   { key: "configuracion", label: "Configuración", href: "configuracion.html", min: "SUPERADMIN" },
   { key: "usuarios", label: "Usuarios", href: "usuarios.html", min: "SUPERADMIN" },

@@ -717,6 +717,12 @@ body.modal-open { overflow: hidden; }
   .ahorro__grid { grid-template-columns: repeat(2, 1fr); }
 }
 
+/* ---------- Regla base: [hidden] siempre gana ---------- */
+/* Varias clases de este archivo fijan display:flex o display:grid, y eso anula
+   el display:none que el navegador aplica a [hidden]. Sin esta regla, un
+   elemento marcado como oculto se seguiría viendo (pasó con .resenas y .grid). */
+[hidden] { display: none !important; }
+
 /* ---------- Reseñas reales (#resenas) ---------- */
 .resenas {
   display: flex;
@@ -726,11 +732,5 @@ body.modal-open { overflow: hidden; }
   gap: 14px;
   margin-bottom: 28px;
 }
-/* `display: flex` anula el display:none que el navegador aplica a [hidden],
-   así que se declara explícitamente (mismo caso que .form__fallback). */
-.resenas[hidden] { display: none; }
 .resenas__score { font-size: 1.05rem; font-weight: 700; color: var(--cyan); }
 .resenas__actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
-
-/* .grid fija display:grid y también anula [hidden]. */
-.grid[hidden] { display: none; }

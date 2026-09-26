@@ -77,6 +77,18 @@ service cloud.firestore {
       allow delete: if esSuperAdmin();
     }
 
+    // ---------------- Blog ----------------
+    // Publicados: lectura pública, porque el generador de HTML estático
+    // (tools/generar-blog.js) corre SIN sesión y los lee por la API REST con
+    // una consulta filtrada por `estado`. Los BORRADORES no son públicos:
+    // solo los ve el personal con sesión.
+    match /posts/{postId} {
+      allow read: if esOperador();
+      allow read: if resource.data.estado == 'PUBLICADO';
+      allow create, update: if esAdmin();
+      allow delete: if esAdmin();
+    }
+
     // ---------------- Operación ----------------
     match /clientes/{clienteId} {
       allow read: if esOperador();

@@ -764,6 +764,12 @@
 
     // 3) Sin contenido verificable no se muestra ninguna sección vacía.
     seccion.hidden = !hay;
+
+    // Los enlaces del nav/footer a #testimonios no deben quedar apuntando a una
+    // sección oculta: si no hay nada que mostrar, también se ocultan.
+    if (!hay) {
+      $$('a[href="#testimonios"]').forEach((a) => { a.hidden = true; });
+    }
   }
 
   function initPWA() {
