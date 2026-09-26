@@ -492,6 +492,54 @@
       </div>
     </section>
 
+    <!-- ============ CALCULADORA DE AHORRO ============ -->
+    <!-- Honestidad de datos: NO se comparan precios de la competencia porque no
+         están confirmados. El visitante escribe lo que paga hoy y se compara
+         contra los precios publicados (config.js → planes es la fuente de verdad).
+         Las opciones van también escritas aquí para que se vean sin JavaScript;
+         main.js las repinta desde config.js. -->
+    <section class="section section--alt" id="ahorro">
+      <div class="container">
+        <div class="section__head">
+          <span class="eyebrow">Calculadora</span>
+          <h2 class="section__title">¿Cuánto podrías ahorrar?</h2>
+          <p class="section__subtitle">
+            Escribe lo que pagas hoy por tu Internet y compáralo con nuestros planes.
+          </p>
+        </div>
+
+        <form class="ahorro" id="form-ahorro" novalidate>
+          <div class="ahorro__grid">
+            <label class="field" for="ahorro-pago">
+              <span>¿Cuánto pagas hoy al mes? (COP)</span>
+              <input type="number" id="ahorro-pago" name="ahorro-pago" inputmode="numeric"
+                     min="0" step="1000" placeholder="Ej: 89900" autocomplete="off" />
+            </label>
+            <label class="field" for="ahorro-plan">
+              <span>Plan de UneFibra que te interesa</span>
+              <select id="ahorro-plan" name="ahorro-plan">
+                <option value="0">Básico 100 Mbps — $50.000/mes</option>
+                <option value="1" selected>Familiar 150 Mbps — $60.000/mes</option>
+                <option value="2">Plus 200 Mbps — $70.000/mes</option>
+                <option value="3">Premium 250 Mbps — $85.000/mes</option>
+                <option value="4">Ultra 300 Mbps — $100.000/mes</option>
+              </select>
+            </label>
+          </div>
+
+          <button type="button" class="btn btn--primary" id="ahorro-ver">Calcular mi ahorro</button>
+
+          <p class="ahorro__result" id="ahorro-resultado" role="status" aria-live="polite"></p>
+          <a class="btn btn--whatsapp" id="ahorro-cta" href="#contacto" hidden>Consultar este plan por WhatsApp</a>
+
+          <p class="compare__note">
+            Cálculo informativo con el valor que escribes y el precio publicado del plan.
+            No incluye otros servicios (TV, telefonía) que puedas tener hoy en tu paquete.
+          </p>
+        </form>
+      </div>
+    </section>
+
     <!-- ============ COBERTURA ============ -->
     <section class="section" id="cobertura">
       <div class="container">
@@ -647,58 +695,36 @@
       </div>
     </section>
 
-    <!-- ============ TESTIMONIOS ============ -->
-    <!-- TODO: Reemplazar con testimonios reales (nombre, barrio y frase)
-         antes de darlos por definitivos. No se declaran como `review`
-         en el JSON-LD porque aún no están verificados. -->
-    <section class="section" id="testimonios">
+    <!-- ============ OPINIONES / RESEÑAS ============ -->
+    <!-- Integridad de datos: aquí NO hay testimonios inventados. La sección se
+         muestra solo cuando existe contenido verificable:
+           · reseñas reales de Google (config.js → empresa.googleResenas), o
+           · testimonios reales entregados por el cliente (config.js → testimonios).
+         Mientras no exista ninguno de los dos, la sección queda oculta: es
+         preferible no mostrar prueba social que mostrar una fabricada.
+         Tampoco se declara `review` ni `aggregateRating` en el JSON-LD hasta
+         tener reseñas verificables. -->
+    <section class="section" id="testimonios" hidden>
       <div class="container">
         <div class="section__head">
-          <span class="eyebrow">Testimonios</span>
-          <h2 class="section__title">Hogares que ya navegan en fibra</h2>
-          <p class="section__subtitle">Clientes de Medellín que cambiaron su conexión con UneFibra.</p>
+          <span class="eyebrow">Opiniones</span>
+          <h2 class="section__title">Lo que dicen nuestros clientes</h2>
+          <p class="section__subtitle">Opiniones de clientes de Medellín que ya navegan en fibra.</p>
         </div>
 
-        <div class="grid grid--3">
-          <figure class="testimonial">
-            <blockquote class="testimonial__quote">
-              <p>“Contraté el plan de 150 Mbps y ahora mis hijos estudian y yo trabajo sin que se caiga la conexión. La instalación fue rápida y muy ordenada.”</p>
-            </blockquote>
-            <figcaption class="testimonial__author">
-              <span class="testimonial__avatar" aria-hidden="true">MG</span>
-              <span class="testimonial__data">
-                <strong>María Gómez</strong>
-                <span class="testimonial__place">Robledo, Medellín</span>
-              </span>
-            </figcaption>
-          </figure>
-
-          <figure class="testimonial">
-            <blockquote class="testimonial__quote">
-              <p>“Lo que más valoro es que no hay contrato de permanencia y la atención responde rápido por WhatsApp. La velocidad es la misma de día y de noche.”</p>
-            </blockquote>
-            <figcaption class="testimonial__author">
-              <span class="testimonial__avatar" aria-hidden="true">CP</span>
-              <span class="testimonial__data">
-                <strong>Carlos Pérez</strong>
-                <span class="testimonial__place">Nuevo Occidente, Medellín</span>
-              </span>
-            </figcaption>
-          </figure>
-
-          <figure class="testimonial">
-            <blockquote class="testimonial__quote">
-              <p>“Juego en línea y hago videollamadas todo el día: la latencia bajó muchísimo comparado con mi operador anterior. Instalaron en dos días.”</p>
-            </blockquote>
-            <figcaption class="testimonial__author">
-              <span class="testimonial__avatar" aria-hidden="true">AR</span>
-              <span class="testimonial__data">
-                <strong>Andrés Restrepo</strong>
-                <span class="testimonial__place">Robledo, Medellín</span>
-              </span>
-            </figcaption>
-          </figure>
+        <!-- Reseñas reales de Google: los enlaces y las cifras se activan al
+             configurar `googleResenas` en config.js. Sin datos no se pinta nada. -->
+        <div class="resenas" id="resenas" hidden>
+          <p class="resenas__score" id="resenas-score" hidden></p>
+          <div class="resenas__actions">
+            <a class="btn btn--ghost js-resena-perfil" id="resenas-perfil" href="#contacto" target="_blank" rel="noopener" hidden>Ver reseñas en Google</a>
+            <a class="btn btn--primary js-resena-escribir" id="resenas-escribir" href="#contacto" target="_blank" rel="noopener" hidden>Déjanos tu reseña</a>
+          </div>
         </div>
+
+        <!-- Testimonios reales: main.js los pinta desde config.js → testimonios.
+             Con el arreglo vacío no se muestra nada (no hay texto de relleno). -->
+        <div class="grid grid--3" id="testimonios-grid" hidden></div>
       </div>
     </section>
 

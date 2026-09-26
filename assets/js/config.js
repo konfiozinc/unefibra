@@ -66,6 +66,19 @@ window.UNEFIBRAS_CONFIG = {
       facebook: "https://facebook.com/unefibra",
       instagram: "https://instagram.com/unefibra",
       tiktok: "https://tiktok.com/@unefibra"
+    },
+
+    // TODO: Reemplazar con datos reales — perfil de Google Business.
+    // Mientras `urlPerfil` y `urlResena` estén vacíos, la landing NO muestra
+    // botones de reseñas: así no se enlaza a un perfil que todavía no existe.
+    // `puntaje` y `cantidad` se pintan SOLO si son números reales; nunca se
+    // inventa una calificación promedio ni una cantidad de reseñas.
+    googleResenas: {
+      urlPerfil: "",   // ej: "https://maps.app.goo.gl/XXXX" (perfil del negocio)
+      urlResena: "",   // ej: "https://g.page/r/XXXX/review" (escribir reseña)
+      placeId: "",     // Place ID de Google (para traer reseñas reales por API)
+      puntaje: null,   // promedio real, ej: 4.8
+      cantidad: null   // total real de reseñas, ej: 37
     }
   },
 
@@ -130,6 +143,16 @@ window.UNEFIBRAS_CONFIG = {
     { nombre: "Premium 250 Mbps",  velocidad: "250 Mbps", precio: 85000,  descripcion: "Más velocidad para jugar y descargar sin límites." },
     { nombre: "Ultra 300 Mbps",    velocidad: "300 Mbps", precio: 100000, descripcion: "Máxima velocidad para hogares exigentes." }
   ],
+
+  /* ------------------------------------------------------------
+   * Testimonios REALES (Fase 1).
+   * Debe quedarse vacío hasta que el cliente entregue testimonios
+   * verificables (nombre, sector y autorización para publicarlos).
+   * Antes había tres testimonios de ejemplo: se retiraron porque
+   * publicar reseñas inventadas es publicidad engañosa.
+   * Formato: { nombre, iniciales, sector, frase }
+   * ---------------------------------------------------------- */
+  testimonios: [],
 
   /* ------------------------------------------------------------
    * Cobertura — occidente de Medellín (lista oficial del cliente).

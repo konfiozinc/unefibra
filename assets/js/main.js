@@ -622,6 +622,150 @@
     });
   }
 
+  // ---------------- Calculadora de ahorro ----------------
+  // Honestidad de datos: NO se inventan precios de la competencia. Se compara el
+  // valor que el visitante escribe contra los precios publicados en
+  // config.js → planes. Si el plan elegido sale MÁS CARO, se dice con claridad:
+  // la calculadora no está para engañar a nadie.
+  function initCalculadora() {
+    const form = $("#form-ahorro");
+    const sel = $("#ahorro-plan");
+    const input = $("#ahorro-pago");
+    const btn = $("#ahorro-ver");
+    const salida = $("#ahorro-resultado");
+    const cta = $("#ahorro-cta");
+    const planes = Array.isArray(CFG.planes) ? CFG.planes : [];
+    if (!form || !sel || !input || !salida || !planes.length) return;
+
+    // El <select> se repinta desde config.js: una sola fuente para los precios.
+    sel.innerHTML = planes
+      .map((p, i) => `<option value="${i}">${p.nombre} — ${formatoPrecio(p.precio)}/mes</option>`)
+      .join("");
+    const iDestacado = planes.findIndex((p) => p.destacado);
+    if (iDestacado >= 0) sel.value = String(iDestacado);
+
+    function calcular() {
+      const plan = planes[Number(sel.value)] || planes[0];
+      const pago = Number(String(input.value).replace(/[^\d]/g, ""));
+
+      // Sin dato válido no se muestra resultado: nada de cifras inventadas.
+      if (!pago || pago <= 0) {
+        salida.className = "ahorro__result";
+        salida.textContent = "Escribe cuánto pagas hoy para ver la diferencia.";
+        if (cta) cta.hidden = true;
+        return;
+      }
+
+      const diferencia = pago - plan.precio;
+      const alAnio = Math.abs(diferencia) * 12;
+
+      if (diferencia > 0) {
+        salida.className = "ahorro__result ahorro__result--ok";
+        salida.innerHTML =
+          `<strong>Ahorrarías ${formatoPrecio(diferencia)} al mes</strong> con ${plan.nombre}. ` +
+          `Son <strong>${formatoPrecio(alAnio)} al año</strong> frente a lo que pagas hoy.`;
+      } else if (diferencia === 0) {
+        salida.className = "ahorro__result";
+        salida.innerHTML =
+          `Con ${plan.nombre} pagarías prácticamente lo mismo que hoy, ` +
+          `pero con fibra óptica de ${plan.velocidad}.`;
+      } else {
+        salida.className = "ahorro__result ahorro__result--warn";
+        salida.innerHTML =
+          `${plan.nombre} cuesta ${formatoPrecio(-diferencia)} más al mes que lo que pagas hoy. ` +
+          `Compara con un plan menor de la lista o escríbenos y lo revisamos contigo.`;
+      }
+
+      if (cta) {
+        cta.hidden = false;
+        cta.dataset.mensaje = "Hola, usé la calculadora de la web: hoy pago " +
+          formatoPrecio(pago) + " y me interesa el plan " + plan.nombre +
+          " de UneFibra. ¿Me confirman cobertura e instalación?";
+        initWhatsApp();
+      }
+
+      window.ufTrack && window.ufTrack("calculo_ahorro", {
+        plan: plan.nombre,
+        ahorro_mes: diferencia
+      });
+    }
+
+    btn.addEventListener("click", calcular);
+    form.addEventListener("submit", (e) => { e.preventDefault(); calcular(); });
+    input.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") { e.preventDefault(); calcular(); }
+    });
+  }
+
+  // ---------------- Reseñas y testimonios reales ----------------
+  // Integridad de datos: aquí solo entra contenido verificable. Si el cliente
+  // todavía no tiene perfil de Google ni testimonios entregados, la sección
+  // queda OCULTA en vez de mostrar prueba social inventada.
+  function initResenas() {
+    const seccion = $("#testimonios");
+    if (!seccion) return;
+
+    const gr = (CFG.empresa && CFG.empresa.googleResenas) || {};
+    const bloque = $("#resenas");
+    let hay = false;
+
+    // 1) Reseñas de Google: solo si hay enlaces reales configurados.
+    if (bloque && (gr.urlPerfil || gr.urlResena)) {
+      bloque.hidden = false;
+      hay = true;
+
+      const perfil = $("#resenas-perfil");
+      if (perfil) {
+        if (gr.urlPerfil) { perfil.href = gr.urlPerfil; perfil.hidden = false; }
+        else perfil.remove();
+      }
+
+      const escribir = $("#resenas-escribir");
+      if (escribir) {
+        if (gr.urlResena) { escribir.href = gr.urlResena; escribir.hidden = false; }
+        else escribir.remove();
+      }
+
+      // Puntaje y cantidad SOLO si el cliente los confirmó como números reales.
+      const score = $("#resenas-score");
+      if (score) {
+        const partes = [];
+        if (typeof gr.puntaje === "number") partes.push(gr.puntaje.toFixed(1) + " / 5 en Google");
+        if (typeof gr.cantidad === "number") {
+          partes.push(gr.cantidad + (gr.cantidad === 1 ? " reseña" : " reseñas"));
+        }
+        if (partes.length) {
+          score.textContent = partes.join(" · ");
+          score.hidden = false;
+        } else {
+          score.remove();
+        }
+      }
+    }
+
+    // 2) Testimonios reales entregados por el cliente (config.js → testimonios).
+    const grid = $("#testimonios-grid");
+    const lista = Array.isArray(CFG.testimonios) ? CFG.testimonios : [];
+    if (grid && lista.length) {
+      grid.hidden = false;
+      hay = true;
+      grid.innerHTML = lista.map((t) => {
+        const iniciales = t.iniciales || String(t.nombre || "")
+          .split(/\s+/).map((p) => p[0] || "").join("").slice(0, 2).toUpperCase();
+        return '<figure class="testimonial">' +
+          '<blockquote class="testimonial__quote"><p>“' + (t.frase || "") + '”</p></blockquote>' +
+          '<figcaption class="testimonial__author">' +
+            '<span class="testimonial__avatar" aria-hidden="true">' + iniciales + '</span>' +
+            '<span class="testimonial__data"><strong>' + (t.nombre || "") + '</strong>' +
+            '<span class="testimonial__place">' + (t.sector || "") + '</span></span>' +
+          '</figcaption></figure>';
+      }).join("");
+    }
+
+    // 3) Sin contenido verificable no se muestra ninguna sección vacía.
+    seccion.hidden = !hay;
+  }
+
   function initPWA() {
     if ("serviceWorker" in navigator) {
       window.addEventListener("load", () => {
@@ -645,12 +789,14 @@
     initContacto();
     initEmpresa();
     initRedes();
+    initResenas();
     initPlanes();
     initCobertura();
     initCoberturaModal();
     initForm();
     initAnalytics();
     initRecomendador();
+    initCalculadora();
     initYear();
     initPWA();
     programarCargaFirebase();
