@@ -71,6 +71,9 @@ function acciones(cliente) {
 }
 
 function panelDatos(cliente) {
+  // Los tres últimos solo existen en edificio o unidad residencial: en una casa
+  // aparecen vacíos ("—"), no con datos inventados.
+  const TIPOS_VIVIENDA = { casa: "Casa", edificio: "Edificio", unidad: "Unidad residencial" };
   const filas = [
     ["Nombre", cliente.nombreCompleto],
     ["Documento", cliente.documento],
@@ -79,7 +82,11 @@ function panelDatos(cliente) {
     ["Email", cliente.email],
     ["Dirección", cliente.direccion],
     ["Barrio", cliente.barrio],
-    ["Ciudad", cliente.ciudad]
+    ["Ciudad", cliente.ciudad],
+    ["Tipo de vivienda", TIPOS_VIVIENDA[cliente.tipoVivienda] || cliente.tipoVivienda],
+    ["Edificio o unidad", cliente.edificioUnidad],
+    ["Torre", cliente.torre],
+    ["Apartamento", cliente.apartamento]
   ];
   return `<div class="panel">
     <h2>Datos personales</h2>

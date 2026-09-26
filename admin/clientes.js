@@ -9,7 +9,7 @@
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
-import { collection, getDocs } from "firebase/firestore";
+import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import {
   badgeEstado, fmtFecha, textoDias, fmtMoney, diasRestantes,
   hoyColombia, sumarDias, cicloSegunFecha, proximoCorteDe, etiquetaCorte
@@ -20,6 +20,9 @@ let clientes = [];
 let planes = [];
 let filtro = "todos";
 let busqueda = "";
+// Obligatoriedad de los datos de dirección. La manda `configuracion` para que el
+// panel y el servidor exijan lo mismo; si no se puede leer, se exige (más seguro).
+let exigirDireccion = true;
 
 const FILTROS = [
   { key: "todos", label: "Todos" },
@@ -137,6 +140,19 @@ async function abrirModal() {
           <label class="field"><span>Ciudad</span><input name="ciudad" value="Medellín" /></label>
           <label class="field"><span>Dirección</span><input name="direccion" /></label>
           <label class="field"><span>Barrio</span><input name="barrio" /></label>
+          <label class="field"><span>Tipo de vivienda</span>
+            <select name="tipoVivienda" id="cli-tipo-vivienda">
+              <option value="">Selecciona…</option>
+              <option value="casa">Casa</option>
+              <option value="edificio">Edificio</option>
+              <option value="unidad">Unidad residencial</option>
+            </select>
+          </label>
+          <!-- Solo para edificio o unidad: en una casa no existen. El JS los
+               muestra y los marca obligatorios según el tipo elegido. -->
+          <label class="field" data-dir="edificio" hidden><span>Edificio o unidad residencial *</span><input name="edificioUnidad" /></label>
+          <label class="field" data-dir="edificio" hidden><span>Torre *</span><input name="torre" /></label>
+          <label class="field" data-dir="edificio" hidden><span>Apartamento *</span><input name="apartamento" /></label>
           <label class="field"><span>Plan</span><select name="planId">${opciones}</select></label>
           <label class="field"><span>Fecha de inicio del servicio</span><input name="fechaInicioServicio" type="date" value="${hoyColombia()}" /></label>
           <label class="field"><span>Observaciones</span><input name="observaciones" /></label>
@@ -203,6 +219,31 @@ async function abrirModal() {
   if (selPlan) selPlan.addEventListener("change", refrescarCiclo);
   if (inpInicio) inpInicio.addEventListener("change", refrescarCiclo);
   refrescarCiclo();
+
+  // ---------------- Datos de dirección ----------------
+  // En una casa no hay torre ni apartamento: se muestran y se exigen solo para
+  // edificio o unidad residencial. Así no se fuerza a inventar datos ("N/A").
+  const selVivienda = root.querySelector('select[name="tipoVivienda"]');
+  const camposEdificio = Array.from(root.querySelectorAll('[data-dir="edificio"]'));
+
+  function refrescarDireccion() {
+    const tipo = selVivienda ? selVivienda.value : "";
+    const esEdificio = tipo === "edificio" || tipo === "unidad";
+    camposEdificio.forEach((campo) => {
+      campo.hidden = !esEdificio;
+      const input = campo.querySelector("input");
+      if (input) input.required = esEdificio && exigirDireccion;
+    });
+  }
+
+  if (selVivienda) selVivienda.addEventListener("change", refrescarDireccion);
+
+  getDoc(doc(db, "configuracion", "camposDireccionObligatorios"))
+    .then((snap) => {
+      if (snap.exists() && snap.data().valor === false) exigirDireccion = false;
+      refrescarDireccion();
+    })
+    .catch(() => refrescarDireccion());
 }
 
 async function guardarCliente(ev) {
@@ -215,6 +256,26 @@ async function guardarCliente(ev) {
     msg.textContent = "Nombre y teléfono son obligatorios.";
     msg.className = "modal__msg err";
     return;
+  }
+
+  // Datos de dirección (tarea 3). El servidor los vuelve a validar, así que este
+  // aviso es solo para no hacer esperar al operador con un error de red.
+  const tipoVivienda = (data.tipoVivienda || "").trim();
+  if (exigirDireccion) {
+    const faltantes = [];
+    if (!(data.direccion || "").trim()) faltantes.push("la dirección");
+    if (!(data.barrio || "").trim()) faltantes.push("el barrio o sector");
+    if (!tipoVivienda) faltantes.push("el tipo de vivienda");
+    if (tipoVivienda === "edificio" || tipoVivienda === "unidad") {
+      if (!(data.edificioUnidad || "").trim()) faltantes.push("el edificio o unidad residencial");
+      if (!(data.torre || "").trim()) faltantes.push("la torre");
+      if (!(data.apartamento || "").trim()) faltantes.push("el apartamento");
+    }
+    if (faltantes.length) {
+      msg.textContent = "Faltan datos de dirección: " + faltantes.join(", ") + ".";
+      msg.className = "modal__msg err";
+      return;
+    }
   }
 
   btn.disabled = true;
@@ -230,9 +291,13 @@ async function guardarCliente(ev) {
       telefono: data.telefono.trim(),
       whatsapp: data.whatsapp.trim() || data.telefono.trim(),
       email: data.email.trim() || null,
-      direccion: data.direccion.trim() || null,
-      barrio: data.barrio.trim() || null,
-      ciudad: data.ciudad.trim() || "Medellín",
+      direccion: (data.direccion || "").trim() || null,
+      barrio: (data.barrio || "").trim() || null,
+      ciudad: (data.ciudad || "").trim() || "Medellín",
+      tipoVivienda: tipoVivienda || null,
+      edificioUnidad: (data.edificioUnidad || "").trim() || null,
+      torre: (data.torre || "").trim() || null,
+      apartamento: (data.apartamento || "").trim() || null,
       planId: data.planId || null,
       fechaInicioServicio: data.fechaInicioServicio || null,
       cicloCorte: data.cicloCorte || null,

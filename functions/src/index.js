@@ -123,6 +123,45 @@ function diasHasta(fecha) {
  * propia copia en assets/js/admin/ui.js, porque no puede importar CommonJS.
  * ------------------------------------------------------------------ */
 const { proximoCorteDe, cicloValido } = require("./cortes");
+const {
+  SOPORTE_POR_DEFECTO,
+  construirMensajePrevioCorte,
+  construirMensajePostCorte
+} = require("./mensajes");
+
+/* ------------------------------------------------------------------
+ * Contexto de los mensajes de cobro
+ * ----------------------------------------------------------------
+ * Reúne lo que necesitan las plantillas: cuentas bancarias (colección
+ * `metodos_pago`), plantillas editables y WhatsApp de soporte
+ * (documentos de `configuracion`).
+ *
+ * NINGÚN dato bancario vive en el código: si no hay cuenta configurada
+ * o marcada como principal, el mensaje sale sin el bloque del banco, en
+ * lugar de mandar al cliente a una cuenta equivocada.
+ * ------------------------------------------------------------------ */
+async function cargarContextoMensajes() {
+  const [cuentasSnap, cfgSnap] = await Promise.all([
+    db.collection("metodos_pago").get(),
+    db.collection("configuracion").get()
+  ]);
+
+  const cfg = {};
+  cfgSnap.forEach((d) => (cfg[d.id] = d.data().valor));
+
+  const plantillas = cfg.plantillasMensaje || {};
+  const soporte = cfg.soporte || {};
+
+  return {
+    cuentas: cuentasSnap.docs.map((d) => ({ id: d.id, ...d.data() })),
+    plantillaAntes: plantillas.antesCorte || null,
+    plantillaDespues: plantillas.despuesCorte || null,
+    soporte: {
+      whatsapp1: soporte.whatsapp1 || SOPORTE_POR_DEFECTO.whatsapp1,
+      whatsapp2: soporte.whatsapp2 || SOPORTE_POR_DEFECTO.whatsapp2
+    }
+  };
+}
 
 /* ------------------------------------------------------------------
  * Utilidades de persistencia
@@ -260,7 +299,7 @@ exports.processDueDates = functions.pubsub
   .schedule("0 8 * * *") // 08:00 diario, hora de Bogotá
   .timeZone("America/Bogota")
   .onRun(async () => {
-    const resumen = { revisados: 0, notificaciones: 0, porVencer: 0, pendientes: 0, suspendidos: 0, ciclos: 0, avisosCorte: 0 };
+    const resumen = { revisados: 0, notificaciones: 0, porVencer: 0, pendientes: 0, suspendidos: 0, ciclos: 0, avisosCorte: 0, ciclosNotificacion: 0 };
 
     // 1) Configuración de intervalos (días antes/después) y suspensión.
     const cfgSnap = await db.collection("configuracion").get();
@@ -290,6 +329,10 @@ exports.processDueDates = functions.pubsub
         resumen.ciclos++;
       }
     }
+
+    // Contexto de los mensajes: cuentas bancarias, plantillas editables y
+    // WhatsApp de soporte. Se lee una vez por corrida, no por cliente.
+    const ctxMensajes = await cargarContextoMensajes();
 
     // 2) Servicios con estado ACTIVO o POR_VENCER
     const servicios = await db.collection("servicios")
@@ -321,10 +364,9 @@ exports.processDueDates = functions.pubsub
         resumen.porVencer++;
       }
 
-      // 4) Recordatorios. Si el cliente tiene ciclo de corte, el aviso que manda
-      //    es el del CORTE (la fecha real de cobro), no el del vencimiento: es lo
-      //    que el negocio necesita que el cliente recuerde. A quien ya pagó por
-      //    adelantado hasta el corte no se le molesta.
+      // 4) Avisos del ciclo de corte. El texto sale de las PLANTILLAS editables
+      //    (configuracion/plantillasMensaje) con los datos reales de la empresa
+      //    (metodos_pago y configuracion/soporte): aquí no hay textos sueltos.
       const cicloCliente = cicloValido(cliente.cicloCorte, servicio.fechaVencimiento);
       const proximoCorte = cicloCliente
         ? (cliente.proximoCorte || proximoCorteDe(cicloCliente))
@@ -335,44 +377,111 @@ exports.processDueDates = functions.pubsub
       const diasAviso = avisarPorCorte ? diasHasta(proximoCorte) : dias;
       const periodoAviso = avisarPorCorte ? `corte-${cicloCliente}-${proximoCorte}` : periodo;
 
-      for (const n of diasAntes) {
-        if (diasAviso === n) {
-          const tipo = avisarPorCorte ? `CORTE_${cicloCliente}_${n}_DIAS` : `RECORDATORIO_${n}_DIAS`;
-          const titulo = avisarPorCorte ? "Tu corte está programado" : "Tu servicio está por vencer";
-          const cuerpo = avisarPorCorte
-            ? `UneFibra: tu corte del día ${cicloCliente} está programado para el ${proximoCorte} ` +
-              `(en ${n} día(s)). Realiza tu pago para no quedarte sin servicio.`
-            : `UneFibra: tu servicio de Internet vence en ${n} día(s) (${servicio.fechaVencimiento}). ` +
-              `Realiza tu pago para mantenerlo activo.`;
+      // Trazabilidad (tarea 2): cada ciclo de corte —el mes de `proximoCorte`—
+      // lleva su propio registro de qué avisos previos ya se enviaron. Al cambiar
+      // de ciclo se reinicia, para que el mes siguiente vuelvan a salir.
+      const cicloNotificacion = proximoCorte ? String(proximoCorte).slice(0, 7) : null;
+      const cambioDeCiclo = !!cicloNotificacion && cliente.cicloActualNotificacion !== cicloNotificacion;
+      const diasNotificados = cambioDeCiclo
+        ? []
+        : (Array.isArray(cliente.diasAntesNotificados) ? cliente.diasAntesNotificados : []);
 
-          const nueva = await registrarNotificacion(cliente.id, tipo, titulo, cuerpo, periodoAviso);
-          if (nueva) {
-            await enviarPush(
-              cliente.id, titulo,
-              avisarPorCorte ? `Corte el ${proximoCorte} (en ${n} día(s)).` : `Vence en ${n} día(s).`
-            );
-            resumen.notificaciones++;
-            if (avisarPorCorte) resumen.avisosCorte++;
+      if (cambioDeCiclo) {
+        await clienteRef.update({
+          cicloActualNotificacion: cicloNotificacion,
+          diasAntesNotificados: [],
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        resumen.ciclosNotificacion++;
+      }
+
+      const opcionesMensaje = {
+        cuentas: ctxMensajes.cuentas,
+        soporte: ctxMensajes.soporte,
+        valor: cliente.precioMensual,
+        fechaLimite: proximoCorte
+      };
+
+      for (const n of diasAntes) {
+        if (diasAviso !== n) continue;
+        // Ya se le avisó este día en este mismo ciclo: no se repite.
+        if (avisarPorCorte && diasNotificados.includes(n)) continue;
+
+        const tipo = avisarPorCorte ? `CORTE_${cicloCliente}_${n}_DIAS` : `RECORDATORIO_${n}_DIAS`;
+        const titulo = avisarPorCorte ? "Tu factura está disponible" : "Tu servicio está por vencer";
+        const cuerpo = avisarPorCorte
+          ? construirMensajePrevioCorte(cliente, {
+              ...opcionesMensaje,
+              plantilla: ctxMensajes.plantillaAntes
+            })
+          : `UneFibra: tu servicio de Internet vence en ${n} día(s) (${servicio.fechaVencimiento}). ` +
+            `Realiza tu pago para mantenerlo activo.`;
+
+        const nueva = await registrarNotificacion(cliente.id, tipo, titulo, cuerpo, periodoAviso);
+        if (nueva) {
+          await enviarPush(
+            cliente.id, titulo,
+            avisarPorCorte ? `Tu factura vence el ${proximoCorte}.` : `Vence en ${n} día(s).`
+          );
+          resumen.notificaciones++;
+
+          if (avisarPorCorte) {
+            resumen.avisosCorte++;
+            // Queda registrado que a este cliente ya se le avisó con n días.
+            await clienteRef.update({
+              diasAntesNotificados: FieldValue.arrayUnion(n),
+              fechaUltimaNotificacion: FieldValue.serverTimestamp(),
+              tipoUltimaNotificacion: "antesCorte",
+              cicloActualNotificacion: cicloNotificacion
+            });
           }
+        }
+      }
+
+      // 4.bis) El día del corte, si sigue sin pagar: mensaje de factura vencida.
+      //        Se envía UNA sola vez por ciclo (la clave incluye la fecha).
+      if (avisarPorCorte && diasHasta(proximoCorte) === 0) {
+        const nueva = await registrarNotificacion(
+          cliente.id,
+          `CORTE_${cicloCliente}_VENCIDO`,
+          "Tu factura está vencida",
+          construirMensajePostCorte(cliente, {
+            ...opcionesMensaje,
+            plantilla: ctxMensajes.plantillaDespues
+          }),
+          `${periodoAviso}-vencido`
+        );
+        if (nueva) {
+          await enviarPush(cliente.id, "Tu factura está vencida", "Tu servicio será suspendido.");
+          resumen.notificaciones++;
+          resumen.avisosCorte++;
+          await clienteRef.update({
+            fechaUltimaNotificacion: FieldValue.serverTimestamp(),
+            tipoUltimaNotificacion: "despuesCorte",
+            cicloActualNotificacion: cicloNotificacion
+          });
         }
       }
 
       // 5) Día del vencimiento y días posteriores (mora)
       for (const n of diasDespues) {
-        if (dias === n) {
-          const tipo = n === 0 ? "VENCIMIENTO_HOY" : `MORA_${Math.abs(n)}_DIAS`;
-          const nueva = await registrarNotificacion(
-            cliente.id, tipo,
-            n === 0 ? "Hoy vence tu servicio" : "Pago pendiente",
-            n === 0
-              ? "Hoy vence tu servicio de Internet. Realiza tu pago para continuar disfrutando del servicio."
-              : `Tu servicio presenta un pago pendiente (${Math.abs(n)} día(s)). Ponte al día para evitar la suspensión.`,
-            periodo
-          );
-          if (nueva) {
-            await enviarPush(cliente.id, "Aviso UneFibra", n === 0 ? "Hoy vence tu servicio." : "Tienes un pago pendiente.");
-            resumen.notificaciones++;
-          }
+        if (dias !== n) continue;
+        // Si el cliente tiene ciclo de corte, el aviso "hoy vence" lo cubre el
+        // mensaje de factura vencida de arriba: no se le manda dos veces.
+        if (n === 0 && avisarPorCorte) continue;
+
+        const tipo = n === 0 ? "VENCIMIENTO_HOY" : `MORA_${Math.abs(n)}_DIAS`;
+        const nueva = await registrarNotificacion(
+          cliente.id, tipo,
+          n === 0 ? "Hoy vence tu servicio" : "Pago pendiente",
+          n === 0
+            ? "Hoy vence tu servicio de Internet. Realiza tu pago para continuar disfrutando del servicio."
+            : `Tu servicio presenta un pago pendiente (${Math.abs(n)} día(s)). Ponte al día para evitar la suspensión.`,
+          periodo
+        );
+        if (nueva) {
+          await enviarPush(cliente.id, "Aviso UneFibra", n === 0 ? "Hoy vence tu servicio." : "Tienes un pago pendiente.");
+          resumen.notificaciones++;
         }
       }
 
@@ -428,6 +537,33 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("invalid-argument", "Nombre y teléfono son obligatorios.");
   }
 
+  // Datos de dirección (tarea 3). La obligatoriedad se lee de `configuracion`,
+  // para poder relajarla desde el panel sin desplegar. Se valida aquí y no solo
+  // en el formulario porque el servidor es quien manda: el frontend se puede
+  // saltar, esta comprobación no.
+  const cfgDireccion = await db.collection("configuracion").doc("camposDireccionObligatorios").get();
+  const exigirDireccion = cfgDireccion.exists ? cfgDireccion.data().valor === true : false;
+
+  if (exigirDireccion) {
+    const tipo = String(data.tipoVivienda || "");
+    const faltantes = [];
+    if (!data.direccion) faltantes.push("dirección");
+    if (!data.barrio) faltantes.push("sector o barrio");
+    if (!tipo) faltantes.push("tipo de vivienda");
+    // Torre y apartamento solo existen en edificios o unidades residenciales.
+    if (tipo === "edificio" || tipo === "unidad") {
+      if (!data.edificioUnidad) faltantes.push("edificio o unidad residencial");
+      if (!data.torre) faltantes.push("torre");
+      if (!data.apartamento) faltantes.push("apartamento");
+    }
+    if (faltantes.length) {
+      throw new functions.https.HttpsError(
+        "invalid-argument",
+        "Faltan datos de dirección obligatorios: " + faltantes.join(", ") + "."
+      );
+    }
+  }
+
   // Evitar duplicados por documento (si se proporciona)
   if (documento) {
     const dup = await db.collection("clientes").where("documento", "==", documento).limit(1).get();
@@ -452,6 +588,12 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
     direccion: data.direccion || null,
     barrio: data.barrio || null,
     ciudad: data.ciudad || "Medellín",
+    // Datos de dirección (tarea 3). En casa, edificio/torre/apartamento quedan
+    // en null: no se inventan valores.
+    tipoVivienda: data.tipoVivienda || null,
+    edificioUnidad: data.edificioUnidad || null,
+    torre: data.torre || null,
+    apartamento: data.apartamento || null,
     planId: plan.id,
     planNombre: plan.nombre,
     precioMensual: precioMensual || plan.precio,
@@ -530,6 +672,73 @@ exports.migrarCiclosCorte = functions.https.onCall(async (data, context) => {
   );
 
   return { revisados: snap.size, actualizados, detalle };
+});
+
+/**
+ * Devuelve el mensaje de cobro de un cliente, ya rellenado con los datos de la
+ * empresa (cuenta bancaria principal, WhatsApp de soporte y montos).
+ *
+ * Lo usa el botón "Cobrar por WhatsApp" de las listas de corte. Se construye
+ * aquí y no en el panel a propósito: así el mensaje que envía el operador es
+ * EXACTAMENTE el mismo que manda el motor automático, y la plantilla se escribe
+ * una sola vez. Además el panel no necesita tener la cuenta bancaria en memoria.
+ *
+ * @param {string} clienteId
+ * @param {"antesCorte"|"despuesCorte"} tipo  por defecto "antesCorte"
+ */
+exports.mensajeCobro = functions.https.onCall(async (data, context) => {
+  await verificarRol(context, ["OPERADOR", "ADMIN", "SUPERADMIN"]);
+
+  const { clienteId, tipo } = data || {};
+  if (!clienteId) {
+    throw new functions.https.HttpsError("invalid-argument", "clienteId es obligatorio.");
+  }
+
+  const clienteSnap = await db.collection("clientes").doc(clienteId).get();
+  if (!clienteSnap.exists) {
+    throw new functions.https.HttpsError("not-found", "El cliente no existe.");
+  }
+
+  const cliente = { id: clienteSnap.id, ...clienteSnap.data() };
+  const ctx = await cargarContextoMensajes();
+
+  const proximoCorte = cliente.proximoCorte ||
+    (cliente.cicloCorte ? proximoCorteDe(cliente.cicloCorte) : null);
+
+  // Si el panel no dice qué plantilla usar, se elige sola: el día del corte (y
+  // después, mientras el corte siga vigente) corresponde el mensaje de factura
+  // vencida; antes, el de factura disponible.
+  const esVencida = tipo
+    ? tipo === "despuesCorte"
+    : (!!proximoCorte && diasHasta(proximoCorte) <= 0);
+
+  const opciones = {
+    cuentas: ctx.cuentas,
+    soporte: ctx.soporte,
+    plantilla: esVencida ? ctx.plantillaDespues : ctx.plantillaAntes,
+    valor: cliente.precioMensual,
+    fechaLimite: proximoCorte
+  };
+
+  return {
+    texto: esVencida
+      ? construirMensajePostCorte(cliente, opciones)
+      : construirMensajePrevioCorte(cliente, opciones),
+    tipo: esVencida ? "despuesCorte" : "antesCorte",
+    cicloCorte: cliente.cicloCorte || null,
+    proximoCorte,
+    cuentaUsada: (function () {
+      const principal = ctx.cuentas.filter((c) => c && c.activo !== false)
+        .find((c) => c.principal === true);
+      if (!principal) return null;
+      return {
+        banco: principal.banco || principal.nombre || null,
+        numeroCuenta: principal.numeroCuenta || null,
+        titular: principal.titular || null,
+        confirmada: principal.confirmada !== false
+      };
+    })()
+  };
 });
 
 /* ============================================================

@@ -74,7 +74,98 @@ a partir de `proximoCorte`:
 Los avisos de mora (después del vencimiento) siguen basados en `fechaVencimiento`:
 son sobre la deuda real, no sobre la fecha de corte.
 
-## 4. Migración de los clientes que ya existían
+## 4. Notificaciones previas al corte
+
+Cada cliente guarda en su documento el rastro de **cuándo** se le avisó, para no
+repetir avisos y poder auditarlo:
+
+| Campo | Qué guarda |
+|---|---|
+| `fechaUltimaNotificacion` | Timestamp del último aviso enviado |
+| `tipoUltimaNotificacion` | `"antesCorte"` o `"despuesCorte"` |
+| `diasAntesNotificados` | Array con los avisos ya enviados en el ciclo (ej. `[7, 5]`) |
+| `cicloActualNotificacion` | Mes del corte vigente, `"YYYY-MM"` |
+
+Comportamiento del motor diario:
+
+1. Antes de enviar un aviso de «faltan N días», mira si ese `N` ya está en
+   `diasAntesNotificados`: si está, no lo repite.
+2. Al enviarlo, añade el número al array y actualiza los campos de fecha y tipo.
+3. Cuando cambia el ciclo (mes nuevo de corte), **reinicia** `diasAntesNotificados`
+   y actualiza `cicloActualNotificacion`, para que el mes siguiente vuelvan a salir.
+4. Los días de aviso se leen de `configuracion.diasAntes` (por defecto 7, 5, 3 y 1);
+   no están escritos en el código.
+
+Esto se suma al anti-duplicados que ya existía en la colección `notificaciones`
+(clave `clienteId + periodo + tipo`), que evita reenviar el mismo aviso si el motor
+corre dos veces el mismo día.
+
+## 5. Los mensajes de cobro
+
+Los dos textos viven en `configuracion/plantillasMensaje` y se editan desde
+**Configuración** en el panel. Los datos que rellenan los marcadores **no están en
+el código**:
+
+| Marcador | De dónde sale |
+|---|---|
+| `{nombre}`, `{valor}` | Del documento del cliente |
+| `{mes}`, `{fechaLimite}` | Del próximo corte del cliente |
+| `{banco}`, `{tipoCuenta}`, `{numeroCuenta}`, `{titular}` | De la cuenta marcada como **principal** en `metodos_pago` |
+| `{whatsappSoporte1}`, `{whatsappSoporte2}` | De `configuracion/soporte` |
+
+Reglas de seguridad de los mensajes:
+
+- **Si no hay cuenta principal configurada, el bloque del banco desaparece.** Antes
+  que mandar a un cliente a una cuenta equivocada, se omite la línea.
+- Si falta el monto, se omite la línea del valor: nunca sale «Valor a pagar: $0».
+- Si solo hay un WhatsApp configurado, la frase se adapta («…al WhatsApp 304…») en
+  lugar de dejar un «o» colgando.
+
+El botón **Cobrar** de las listas de corte no arma el texto en el navegador: llama a
+la Cloud Function `mensajeCobro`, que lo construye con la misma plantilla y los
+mismos datos. Así el mensaje del operador es idéntico al automático y el panel no
+necesita tener la cuenta bancaria en memoria. La función elige la plantilla sola: la
+de factura vencida el día del corte, y la de factura disponible antes.
+
+Para dejar estos datos cargados: `node tools/configurar-cobro.js --aplicar`
+(sin `--aplicar` solo simula, y es idempotente).
+
+## 6. Datos de dirección requeridos
+
+| Dato | ¿Obligatorio? |
+|---|---|
+| Dirección completa | Siempre |
+| Sector o barrio | Siempre |
+| Tipo de vivienda (casa / edificio / unidad residencial) | Siempre |
+| Nombre del edificio o unidad | Solo si es edificio o unidad |
+| Torre | Solo si es edificio o unidad |
+| Apartamento | Solo si es edificio o unidad |
+
+**Por qué no son cinco campos obligatorios siempre:** en una casa no hay torre ni
+apartamento. Exigirlos obligaría a escribir «N/A» (ensuciando la base) o a perder el
+contacto de un cliente real. El tipo de vivienda es el que decide.
+
+Se valida en tres capas:
+
+1. **Formulario de la landing:** al elegir el tipo de vivienda se muestran u ocultan
+   los campos de edificio, y se les pone o quita `required`.
+2. **Panel (Nuevo cliente):** la misma lógica, con aviso antes de enviar.
+3. **Servidor (`crearCliente`):** vuelve a validar y rechaza el alta si falta algo.
+   Es la capa que manda: el frontend se puede saltar, esta no.
+
+El interruptor general es `configuracion/camposDireccionObligatorios` (hoy `true`).
+Puesto en `false`, vuelven a ser obligatorios solo nombre, teléfono y barrio. En la
+landing el valor por defecto vive en `config.js` →
+`formulario.camposDireccionObligatorios`, porque ese archivo es la fuente de la
+configuración de la página.
+
+En el **agente IA** estos campos se piden por instrucción del prompt, no por código:
+el Worker es un proxy de chat sin estado, así que **no puede bloquear** una
+conversación a la que le falte un dato. La obligatoriedad real está en el formulario
+y en el panel. Para que el agente no pueda avanzar sin los datos haría falta un flujo
+con estado y escritura de leads en Firestore desde el Worker (pendiente).
+
+## 7. Migración de los clientes que ya existían
 
 Ningún cliente se borra ni se modifica a mano. El ciclo se rellena solo, por tres
 vías equivalentes:

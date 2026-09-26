@@ -277,12 +277,56 @@
     const btn = $("#form-submit");
     const fallback = $("#form-wa-fallback");
 
-    // Campos obligatorios (el barrio se usa para verificar cobertura).
-    const OBLIGATORIOS = [
-      { campo: "nombre", etiqueta: "tu nombre" },
-      { campo: "telefono", etiqueta: "tu teléfono" },
-      { campo: "barrio", etiqueta: "tu barrio" }
-    ];
+    // ---------------- Datos de dirección (tarea 3) ----------------
+    // En una casa no hay torre ni apartamento: exigirlos siempre obligaría a
+    // inventar datos ("N/A") o a perder el contacto. Se piden solo cuando el tipo
+    // de vivienda los tiene. El interruptor general vive en config.js
+    // (formulario.camposDireccionObligatorios) para poder relajarlo sin tocar la
+    // validación.
+    const selVivienda = form.querySelector('[name="tipoVivienda"]');
+    const filaEdificio = $("#fila-edificio");
+    const filaApartamento = $("#fila-apartamento");
+    const DIRECCION_OBLIGATORIA = !CFG.formulario ||
+      CFG.formulario.camposDireccionObligatorios !== false;
+
+    const esEdificio = () => !!selVivienda &&
+      (selVivienda.value === "edificio" || selVivienda.value === "unidad");
+
+    function refrescarDireccion() {
+      const edificio = esEdificio();
+      if (filaEdificio) filaEdificio.hidden = !edificio;
+      if (filaApartamento) filaApartamento.hidden = !edificio;
+      // El atributo required se pone y se quita: los campos ocultos no deben
+      // bloquear el envío, pero sí los visibles.
+      ["edificioUnidad", "torre", "apartamento"].forEach((nombre) => {
+        const el = form.querySelector(`[name="${nombre}"]`);
+        if (el) el.required = edificio && DIRECCION_OBLIGATORIA;
+      });
+    }
+
+    if (selVivienda) selVivienda.addEventListener("change", refrescarDireccion);
+    refrescarDireccion();
+
+    const NOMBRES_VIVIENDA = { casa: "Casa", edificio: "Edificio", unidad: "Unidad residencial" };
+
+    // Campos obligatorios: el barrio sirve para verificar cobertura y la
+    // dirección para agendar la instalación.
+    function camposObligatorios() {
+      const lista = [
+        { campo: "nombre", etiqueta: "tu nombre" },
+        { campo: "telefono", etiqueta: "tu teléfono" },
+        { campo: "barrio", etiqueta: "tu barrio" }
+      ];
+      if (!DIRECCION_OBLIGATORIA) return lista;
+      lista.push({ campo: "tipoVivienda", etiqueta: "el tipo de vivienda" });
+      lista.push({ campo: "direccion", etiqueta: "tu dirección" });
+      if (esEdificio()) {
+        lista.push({ campo: "edificioUnidad", etiqueta: "el edificio o unidad residencial" });
+        lista.push({ campo: "torre", etiqueta: "la torre" });
+        lista.push({ campo: "apartamento", etiqueta: "el apartamento" });
+      }
+      return lista;
+    }
 
     const firebaseActivo = CFG.firebase && CFG.firebase.habilitado;
     let db = null;
@@ -315,6 +359,11 @@
         datos.barrio ? `Barrio: ${datos.barrio}` : "",
         datos.ciudad ? `Ciudad: ${datos.ciudad}` : "",
         datos.direccion ? `Dirección: ${datos.direccion}` : "",
+        datos.tipoVivienda
+          ? `Tipo de vivienda: ${NOMBRES_VIVIENDA[datos.tipoVivienda] || datos.tipoVivienda}` : "",
+        datos.edificioUnidad ? `Edificio/Unidad: ${datos.edificioUnidad}` : "",
+        datos.torre ? `Torre: ${datos.torre}` : "",
+        datos.apartamento ? `Apartamento: ${datos.apartamento}` : "",
         datos.planInteres ? `Plan: ${datos.planInteres}` : "",
         datos.observaciones ? `Observaciones: ${datos.observaciones}` : ""
       ].filter(Boolean).join("\n");
@@ -352,8 +401,9 @@
       data.telefono = telefono;
       data.barrio = barrio;
 
-      // Validación básica: que los campos clave no estén vacíos.
-      const faltan = OBLIGATORIOS.filter((f) => !data[f.campo]);
+      // Validación: que los campos clave no estén vacíos. La lista se arma según
+      // el tipo de vivienda, así que en casa no se exigen torre ni apartamento.
+      const faltan = camposObligatorios().filter((f) => !String(data[f.campo] || "").trim());
       if (faltan.length) {
         status.textContent = `Por favor completa ${faltan.map((f) => f.etiqueta).join(", ")}.`;
         status.className = "form__note err";
@@ -395,6 +445,13 @@
             direccion: limpio("direccion") || null,
             barrio,
             ciudad: limpio("ciudad") || "Medellín",
+            // Datos de dirección: en una casa, edificio/torre/apartamento se
+            // guardan en null (no se inventan valores). El tipo de vivienda se
+            // guarda siempre, para saber por qué faltan esos campos.
+            tipoVivienda: limpio("tipoVivienda") || null,
+            edificioUnidad: limpio("edificioUnidad") || null,
+            torre: limpio("torre") || null,
+            apartamento: limpio("apartamento") || null,
             planInteres: data.planInteres || null,
             observaciones: limpio("observaciones") || null,
             estado: "NUEVA",

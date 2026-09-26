@@ -115,6 +115,23 @@ window.UNEFIBRAS_CONFIG = {
   },
 
   /* ------------------------------------------------------------
+   * Formulario de la landing "Quiero Internet"
+   * ------------------------------------------------------------
+   * `camposDireccionObligatorios: true` exige, además de nombre,
+   * teléfono y barrio: tipo de vivienda y dirección completa; y
+   * —solo si es edificio o unidad residencial— edificio, torre y
+   * apartamento. En una casa esos tres no se piden, porque no
+   * existen: exigirlos obligaría a inventar datos o a perder el
+   * contacto con el cliente.
+   *
+   * Ponlo en `false` para volver a exigir solo nombre, teléfono y
+   * barrio, sin tocar la validación.
+   * ---------------------------------------------------------- */
+  formulario: {
+    camposDireccionObligatorios: true
+  },
+
+  /* ------------------------------------------------------------
    * WhatsApp
    * Número en formato internacional SIN "+" ni espacios.
    * Ejemplo real: "573001234567"
@@ -122,7 +139,9 @@ window.UNEFIBRAS_CONFIG = {
   whatsapp: {
     // WhatsApp principal de la empresa: 304 465 4987 → +57 304 465 4987
     numero: "573044654987",
-    // Número anterior (302 858 9954): se conserva documentado, ya no se usa.
+    // Línea anterior como chat de la web: ya no se usa para eso, PERO sigue
+    // ACTIVA como línea de soporte: aparece en los mensajes de cobro
+    // (configuracion/soporte → whatsapp2). No borrar.
     numeroAnterior: "573028589954",
     // Mensaje preconstruido que se usa para el botón flotante
     mensajeDefault: "Hola, quiero información sobre los planes de Internet por fibra óptica de UneFibra."

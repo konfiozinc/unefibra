@@ -903,10 +903,45 @@
             </label>
           </div>
 
-          <label class="field" for="f-direccion">
-            <span>Dirección</span>
-            <input type="text" id="f-direccion" name="direccion" autocomplete="street-address" placeholder="Calle, carrera, número…" />
-          </label>
+          <!-- Datos de dirección. El tipo de vivienda decide qué se exige: en una
+               casa no hay torre ni apartamento, así que pedirlos obligaría a
+               inventar datos o a perder el contacto. main.js muestra y exige
+               edificio, torre y apartamento solo para edificio o unidad. -->
+          <div class="form__row">
+            <label class="field" for="f-tipo-vivienda">
+              <span>Tipo de vivienda *</span>
+              <select id="f-tipo-vivienda" name="tipoVivienda" required>
+                <option value="">Selecciona…</option>
+                <option value="casa">Casa</option>
+                <option value="edificio">Edificio</option>
+                <option value="unidad">Unidad residencial</option>
+              </select>
+            </label>
+            <label class="field" for="f-direccion">
+              <span>Dirección completa *</span>
+              <input type="text" id="f-direccion" name="direccion" autocomplete="street-address" required placeholder="Calle, carrera, número…" />
+            </label>
+          </div>
+
+          <!-- Solo para edificio o unidad residencial (main.js los muestra y los
+               vuelve obligatorios al elegir ese tipo de vivienda). -->
+          <div class="form__row" id="fila-edificio" hidden>
+            <label class="field" for="f-edificio">
+              <span>Edificio o unidad residencial *</span>
+              <input type="text" id="f-edificio" name="edificioUnidad" placeholder="Nombre del edificio o unidad" />
+            </label>
+            <label class="field" for="f-torre">
+              <span>Torre *</span>
+              <input type="text" id="f-torre" name="torre" placeholder="Torre o bloque" />
+            </label>
+          </div>
+
+          <div class="form__row" id="fila-apartamento" hidden>
+            <label class="field" for="f-apartamento">
+              <span>Apartamento *</span>
+              <input type="text" id="f-apartamento" name="apartamento" placeholder="Número del apartamento" />
+            </label>
+          </div>
 
           <label class="field" for="f-observaciones">
             <span>Observaciones</span>

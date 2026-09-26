@@ -17,6 +17,7 @@
 
 import { db } from "./core.js";
 import { requireAuth } from "./shell.js";
+import { call } from "./callables.js";
 import { collection, getDocs } from "firebase/firestore";
 import {
   badgeEstado, fmtFecha, textoDias, diasRestantes,
@@ -115,10 +116,7 @@ function renderTabla(ciclo) {
 
   const proximo = proximoCorteDe(ciclo);
 
-  const rows = list.map((c) => {
-    const mensaje = `Hola ${c.nombreCompleto || ""}, te escribimos de UneFibra por tu servicio de Internet. ` +
-      `Tu corte está programado para el ${fmtFecha(proximo)}.`;
-    return `
+  const rows = list.map((c) => `
     <tr data-id="${esc(c.id)}">
       <td>${esc(c.nombreCompleto) || "—"}</td>
       <td>${esc(c.planNombre) || "—"}</td>
@@ -128,11 +126,9 @@ function renderTabla(ciclo) {
       <td class="muted">${textoDias(c.fechaVencimiento)}</td>
       <td>${badgeEstado(c.estadoCliente)}</td>
       <td>
-        <a class="btn btn--ghost btn--sm" href="${esc(urlWhatsApp(mensaje))}"
-           target="_blank" rel="noopener" data-wa="1">WhatsApp</a>
+        <button type="button" class="btn btn--ghost btn--sm" data-wa="${esc(c.id)}">Cobrar</button>
       </td>
-    </tr>`;
-  }).join("");
+    </tr>`).join("");
 
   cont.innerHTML = `
     <table>
@@ -143,9 +139,34 @@ function renderTabla(ciclo) {
       <tbody>${rows}</tbody>
     </table>`;
 
+  // El texto NO se arma aquí: lo construye la Cloud Function `mensajeCobro` con
+  // la plantilla, la cuenta bancaria y los WhatsApp configurados. Así el mensaje
+  // que envía el operador es exactamente el mismo que manda el sistema solo, y el
+  // panel no necesita tener los datos bancarios en memoria.
+  cont.querySelectorAll("[data-wa]").forEach((btn) => {
+    btn.addEventListener("click", async (ev) => {
+      ev.stopPropagation();
+      const original = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = "…";
+      try {
+        const res = await call("mensajeCobro")({ clienteId: btn.dataset.wa });
+        const texto = res.data && res.data.texto;
+        if (!texto) throw new Error("La función no devolvió el mensaje.");
+        window.open(urlWhatsApp(texto), "_blank", "noopener");
+      } catch (err) {
+        console.error(err);
+        alert("No se pudo preparar el mensaje de cobro. Revisa la cuenta bancaria y las plantillas en Configuración.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = original;
+      }
+    });
+  });
+
   cont.querySelectorAll("tbody tr").forEach((tr) => {
     tr.addEventListener("click", (ev) => {
-      // El botón de WhatsApp no debe abrir además la ficha del cliente.
+      // El botón de cobro no debe abrir además la ficha del cliente.
       if (ev.target.closest("[data-wa]")) return;
       location.href = `cliente.html?id=${tr.dataset.id}`;
     });
