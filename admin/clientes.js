@@ -10,7 +10,10 @@ import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
 import { collection, getDocs } from "firebase/firestore";
-import { badgeEstado, fmtFecha, textoDias, fmtMoney, diasRestantes } from "../assets/js/admin/ui.js";
+import {
+  badgeEstado, fmtFecha, textoDias, fmtMoney, diasRestantes,
+  hoyColombia, sumarDias, cicloSegunFecha, proximoCorteDe, etiquetaCorte
+} from "../assets/js/admin/ui.js";
 
 let ctx = null;
 let clientes = [];
@@ -135,7 +138,23 @@ async function abrirModal() {
           <label class="field"><span>Dirección</span><input name="direccion" /></label>
           <label class="field"><span>Barrio</span><input name="barrio" /></label>
           <label class="field"><span>Plan</span><select name="planId">${opciones}</select></label>
+          <label class="field"><span>Fecha de inicio del servicio</span><input name="fechaInicioServicio" type="date" value="${hoyColombia()}" /></label>
           <label class="field"><span>Observaciones</span><input name="observaciones" /></label>
+        </div>
+
+        <!-- Ciclo de corte: el negocio cobra en dos tandas, el día 15 y el día 30.
+             Se sugiere a partir del vencimiento estimado (inicio + duración del
+             plan), pero manda lo que elija el usuario: hay clientes que se
+             cambian de tanda a propósito. -->
+        <div class="form-grid two">
+          <div class="field">
+            <span>Ciclo de corte *</span>
+            <div class="radios">
+              <label class="radio"><input type="radio" name="cicloCorte" value="15" checked /> Día 15</label>
+              <label class="radio"><input type="radio" name="cicloCorte" value="30" /> Día 30</label>
+            </div>
+          </div>
+          <p class="muted" id="ciclo-ayuda" style="font-size:0.84rem;"></p>
         </div>
         <div class="modal__actions">
           <button type="button" class="btn btn--ghost" id="btn-cancelar">Cancelar</button>
@@ -150,6 +169,40 @@ async function abrirModal() {
     if (e.target.classList.contains("modal-backdrop")) root.innerHTML = "";
   });
   root.querySelector("#modal-form").addEventListener("submit", guardarCliente);
+
+  // ---------------- Sugerencia del ciclo de corte ----------------
+  const selPlan = root.querySelector('select[name="planId"]');
+  const inpInicio = root.querySelector('input[name="fechaInicioServicio"]');
+  const ayuda = root.querySelector("#ciclo-ayuda");
+  const radios = Array.from(root.querySelectorAll('input[name="cicloCorte"]'));
+  let cicloManual = false; // si el usuario toca el ciclo, dejamos de sugerir
+
+  const cicloElegido = () => (radios.find((r) => r.checked) || {}).value || "15";
+
+  function vencimientoEstimado() {
+    const plan = planes.find((p) => p.id === (selPlan && selPlan.value));
+    const duracion = Number(plan && plan.duracion) || 30;
+    const inicio = (inpInicio && inpInicio.value) || hoyColombia();
+    return sumarDias(inicio, duracion);
+  }
+
+  function refrescarCiclo() {
+    const vencimiento = vencimientoEstimado();
+    if (!cicloManual) {
+      const sugerido = cicloSegunFecha(vencimiento) || "15";
+      radios.forEach((r) => { r.checked = r.value === sugerido; });
+    }
+    if (ayuda) {
+      const ciclo = cicloElegido();
+      ayuda.textContent = `Vencimiento estimado: ${fmtFecha(vencimiento)} · ` +
+        `${etiquetaCorte(ciclo)} · Próximo corte: ${fmtFecha(proximoCorteDe(ciclo))}`;
+    }
+  }
+
+  radios.forEach((r) => r.addEventListener("change", () => { cicloManual = true; refrescarCiclo(); }));
+  if (selPlan) selPlan.addEventListener("change", refrescarCiclo);
+  if (inpInicio) inpInicio.addEventListener("change", refrescarCiclo);
+  refrescarCiclo();
 }
 
 async function guardarCliente(ev) {
@@ -181,6 +234,8 @@ async function guardarCliente(ev) {
       barrio: data.barrio.trim() || null,
       ciudad: data.ciudad.trim() || "Medellín",
       planId: data.planId || null,
+      fechaInicioServicio: data.fechaInicioServicio || null,
+      cicloCorte: data.cicloCorte || null,
       observaciones: data.observaciones.trim() || null
     });
     const id = res.data && res.data.id;

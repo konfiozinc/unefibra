@@ -84,3 +84,61 @@ export function msgError(err) {
   if (code.includes("unauthenticated")) return "Tu sesión expiró. Vuelve a iniciar sesión.";
   return "No fue posible completar la operación. Intenta nuevamente.";
 }
+
+/* ============================================================
+ * CICLOS DE CORTE (día 15 y día 30)
+ * ------------------------------------------------------------
+ * El negocio cobra en dos tandas: los clientes con corte el 15 y
+ * los del corte el 30. El ciclo se guarda en `clientes.cicloCorte`
+ * ("15" o "30") y de ahí se deriva la fecha del próximo corte.
+ *
+ * DECISIÓN DOCUMENTADA — febrero: el ciclo "30" usa el día 30, pero
+ * si el mes no llega a 30 (febrero) el corte cae el último día del
+ * mes: 28, o 29 en año bisiesto. Nunca se salta el corte del mes.
+ * ============================================================ */
+
+export const DIAS_CORTE = ["15", "30"];
+
+/** Días que tiene un mes (m: 1-12). */
+export function diasDelMes(anio, mes) {
+  return new Date(Date.UTC(anio, mes, 0)).getUTCDate();
+}
+
+/** Día real del corte en un mes concreto, contemplando febrero. */
+export function diaCorteDeMes(ciclo, anio, mes) {
+  const deseado = String(ciclo) === "15" ? 15 : 30;
+  return Math.min(deseado, diasDelMes(anio, mes));
+}
+
+/**
+ * "YYYY-MM-DD" del próximo corte del ciclo a partir de una fecha.
+ * Si el corte de este mes todavía no pasó, es el de este mes; si ya
+ * pasó, el del mes siguiente.
+ */
+export function proximoCorteDe(ciclo, desdeISO) {
+  const base = desdeISO || hoyColombia();
+  const [anio, mes, dia] = String(base).split("-").map(Number);
+  const deEsteMes = diaCorteDeMes(ciclo, anio, mes);
+  if (dia <= deEsteMes) return fechaISO(new Date(Date.UTC(anio, mes - 1, deEsteMes)));
+
+  const sigAnio = mes === 12 ? anio + 1 : anio;
+  const sigMes = mes === 12 ? 1 : mes + 1;
+  return fechaISO(new Date(Date.UTC(sigAnio, sigMes - 1, diaCorteDeMes(ciclo, sigAnio, sigMes))));
+}
+
+/** Ciclo que corresponde a una fecha de vencimiento: días 1-15 → "15"; 16 o más → "30". */
+export function cicloSegunFecha(fechaISOStr) {
+  const dia = Number(String(fechaISOStr || "").slice(8, 10));
+  if (!dia) return null;
+  return dia <= 15 ? "15" : "30";
+}
+
+/** Etiqueta corta del ciclo para la interfaz. */
+export function etiquetaCorte(ciclo) {
+  return String(ciclo) === "15" ? "Corte 15" : "Corte 30";
+}
+
+/** Días que faltan para el próximo corte (negativo no ocurre: se recalcula al mes siguiente). */
+export function diasParaCorte(ciclo, desdeISO) {
+  return diasRestantes(proximoCorteDe(ciclo, desdeISO));
+}

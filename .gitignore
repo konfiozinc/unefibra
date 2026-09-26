@@ -28,6 +28,7 @@ firestore.rules.bak
 .env.*
 !.env.example
 CREDENCIALES.txt
+CREDENCIALES_ADMIN.md
 _*.js
 
 # Sistema operativo

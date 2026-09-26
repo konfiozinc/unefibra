@@ -7,6 +7,7 @@
 
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
+import { proximoCorteDe, fmtFecha } from "../assets/js/admin/ui.js";
 import {
   collection, query, where, getCountFromServer, getAggregateFromServer, sum
 } from "firebase/firestore";
@@ -63,6 +64,12 @@ async function contarVencimientosEnRango(desde, hasta) {
   return (await getCountFromServer(q)).data().count;
 }
 
+/** Clientes asignados a un ciclo de corte ("15" o "30"). */
+async function contarPorCiclo(ciclo) {
+  const q = query(collection(db, "clientes"), where("cicloCorte", "==", ciclo));
+  return (await getCountFromServer(q)).data().count;
+}
+
 // ---- Render ----
 function card(label, value, opts = {}) {
   return `
@@ -87,7 +94,8 @@ function card(label, value, opts = {}) {
 
     const [
       activos, porVencer, pendientes, suspendidos, inactivos,
-      pagosMes, vencimientosHoy, vencimientosProximos
+      pagosMes, vencimientosHoy, vencimientosProximos,
+      corte15, corte30
     ] = await Promise.all([
       contarPorEstado("ACTIVO"),
       contarPorEstado("POR_VENCER"),
@@ -96,11 +104,19 @@ function card(label, value, opts = {}) {
       contarPorEstado("INACTIVO"),
       pagosDelMes(),
       contarVencimientosEnRango(hoy, hoy),
-      contarVencimientosEnRango(manana, en7Dias)
+      contarVencimientosEnRango(manana, en7Dias),
+      contarPorCiclo("15"),
+      contarPorCiclo("30")
     ]);
+
+    const proximo15 = fmtFecha(proximoCorteDe("15"));
+    const proximo30 = fmtFecha(proximoCorteDe("30"));
 
     content.innerHTML = `
       <div class="cards">
+        ${card("Clientes Corte 15", corte15, { tone: "tone-cyan", accent: true, hint: `Próximo corte: ${proximo15}` })}
+        ${card("Clientes Corte 30", corte30, { tone: "tone-cyan", accent: true, hint: `Próximo corte: ${proximo30}` })}
+
         ${card("Clientes activos", activos, { tone: "tone-green", hint: "Servicio habilitado y al día" })}
         ${card("Por vencer", porVencer, { tone: "tone-amber", hint: "Próximos 7 días" })}
         ${card("Pendientes de pago", pendientes, { tone: "tone-red", hint: "Vencidos sin pago que cubra el periodo" })}
@@ -109,8 +125,19 @@ function card(label, value, opts = {}) {
 
         ${card("Pagos del mes", pagosMes.cantidad, { tone: "tone-cyan", accent: true, hint: "Pagos confirmados este mes" })}
         ${card("Ingresos del mes", fmtMoney(pagosMes.total), { tone: "tone-cyan", accent: true, hint: "Suma de pagos confirmados" })}
-        ${card("Vencen hoy", vencimientosHoy, { tone: "tone-amber", hint: `Fecha de corte: ${hoy}` })}
+        ${card("Vencen hoy", vencimientosHoy, { tone: "tone-amber", hint: `Fecha de referencia: ${hoy}` })}
         ${card("Vencen próximos 7 días", vencimientosProximos, { tone: "tone-amber", hint: `${manana} a ${en7Dias}` })}
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>Próximos cortes</h2>
+        <div class="kv">
+          <div class="kv__item"><span class="kv__k">Corte 15</span><span>${proximo15} · ${corte15} cliente(s)</span></div>
+          <div class="kv__item"><span class="kv__k">Corte 30</span><span>${proximo30} · ${corte30} cliente(s)</span></div>
+        </div>
+        <p class="muted" style="font-size:0.82rem;margin-top:10px;">
+          El corte del ciclo 30 cae el último día del mes cuando el mes no llega a 30 (febrero).
+        </p>
       </div>`;
   } catch (err) {
     console.error("Error al cargar el dashboard:", err);

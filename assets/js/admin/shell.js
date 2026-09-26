@@ -15,6 +15,8 @@ const NAV = [
   { key: "dashboard", label: "Dashboard", href: "dashboard.html", min: "OPERADOR" },
   { key: "solicitudes", label: "Solicitudes", href: "solicitudes.html", min: "OPERADOR" },
   { key: "clientes", label: "Clientes", href: "clientes.html", min: "OPERADOR" },
+  { key: "corte15", label: "Lista Corte 15", href: "lista-corte-15.html", min: "OPERADOR" },
+  { key: "corte30", label: "Lista Corte 30", href: "lista-corte-30.html", min: "OPERADOR" },
   { key: "servicios", label: "Servicios", href: "servicios.html", min: "OPERADOR" },
   { key: "pagos", label: "Pagos", href: "pagos.html", min: "OPERADOR" },
   { key: "planes", label: "Planes", href: "planes.html", min: "ADMIN" },

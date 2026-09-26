@@ -106,6 +106,25 @@ function diasHasta(fecha) {
 }
 
 /* ------------------------------------------------------------------
+ * Ciclos de corte (día 15 y día 30)
+ * ----------------------------------------------------------------
+ * El negocio cobra en dos tandas: los clientes con corte el 15 y los
+ * del corte el 30. `clientes.cicloCorte` guarda a cuál pertenece cada
+ * uno ("15" o "30") y de ahí se deriva `proximoCorte`, que es la fecha
+ * que manda en los avisos de cobro.
+ *
+ * DECISIÓN DOCUMENTADA — febrero: el ciclo "30" usa el día 30, pero si
+ * el mes no llega a 30 el corte cae el último día del mes (28, o 29 en
+ * año bisiesto). Nunca se salta el corte de un mes.
+ *
+ * La regla de negocio vive en ./cortes.js, compartida con las herramientas
+ * de línea de comandos (tools/): así el motor, la migración y cualquier
+ * script no pueden calcular distinto. El panel del navegador mantiene su
+ * propia copia en assets/js/admin/ui.js, porque no puede importar CommonJS.
+ * ------------------------------------------------------------------ */
+const { proximoCorteDe, cicloValido } = require("./cortes");
+
+/* ------------------------------------------------------------------
  * Utilidades de persistencia
  * ------------------------------------------------------------------ */
 
@@ -241,7 +260,7 @@ exports.processDueDates = functions.pubsub
   .schedule("0 8 * * *") // 08:00 diario, hora de Bogotá
   .timeZone("America/Bogota")
   .onRun(async () => {
-    const resumen = { revisados: 0, notificaciones: 0, porVencer: 0, pendientes: 0, suspendidos: 0 };
+    const resumen = { revisados: 0, notificaciones: 0, porVencer: 0, pendientes: 0, suspendidos: 0, ciclos: 0, avisosCorte: 0 };
 
     // 1) Configuración de intervalos (días antes/después) y suspensión.
     const cfgSnap = await db.collection("configuracion").get();
@@ -251,6 +270,26 @@ exports.processDueDates = functions.pubsub
     const diasAntes = cfg.diasAntes || [7, 5, 3, 1];
     const diasDespues = cfg.diasDespues || [0, -1, -3];
     const diasSuspension = cfg.diasSuspension || 5;
+
+    // 1.bis) Ciclos de corte. Rellena el ciclo de los clientes que no lo tengan
+    // (así se migran solos los que ya existían) y refresca el próximo corte,
+    // que cambia de mes en mes. Respeta el ciclo asignado a mano: solo lo deduce
+    // cuando falta o es inválido. Es idempotente: solo escribe si algo cambió.
+    const clientesSnap = await db.collection("clientes").get();
+    for (const docCli of clientesSnap.docs) {
+      const cli = docCli.data();
+      const ciclo = cicloValido(cli.cicloCorte, cli.fechaVencimiento);
+      if (!ciclo) continue;
+      const proximo = proximoCorteDe(ciclo);
+      if (cli.cicloCorte !== ciclo || cli.proximoCorte !== proximo) {
+        await docCli.ref.update({
+          cicloCorte: ciclo,
+          proximoCorte: proximo,
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        resumen.ciclos++;
+      }
+    }
 
     // 2) Servicios con estado ACTIVO o POR_VENCER
     const servicios = await db.collection("servicios")
@@ -282,19 +321,38 @@ exports.processDueDates = functions.pubsub
         resumen.porVencer++;
       }
 
-      // 4) Recordatorios antes del vencimiento
+      // 4) Recordatorios. Si el cliente tiene ciclo de corte, el aviso que manda
+      //    es el del CORTE (la fecha real de cobro), no el del vencimiento: es lo
+      //    que el negocio necesita que el cliente recuerde. A quien ya pagó por
+      //    adelantado hasta el corte no se le molesta.
+      const cicloCliente = cicloValido(cliente.cicloCorte, servicio.fechaVencimiento);
+      const proximoCorte = cicloCliente
+        ? (cliente.proximoCorte || proximoCorteDe(cicloCliente))
+        : null;
+      const cubiertoHastaCorte = !!proximoCorte && !!cliente.fechaVencimiento &&
+        String(cliente.fechaVencimiento) >= proximoCorte;
+      const avisarPorCorte = !!cicloCliente && !cubiertoHastaCorte;
+      const diasAviso = avisarPorCorte ? diasHasta(proximoCorte) : dias;
+      const periodoAviso = avisarPorCorte ? `corte-${cicloCliente}-${proximoCorte}` : periodo;
+
       for (const n of diasAntes) {
-        if (dias === n) {
-          const tipo = `RECORDATORIO_${n}_DIAS`;
-          const nueva = await registrarNotificacion(
-            cliente.id, tipo,
-            "Tu servicio está por vencer",
-            `UneFibra: tu servicio de Internet vence en ${n} día(s) (${servicio.fechaVencimiento}). Realiza tu pago para mantenerlo activo.`,
-            periodo
-          );
+        if (diasAviso === n) {
+          const tipo = avisarPorCorte ? `CORTE_${cicloCliente}_${n}_DIAS` : `RECORDATORIO_${n}_DIAS`;
+          const titulo = avisarPorCorte ? "Tu corte está programado" : "Tu servicio está por vencer";
+          const cuerpo = avisarPorCorte
+            ? `UneFibra: tu corte del día ${cicloCliente} está programado para el ${proximoCorte} ` +
+              `(en ${n} día(s)). Realiza tu pago para no quedarte sin servicio.`
+            : `UneFibra: tu servicio de Internet vence en ${n} día(s) (${servicio.fechaVencimiento}). ` +
+              `Realiza tu pago para mantenerlo activo.`;
+
+          const nueva = await registrarNotificacion(cliente.id, tipo, titulo, cuerpo, periodoAviso);
           if (nueva) {
-            await enviarPush(cliente.id, "Tu servicio está por vencer", `Vence en ${n} día(s).`);
+            await enviarPush(
+              cliente.id, titulo,
+              avisarPorCorte ? `Corte el ${proximoCorte} (en ${n} día(s)).` : `Vence en ${n} día(s).`
+            );
             resumen.notificaciones++;
+            if (avisarPorCorte) resumen.avisosCorte++;
           }
         }
       }
@@ -380,6 +438,11 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
   const fechaInicio = data.fechaInicioServicio || hoyISO();
   const fechaVencimiento = sumarDias(fechaInicio, plan.duracion);
 
+  // Ciclo de corte (día 15 o día 30): manda el que envíe el panel; si no llega,
+  // se deduce del vencimiento. `proximoCorte` es la fecha de cobro vigente.
+  const cicloCorte = cicloValido(data.cicloCorte, fechaVencimiento);
+  const proximoCorte = cicloCorte ? proximoCorteDe(cicloCorte) : null;
+
   const cliente = {
     nombreCompleto,
     documento: documento || null,
@@ -395,6 +458,8 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
     fechaInstalacion: data.fechaInstalacion || null,
     fechaInicioServicio: fechaInicio,
     fechaVencimiento,
+    cicloCorte,
+    proximoCorte,
     estadoCliente: ESTADO_CLIENTE.ACTIVO,
     estadoServicio: ESTADO_SERVICIO.ACTIVO,
     metodoPagoPreferido: data.metodoPagoPreferido || null,
@@ -422,7 +487,49 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
   await registrarHistorial(clienteRef.id, null, ESTADO_CLIENTE.ACTIVO, "Alta de cliente", context.auth.uid, data.usuarioNombre || context.auth.uid);
   await auditar(context.auth.uid, data.usuarioNombre || context.auth.uid, "CREAR_CLIENTE", "clientes", clienteRef.id, null, cliente);
 
-  return { id: clienteRef.id, fechaVencimiento };
+  return { id: clienteRef.id, fechaVencimiento, cicloCorte, proximoCorte };
+});
+
+/**
+ * Migración de ciclos de corte (solo SUPERADMIN).
+ * Asigna `cicloCorte` a los clientes que no lo tengan, deduciéndolo de su
+ * fecha de vencimiento, y calcula el próximo corte. Respeta el ciclo que ya
+ * esté asignado. Es idempotente: se puede ejecutar cuantas veces haga falta.
+ *
+ * No es obligatorio ejecutarla, porque el motor diario hace el mismo trabajo;
+ * sirve para no tener que esperar a la madrugada justo después de desplegar.
+ */
+exports.migrarCiclosCorte = functions.https.onCall(async (data, context) => {
+  await verificarRol(context, ["SUPERADMIN"]);
+
+  const snap = await db.collection("clientes").get();
+  let actualizados = 0;
+  const detalle = [];
+
+  for (const doc of snap.docs) {
+    const c = doc.data();
+    const ciclo = cicloValido(c.cicloCorte, c.fechaVencimiento);
+    if (!ciclo) continue;
+    const proximo = proximoCorteDe(ciclo);
+
+    if (c.cicloCorte === ciclo && c.proximoCorte === proximo) continue;
+
+    await doc.ref.update({
+      cicloCorte: ciclo,
+      proximoCorte: proximo,
+      updatedAt: FieldValue.serverTimestamp()
+    });
+    actualizados++;
+    detalle.push({ clienteId: doc.id, antes: c.cicloCorte || null, ahora: ciclo });
+  }
+
+  await auditar(
+    context.auth.uid, data && data.usuarioNombre,
+    "MIGRAR_CICLOS_CORTE", "clientes", null,
+    null, { revisados: snap.size, actualizados }
+  );
+
+  return { revisados: snap.size, actualizados, detalle };
 });
 
 /* ============================================================

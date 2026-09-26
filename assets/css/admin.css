@@ -229,6 +229,20 @@ td .btn--sm { margin-left: 6px; }
   border-radius: 10px; padding: 11px 13px; font: inherit; font-size: 0.94rem;
 }
 .field input:focus, .field select:focus, .field textarea:focus { outline: none; border-color: var(--cyan); box-shadow: 0 0 0 3px rgba(0,176,240,0.15); }
+
+/* Selector de ciclo de corte: dos opciones visibles a la vez, sin desplegable.
+   `.radio input` devuelve el ancho automático, porque `.field input` lo fuerza
+   al 100% y deformaría el círculo. */
+.radios { display: flex; flex-wrap: wrap; gap: 10px; }
+.radio {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 10px 14px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--bg-soft); color: var(--text-muted);
+  font-size: 0.9rem; font-weight: 600; cursor: pointer;
+}
+.radio:hover { border-color: var(--cyan); color: var(--text); }
+.radio input { width: auto; margin: 0; accent-color: var(--cyan); }
+.radio:has(input:checked) { border-color: var(--cyan); color: var(--cyan); background: rgba(0,176,240,0.12); }
 .modal__actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px; }
 .modal__msg { font-size: 0.88rem; min-height: 20px; margin-top: 12px; }
 .modal__msg.ok { color: var(--green); }
