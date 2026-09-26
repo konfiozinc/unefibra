@@ -122,8 +122,22 @@ service cloud.firestore {
 
     match /tokens_notificacion/{tokenId} {
       allow read: if esOperador();
-      // Un cliente (portal futuro) registra su propio token tras autorizar.
-      allow create: if true;
+      // El alta es pública porque el portal del cliente registra su propio token
+      // tras autorizar las notificaciones. Pero NO se acepta cualquier cosa: la
+      // forma del documento se valida aquí para que nadie use esta vía como
+      // buzón de basura. (Esta regla es visible en el archivo de reglas, que es
+      // público: por eso importa que lo abierto sea abierto con condiciones y no
+      // un `if true` a secas. No se pueden enumerar `clientes` sin sesión, así
+      // que no hay forma de registrar un token en el cliente de otro.)
+      allow create: if request.resource.data.keys().hasAll(['clienteId', 'token'])
+                    && request.resource.data.clienteId is string
+                    && request.resource.data.clienteId.size() > 0
+                    && request.resource.data.clienteId.size() <= 128
+                    && request.resource.data.token is string
+                    && request.resource.data.token.size() >= 20
+                    && request.resource.data.token.size() <= 4096
+                    && (!request.resource.data.keys().hasAny(['activo'])
+                        || request.resource.data.activo is bool);
       allow update: if esOperador();
       allow delete: if esAdmin();
     }
