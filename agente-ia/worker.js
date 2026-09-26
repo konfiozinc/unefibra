@@ -64,11 +64,14 @@ function normalizar(s) {
 
 function respuestaLocal(mensaje) {
   const q = normalizar(mensaje);
+  // Recordatorio de los datos que hacen falta para agendar. Va en las respuestas
+  // locales para que el cliente los reciba igual cuando Gemini no responde.
+  const PEDIR_DATOS = "\n\nPara agendar la instalación necesito tu dirección completa, tu sector y si vives en casa, edificio o unidad residencial (si es edificio o unidad, también la torre y el apartamento).";
   if (/precio|cuesta|valor|tarifa|cuanto|plan|planes|velocidad|megas|mbps/.test(q)) {
-    return "Nuestros planes de Internet por fibra óptica (30 días):\n• 100 Mbps — $50.000\n• 150 Mbps — $60.000\n• 200 Mbps — $70.000\n• 250 Mbps — $85.000\n• Ultra 300 Mbps — $100.000\n\n¿Para qué usas Internet principalmente? Así te recomiendo la velocidad ideal.";
+    return "Nuestros planes de Internet por fibra óptica (30 días):\n• 100 Mbps — $50.000\n• 150 Mbps — $60.000\n• 200 Mbps — $70.000\n• 250 Mbps — $85.000\n• Ultra 300 Mbps — $100.000\n\n¿Para qué usas Internet principalmente? Así te recomiendo la velocidad ideal." + PEDIR_DATOS;
   }
   if (/cobertura|barrio|zona|llegamos|disponibilidad|cubren|sector/.test(q)) {
-    return "Cubrimos el occidente de Medellín: Robledo (El Cucaracho, La Campiña), Ciudadela Nuevo Occidente, La Aurora, La Libertad, Nazaret, El Tirol y sectores aledaños. Dime tu sector y dirección y verificamos cobertura para ti. 📍";
+    return "Cubrimos el occidente de Medellín: Robledo (El Cucaracho, La Campiña), Ciudadela Nuevo Occidente, La Aurora, La Libertad, Nazaret, El Tirol y sectores aledaños. 📍" + PEDIR_DATOS;
   }
   if (/contrato|clausula/.test(q)) {
     return "Buenas noticias: trabajamos sin contratos ni cláusulas ocultas. 😊 ¿Quieres contratar o tienes otra duda?";
