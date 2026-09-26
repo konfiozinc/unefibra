@@ -15,30 +15,34 @@
 
 ---
 
-## Parte 0 — Urgente: dos afirmaciones publicadas sin confirmar
+## Parte 0 — Afirmaciones sin respaldo: ya neutralizadas
 
-### 0.1 La instalación: la web se contradice a sí misma
+Las dos afirmaciones que siguen estaban **publicadas sin confirmar**. Se retiraron
+de la web: hoy la página **no afirma nada** sobre estos dos puntos. Las preguntas
+siguen abiertas y son las que bloquean una campaña de publicidad: en cuanto el
+cliente responda, se vuelven a publicar con la redacción correcta.
 
-| Dónde | Qué dice | Quién lo ve |
+### 0.1 La instalación: la web se contradecía a sí misma
+
+| Dónde | Qué decía | Estado |
 |---|---|---|
-| Planes (texto para navegadores sin JS) | «Todos los planes **incluyen** instalación y soporte» | Los buscadores y quien navegue sin JS |
-| Garantías | «**Instalación en 48 horas**» | Todos los visitantes |
-| Ficha del producto (datos para Google) | «…con instalación en el hogar y sin contratos de permanencia» | Google |
-| FAQ «¿Debo pagar la instalación?» | «Escríbenos y **te confirmamos las condiciones** según tu sector» | Todos los visitantes |
-| Código | `<!-- TODO: confirmar con el cliente si la instalación tiene costo y si incluye equipo/router -->` | — |
+| Planes (texto para navegadores sin JS) | «Todos los planes **incluyen** instalación y soporte» | **Retirado.** Ahora dice: «Todos los planes son 100% fibra óptica. Escríbenos y te confirmamos las condiciones de instalación en tu sector» |
+| FAQ «¿Debo pagar la instalación?» | «Escríbenos y **te confirmamos las condiciones**» | Se mantiene: no afirma nada |
+| Garantías | «**Instalación en 48 horas**» | Se mantiene (es un plazo, no un precio). Conviene reconfirmarlo con el punto 1 |
+| Ficha del producto (datos para Google) | «…con instalación en el hogar…» | Se mantiene (dice dónde, no cuánto) |
 
-El problema no es la palabra «instalación»: es que **«incluyen» significa que no se cobra aparte**, y la FAQ responde con evasivas a esa misma pregunta. Las dos cosas no pueden ser verdad al mismo tiempo.
+El problema era que **«incluyen» significa que no se cobra aparte**, mientras la FAQ esquivaba esa misma pregunta: las dos no podían ser verdad a la vez. Mientras no haya respuesta, la web no promete nada.
 
-- Si **se cobra**: la web está prometiendo gratis algo que se cobra, y quien reclame tendrá razón.
-- Si **es gratis**: la FAQ está esquivando una pregunta que ya tiene respuesta, y se pierde una ventaja comercial fuerte.
+- Si **se cobra**: ya no hay promesa falsa; solo falta publicar el precio.
+- Si **es gratis**: hay que decirlo en la FAQ, porque hoy se pierde una ventaja comercial fuerte por una respuesta evasiva.
 
-### 0.2 «Instalación también para reportados» — repetida 6 veces, y sin confirmar
+### 0.2 «Instalación también para reportados» — retirada
 
-Aparece en la página **6 veces** (una en la sección de beneficios y una en cada una de las 5 tarjetas de plan).
+Aparecía **6 veces** (una en la sección de beneficios y una en cada una de las 5 tarjetas de plan).
 
-En `config.js`, el comentario que respalda los planes dice literalmente: *«nombres y precios confirmados por el cliente»*. Los beneficios del plan **no** figuran como confirmados. Es decir: la web está afirmando que instalan a personas reportadas en centrales de riesgo, y ese dato nunca se validó.
+En `config.js`, el comentario que respalda los planes dice literalmente: *«nombres y precios confirmados por el cliente»*. Los beneficios del plan **no** figuraban como confirmados. Es decir: la web afirmaba que instalan a personas reportadas en centrales de riesgo, y ese dato nunca se validó.
 
-Si no es exacto, atrae exactamente al cliente que después hay que rechazar. Hay que confirmarlo o retirarlo.
+Se retiró de las 6 apariciones. Si el cliente confirma que sí aplica, se vuelve a publicar con la redacción que él indique (¿siempre, o solo en algunos casos?). Mientras tanto, la web no atrae al cliente que después habría que rechazar.
 
 **Estos dos puntos bloquean cualquier campaña de publicidad.**
 
@@ -48,13 +52,14 @@ Si no es exacto, atrae exactamente al cliente que después hay que rechazar. Hay
 
 > **Asunto: datos que necesitamos para cerrar la web**
 
-Hola. La página ya está publicada con los planes, la cobertura y el formulario. Para terminarla nos faltan unos datos. Los primeros 6 son los importantes, porque la página **ya está afirmando cosas que debemos confirmar**; los demás los cerramos después.
+Hola. La página ya está publicada con los planes, la cobertura y el formulario. Para terminarla nos faltan unos datos. Los primeros 6 son los importantes: son datos que la página necesita para poder decir algo con seguridad. Hoy, para no prometer de más, no afirma nada sobre ellos; los demás los cerramos después.
 
 **Importantes**
 
 1. **Instalación:** ¿el cliente paga la instalación? Si se cobra, ¿cuánto y en qué casos es gratis? ¿El router o módem está incluido o lo pone el cliente?
-   *(Hoy la página dice que la instalación está incluida y la sección de preguntas dice que hay que consultar: necesitamos que las dos digan lo mismo.)*
-2. **«Instalación también para reportados»:** aparece 6 veces en la página. ¿Es correcto que instalan a personas reportadas en Datacrédito? ¿Siempre, o solo en algunos casos? Si no aplica siempre, lo quitamos o lo precisamos.
+   *(Mientras no nos confirmen, la página no dice nada sobre el costo: preferimos no prometer de más.)*
+2. **Clientes reportados:** ¿instalan a personas reportadas en Datacrédito? Si sí, ¿siempre o solo en algunos casos?
+   *(Lo teníamos publicado en 6 partes de la página y lo retiramos hasta que nos lo confirmen: no queremos atraer a alguien que después haya que rechazar.)*
 3. **Velocidad garantizada:** ¿garantizan un porcentaje mínimo de la velocidad contratada (por ejemplo el 80%)? Si no garantizan ninguno, lo decimos así de claro.
 4. **Cambio de plan:** ¿el cliente puede subir o bajar de plan? ¿Tiene algún costo? ¿Aplica desde el siguiente pago?
 5. **Dirección definitiva:** ¿cuál es la dirección real? ¿Es una sede con atención al público o una oficina administrativa? *(Hoy figura una dirección provisional. Si es solo oficina, no conviene publicarla como punto de atención.)*
@@ -79,8 +84,8 @@ Gracias. Con los 6 primeros podemos publicar sin afirmar nada que no sea cierto.
 
 | # | Dato | Dónde entra exactamente | Qué cambia |
 |---|---|---|---|
-| 1 | Costo de instalación + router | `index.html`: texto de Planes (bloque sin JS), Comparador, FAQ «¿Debo pagar la instalación?» **y** el `FAQPage` del JSON-LD (deben coincidir) | Se retiran los `TODO` y se alinean los 3 textos |
-| 2 | «Reportados» | `assets/js/config.js` → `planBeneficios` **y** los 5 textos estáticos de las tarjetas + sección de beneficios en `index.html` | Se confirma, se precisa o se retira de las 6 apariciones |
+| 1 | Costo de instalación + router | `index.html`: FAQ «¿Debo pagar la instalación?» **y** el `FAQPage` del JSON-LD (deben coincidir) y, si la instalación es gratis, el texto de Planes | **Ya neutralizado:** la web no promete nada. Al llegar la respuesta se publica el dato y se retira el `TODO` |
+| 2 | Clientes reportados | `assets/js/config.js` → `planBeneficios` **y** los 5 listados de las tarjetas + la sección de beneficios en `index.html` | **Retirado** de las 6 apariciones. Si se confirma, se vuelve a añadir en esos mismos 6 sitios |
 | 3 | Velocidad garantizada | `index.html` FAQ «¿Hay una velocidad mínima garantizada?» + su `FAQPage` | Respuesta concreta en vez de genérica |
 | 4 | Cambio de plan | `index.html` FAQ «¿Puedo cambiar de plan?» + su `FAQPage` | Ídem |
 | 5 | Dirección real | `assets/js/config.js` → `empresa.direccion` **y** `index.html` → JSON-LD `streetAddress` | Mapa, ficha de Google y `LocalBusiness` |
@@ -134,7 +139,7 @@ Pendiente de decisión técnica: agregar los clics requiere escrituras desde el 
 
 ## Orden de trabajo sugerido
 
-1. Respuestas 1 a 6 → corregir los textos publicados y eliminar las afirmaciones sin respaldo.
+1. Respuestas 1 a 6 → publicar los datos con la redacción correcta (las afirmaciones sin respaldo ya se retiraron).
 2. Comprar dominio y apuntarlo → arregla el `robots.txt`, el sitemap y la marca.
 3. Crear el Perfil de Empresa → habilita reseñas reales.
 4. Cargar Analytics y App Check → dejar de volar a ciegas y cerrar el spam.

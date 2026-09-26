@@ -137,8 +137,11 @@ window.UNEFIBRAS_CONFIG = {
     "100% fibra óptica hasta tu hogar",
     "Máxima velocidad y estabilidad",
     "Soporte cercano y confiable",
-    "Sin contratos ni cláusulas ocultas",
-    "Instalación también para reportados"
+    "Sin contratos ni cláusulas ocultas"
+    // Se retiró "Instalación también para reportados": nunca se confirmó con el
+    // cliente (el comentario de arriba solo respalda nombres y precios) y
+    // aparecía 6 veces en la landing. Para volver a publicarla hace falta que el
+    // cliente confirme por escrito si aplica siempre o solo en algunos casos.
   ],
   planes: [
     { nombre: "Básico 100 Mbps",   velocidad: "100 Mbps", precio: 50000,  descripcion: "Ideal para navegar, redes sociales y streaming en HD." },
