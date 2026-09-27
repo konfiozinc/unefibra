@@ -5,8 +5,7 @@ on:
     branches: [main]
   workflow_dispatch:
   # El blog público se genera desde Firestore. Esta ejecución diaria publica los
-  # artículos que se hayan marcado como PUBLICADO en el panel de administración,
-  # sin necesidad de tocar el repositorio.
+  # artículos marcados como PUBLICADO en el panel, sin tocar el repositorio.
   schedule:
     - cron: "0 10 * * *" # 10:00 UTC = 5:00 a.m. en Colombia
 
@@ -37,10 +36,23 @@ jobs:
       # Escribe blog/index.html y blog/<slug>/index.html con los artículos
       # publicados, y actualiza sitemap.xml. El script siempre termina con
       # código 0: si Firestore no responde deja una página honesta en lugar de
-      # romper el despliegue del sitio completo. Por eso `continue-on-error`.
+      # romper el despliegue del sitio. Por eso `continue-on-error`.
       - name: Generar el blog estático
         continue-on-error: true
         run: node tools/generar-blog.js
+
+      # Al sitio sube SOLO lo público. Antes se publicaba el repositorio entero y
+      # quedaban descargables las reglas de Firestore, el código de las Cloud
+      # Functions y las herramientas internas: información útil para quien busque
+      # por dónde entrar, aunque no contuvieran credenciales.
+      # `set -e` a propósito: si falta un archivo, es mejor que falle el despliegue
+      # (y siga en pie la versión anterior) que publicar un sitio incompleto.
+      - name: Preparar el sitio público
+        run: |
+          set -e
+          mkdir -p _sitio
+          cp index.html manifest.json sw.js robots.txt sitemap.xml _sitio/
+          cp -r assets admin blog _sitio/
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5
@@ -48,7 +60,7 @@ jobs:
       - name: Subir artefacto
         uses: actions/upload-pages-artifact@v3
         with:
-          path: "."
+          path: "_sitio"
 
       - name: Desplegar
         id: deployment
