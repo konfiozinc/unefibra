@@ -210,7 +210,7 @@ window.UNEFIBRAS_CONFIG = {
       "La Montaña",
       "La Cascada",
       "Las Flores",
-      "Las Violetas",
+      "Las Veletas",
       "Sector La Campiña",
       "Sector El Cucaracho",
       "Sector Los Loquitos",
@@ -273,14 +273,14 @@ window.UNEFIBRAS_CONFIG = {
    * colección `metodos_pago`; esto es solo el valor por defecto
    * mientras no existan métodos configurados.
    * ---------------------------------------------------------- */
+  // Métodos de pago que acepta la empresa. Los que se muestran en el panel
+  // vienen de la colección `metodos_pago` de Firestore; esto es el respaldo.
+  // Los que NO están aquí no deben ofrecerse al cliente en ninguna parte.
   metodosPagoPorDefecto: [
-    "Nequi",
-    "Daviplata",
-    "Bancolombia",
-    "Davivienda",
-    "Transferencia",
     "Efectivo",
-    "Otro"
+    "Bancolombia",
+    "Nequi",
+    "Punto de recaudo físico"
   ],
 
   /* ------------------------------------------------------------

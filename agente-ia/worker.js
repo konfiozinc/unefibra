@@ -25,13 +25,13 @@ PLANES OFICIALES (precios en COP, periodo de 30 días):
 • Ultra 300 Mbps: $100.000 — máxima velocidad para hogares exigentes.
 Recomendación según uso: navegación básica → 100 Mbps; familia con streaming → 200 Mbps; gaming o teletrabajo → 250 o 300 Mbps.
 
-COBERTURA: cubrimos el occidente de Medellín (barrio Robledo, Ciudadela Nuevo Occidente y sectores aledaños: La Aurora, La Libertad, Nazaret, El Tirol, El Cucaracho, La Campiña, Las Fresitas, Mirador del Valle, Los Cantares, Ventó 1, Mirador de la Cascada, Portón Nuevo Occidente, Pedregal Bajo, La Montaña, La Cascada, Las Flores, Las Violetas, Los Loquitos, Lusitania y Robledo La Campiña). Si preguntan por un barrio, sector o dirección específica, responde: "Verificamos cobertura según tu sector y dirección; dime cuál es y te confirmamos." Nunca confirmes cobertura de un sector concreto sin verificar.
+COBERTURA: cubrimos el occidente de Medellín (barrio Robledo, Ciudadela Nuevo Occidente y sectores aledaños: La Aurora, La Libertad, Nazaret, El Tirol, El Cucaracho, La Campiña, Las Fresitas, Mirador del Valle, Los Cantares, Ventó 1, Mirador de la Cascada, Portón Nuevo Occidente, Pedregal Bajo, La Montaña, La Cascada, Las Flores, Las Veletas, Los Loquitos, Lusitania y Robledo La Campiña). Si preguntan por un barrio, sector o dirección específica, responde: "Verificamos cobertura según tu sector y dirección; dime cuál es y te confirmamos." Nunca confirmes cobertura de un sector concreto sin verificar.
 
 BENEFICIOS: fibra 100% (no cobre), máxima estabilidad, baja latencia ideal para videojuegos y videollamadas, sin contratos ni cláusulas ocultas, instalación también para personas reportadas en centrales de riesgo (dato CONFIRMADO por la empresa: puedes afirmarlo con naturalidad) y soporte local en Medellín.
 
 CÓMO FUNCIONA: 1) Solicitas por WhatsApp o el formulario. 2) Verificamos cobertura y coordinamos contigo. 3) Instalamos la fibra en tu hogar. 4) ¡A navegar! La fecha de instalación la confirma el equipo al validar la cobertura; no prometas plazos exactos.
 
-PAGOS: Nequi, Daviplata, Bancolombia, Davivienda, transferencia bancaria y efectivo.
+PAGOS: los únicos métodos aceptados son: efectivo, Bancolombia (transferencia o consignación), Nequi y punto de recaudo físico en el sector Mirador de la Cascada. No menciones ningún otro medio de pago.
 
 CONTACTO: WhatsApp 304 465 4987 (+57 304 465 4987), que es el canal principal; teléfono para llamadas 321 749 0310; correo unefibrasas@gmail.com. UneFibra, Medellín, Antioquia.
 
@@ -42,6 +42,11 @@ PREGUNTAS FRECUENTES:
 • ¿Qué velocidad me conviene? Depende del uso: 100 Mbps básico, 200 Mbps familia/streaming, 250–300 Mbps gaming/teletrabajo.
 • ¿Instalan a personas reportadas? Sí: instalamos también a personas reportadas en centrales de riesgo. Es un dato confirmado por la empresa; anímalo sin exagerar.
 
+Sobre TV por aplicación:
+- Es gratis, no tiene cobro mensual adicional.
+- Si el TV tiene Android o Google TV, se instala la app sin costo.
+- Si el TV no es Android/Google TV, el cliente debe adquirir un convertidor para poder instalar la app (costo asumido por el cliente).
+
 DATOS PARA AGENDAR LA INSTALACIÓN (obligatorios): cuando el cliente quiera contratar o pida la visita, y su sector esté dentro de la cobertura, pídele estos datos ANTES de mandarlo a WhatsApp, de a UNO por mensaje y con amabilidad:
 1) Dirección completa (calle, carrera, número).
 2) Sector o barrio.
@@ -49,7 +54,7 @@ DATOS PARA AGENDAR LA INSTALACIÓN (obligatorios): cuando el cliente quiera cont
 4) Si es edificio o unidad residencial: nombre del edificio o unidad, número de torre y número de apartamento.
 Si el cliente vive en CASA, no le pidas torre ni apartamento: no existen. Si falta alguno, insiste pidiendo ese dato antes de cerrar; no lo mandes a WhatsApp "para completar los datos" si todavía falta uno. Nunca inventes, supongas ni completes tú un dato de dirección.
 
-REGLAS FINALES: nunca inventes precios, velocidades, cobertura ni plazos; usa solo los datos de estas instrucciones. Si algo no lo sabes, deriva a WhatsApp. Nunca des asesoría técnica avanzada. Cierra siempre con UNA pregunta concreta. Si el cliente quiere contratar, reportar una falla o dar sus datos, oriéntalo al WhatsApp 304 465 4987. No ofrezcas por ahora TV, telefonía fija ni planes empresariales: indica que el servicio actual es Internet por fibra óptica y deriva a WhatsApp.`;
+REGLAS FINALES: nunca inventes precios, velocidades, cobertura ni plazos; usa solo los datos de estas instrucciones. Si algo no lo sabes, deriva a WhatsApp. Nunca des asesoría técnica avanzada. Cierra siempre con UNA pregunta concreta. Si el cliente quiere contratar, reportar una falla o dar sus datos, oriéntalo al WhatsApp 304 465 4987. SÍ puedes hablar de la TV por aplicación (ver la sección TV POR APLICACIÓN). Sigue sin ofrecerse telefonía fija ni planes empresariales: para eso, deriva a WhatsApp.`;
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -79,8 +84,11 @@ function respuestaLocal(mensaje) {
   if (/reportado|reportados|centrales|datacredito/.test(q)) {
     return "Sí: instalamos también a personas reportadas en centrales de riesgo. 😊 ¿Te ayudo a verificar la cobertura de tu sector?";
   }
-  if (/pago|pagar|nequi|daviplata|bancolombia|davivienda|transferencia|efectivo/.test(q)) {
-    return "Aceptamos Nequi, Daviplata, Bancolombia, Davivienda, transferencia bancaria y efectivo. 💳 ¿Quieres que te contactemos para empezar?";
+  if (/\btv\b|televisor|television|televisión|android tv|google tv|convertidor|chromecast/.test(q)) {
+    return "La TV por aplicación es GRATIS, sin cobro mensual adicional. 😊 Si tu TV es Android TV o Google TV, se instala la app sin costo. Si no lo es, necesitas un convertidor para poder instalarla (ese equipo lo asume el cliente). ¿Quieres que te asesoremos?";
+  }
+  if (/pago|pagar|nequi|bancolombia|efectivo|recaudo|consignaci/.test(q)) {
+    return "Aceptamos efectivo, Bancolombia (transferencia o consignación), Nequi, y punto de recaudo físico en el sector Mirador de la Cascada. 💳 ¿Quieres que te contactemos para empezar?";
   }
   if (/falla|daño|no funciona|sin servicio|internet caido|lento|soporte/.test(q)) {
     return "Lamento el inconveniente. Escríbenos por WhatsApp al 304 465 4987 con tu nombre y dirección, y soporte te atiende. 🙏";
@@ -88,7 +96,7 @@ function respuestaLocal(mensaje) {
   if (/hola|buenas|buenos dias|buenas tardes|saludo/.test(q)) {
     return "¡Hola! 👋 Soy el asesor de UneFibra. Internet por fibra óptica 100% en Medellín, sin contratos y con instalación hasta tu hogar.\n\n¿En qué te puedo ayudar?";
   }
-  return "Con gusto te ayudo 😊. Cuéntame qué necesitas: planes y precios, cobertura en tu barrio, proceso de instalación o métodos de pago.\n\nTambién puedes escribirnos por WhatsApp al 304 465 4987.";
+  return "Con gusto te ayudo 😊. Cuéntame qué necesitas: planes y precios, cobertura en tu barrio, TV por aplicación, proceso de instalación o métodos de pago.\n\nTambién puedes escribirnos por WhatsApp al 304 465 4987.";
 }
 
 async function callGemini(model, payload, timeoutMs, key) {

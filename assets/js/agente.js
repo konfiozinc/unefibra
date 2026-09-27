@@ -71,8 +71,11 @@
     if (/contrato|reportado|reportados|clausula/.test(q)) {
       return "Sin contratos ni cláusulas, e instalamos también a reportados. 😊";
     }
-    if (/pago|pagar|nequi|daviplata|bancolombia|davivienda|transferencia|efectivo/.test(q)) {
-      return "Aceptamos Nequi, Daviplata, Bancolombia, Davivienda, transferencia y efectivo. 💳";
+    if (/\btv\b|televisor|television|televisión|android tv|google tv|convertidor/.test(q)) {
+      return "La TV por aplicación es gratis: si tu TV es Android TV o Google TV se instala la app sin costo. Si no lo es, necesitas un convertidor (ese equipo lo asumes tú). 😊";
+    }
+    if (/pago|pagar|nequi|bancolombia|efectivo|recaudo|consignaci/.test(q)) {
+      return "Aceptamos efectivo, Bancolombia, Nequi y punto de recaudo físico en Mirador de la Cascada. 💳";
     }
     if (/correo|email|e-mail|escribir|contacto/.test(q)) {
       return "Puedes escribirnos a unefibrasas@gmail.com o por WhatsApp al 304 465 4987. 📧";
