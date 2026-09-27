@@ -12,10 +12,12 @@
 | Plan | Velocidad | Precio | Para quién |
 |---|---|---|---|
 | Básico 100 Mbps | 100 Mbps | $50.000 | Navegar, redes, streaming HD |
-| 150 Mbps | 150 Mbps | $60.000 | Varios dispositivos |
-| 200 Mbps | 200 Mbps | $70.000 | Teletrabajo, estudio, 4K |
-| 250 Mbps | 250 Mbps | $85.000 | Gaming y descargas |
+| Familiar 150 Mbps | 150 Mbps | $60.000 | Varios dispositivos |
+| Plus 200 Mbps | 200 Mbps | $70.000 | Teletrabajo, estudio, 4K |
+| Premium 250 Mbps | 250 Mbps | $85.000 | Gaming y descargas |
 | Ultra 300 Mbps | 300 Mbps | $100.000 | Hogares exigentes |
+
+Se usan **siempre los nombres completos** (por ejemplo «Familiar 150 Mbps»).
 
 ## Cobertura
 - Zona de operación: **occidente de Medellín** — barrio **Robledo** y **Ciudadela Nuevo Occidente**.
@@ -24,7 +26,11 @@
 
 ## Beneficios
 Fibra 100% · máxima estabilidad · baja latencia (gaming/videollamadas) · **sin contratos**
-ni cláusulas ocultas · instalación **también para reportados** · soporte local.
+ni cláusulas ocultas · soporte local.
+
+> **NO afirmar que se instala a personas reportadas**: esa condición no está
+> confirmada por la empresa y se retiró del sitio web por ese motivo. Si preguntan,
+> derivar al equipo por WhatsApp para revisarlo según el caso.
 
 ## Proceso
 1. Solicitud (WhatsApp o formulario) → 2. Verificación de cobertura → 3. Instalación → 4. A navegar.
