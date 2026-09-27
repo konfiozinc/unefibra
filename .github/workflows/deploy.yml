@@ -4,6 +4,11 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  # El blog público se genera desde Firestore. Esta ejecución diaria publica los
+  # artículos que se hayan marcado como PUBLICADO en el panel de administración,
+  # sin necesidad de tocar el repositorio.
+  schedule:
+    - cron: "0 10 * * *" # 10:00 UTC = 5:00 a.m. en Colombia
 
 permissions:
   contents: read
@@ -23,6 +28,19 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Configurar Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      # Escribe blog/index.html y blog/<slug>/index.html con los artículos
+      # publicados, y actualiza sitemap.xml. El script siempre termina con
+      # código 0: si Firestore no responde deja una página honesta en lugar de
+      # romper el despliegue del sitio completo. Por eso `continue-on-error`.
+      - name: Generar el blog estático
+        continue-on-error: true
+        run: node tools/generar-blog.js
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5
