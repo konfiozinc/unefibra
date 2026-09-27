@@ -26,11 +26,8 @@ Se usan **siempre los nombres completos** (por ejemplo «Familiar 150 Mbps»).
 
 ## Beneficios
 Fibra 100% · máxima estabilidad · baja latencia (gaming/videollamadas) · **sin contratos**
-ni cláusulas ocultas · soporte local.
-
-> **NO afirmar que se instala a personas reportadas**: esa condición no está
-> confirmada por la empresa y se retiró del sitio web por ese motivo. Si preguntan,
-> derivar al equipo por WhatsApp para revisarlo según el caso.
+ni cláusulas ocultas · **instalación también para personas reportadas** (confirmado por el
+cliente: se puede afirmar) · soporte local.
 
 ## Proceso
 1. Solicitud (WhatsApp o formulario) → 2. Verificación de cobertura → 3. Instalación → 4. A navegar.

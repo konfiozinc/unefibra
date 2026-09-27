@@ -36,15 +36,23 @@ El problema era que **«incluyen» significa que no se cobra aparte**, mientras 
 - Si **se cobra**: ya no hay promesa falsa; solo falta publicar el precio.
 - Si **es gratis**: hay que decirlo en la FAQ, porque hoy se pierde una ventaja comercial fuerte por una respuesta evasiva.
 
-### 0.2 «Instalación también para reportados» — retirada
+### 0.2 «Instalación también para reportados» — ✅ CONFIRMADO Y PUBLICADO
 
 Aparecía **6 veces** (una en la sección de beneficios y una en cada una de las 5 tarjetas de plan).
 
-En `config.js`, el comentario que respalda los planes dice literalmente: *«nombres y precios confirmados por el cliente»*. Los beneficios del plan **no** figuraban como confirmados. Es decir: la web afirmaba que instalan a personas reportadas en centrales de riesgo, y ese dato nunca se validó.
+En `config.js`, el comentario que respalda los planes solo mencionaba *«nombres y precios confirmados por el cliente»*, así que los beneficios del plan no figuraban como confirmados: la web afirmaba que se instala a personas reportadas y ese dato nunca se había validado. Por eso se retiró.
 
-Se retiró de las 6 apariciones. Si el cliente confirma que sí aplica, se vuelve a publicar con la redacción que él indique (¿siempre, o solo en algunos casos?). Mientras tanto, la web no atrae al cliente que después habría que rechazar.
+**El cliente confirmó que SÍ se instala a personas reportadas.** La afirmación está
+publicada de nuevo (las mismas 6 apariciones) y también en el agente IA de la web y en
+el conocimiento del agente de WhatsApp.
 
-**Estos dos puntos bloquean cualquier campaña de publicidad.**
+Si más adelante hubiera **condiciones** (por ejemplo, un pago inicial distinto, o que
+aplique solo a algunos sectores), hay que precisarlas: hoy se afirma sin matices.
+Para cambiarlo: `assets/js/config.js` → `planBeneficios`, los 5 listados de las
+tarjetas en `index.html`, el prompt del agente (`agente-ia/worker.js`) y
+`docs/AGENTE_WHATSAPP_BUSINESS.md`.
+
+**Queda un solo punto urgente de esta parte: el costo de la instalación (0.1).**
 
 ---
 
@@ -58,8 +66,7 @@ Hola. La página ya está publicada con los planes, la cobertura y el formulario
 
 1. **Instalación:** ¿el cliente paga la instalación? Si se cobra, ¿cuánto y en qué casos es gratis? ¿El router o módem está incluido o lo pone el cliente?
    *(Mientras no nos confirmen, la página no dice nada sobre el costo: preferimos no prometer de más.)*
-2. **Clientes reportados:** ¿instalan a personas reportadas en Datacrédito? Si sí, ¿siempre o solo en algunos casos?
-   *(Lo teníamos publicado en 6 partes de la página y lo retiramos hasta que nos lo confirmen: no queremos atraer a alguien que después haya que rechazar.)*
+2. ~~**Clientes reportados:** ¿instalan a personas reportadas en Datacrédito?~~ **CONFIRMADO: sí se instala.** Publicado en la web y en los dos agentes IA. Solo falta avisar si hubiera condiciones (¿aplica siempre y en todos los sectores?).
 3. **Velocidad garantizada:** ¿garantizan un porcentaje mínimo de la velocidad contratada (por ejemplo el 80%)? Si no garantizan ninguno, lo decimos así de claro.
 4. **Cambio de plan:** ¿el cliente puede subir o bajar de plan? ¿Tiene algún costo? ¿Aplica desde el siguiente pago?
 5. **Dirección definitiva:** ¿cuál es la dirección real? ¿Es una sede con atención al público o una oficina administrativa? *(Hoy figura una dirección provisional. Si es solo oficina, no conviene publicarla como punto de atención.)*
@@ -85,7 +92,7 @@ Gracias. Con los 6 primeros podemos publicar sin afirmar nada que no sea cierto.
 | # | Dato | Dónde entra exactamente | Qué cambia |
 |---|---|---|---|
 | 1 | Costo de instalación + router | `index.html`: FAQ «¿Debo pagar la instalación?» **y** el `FAQPage` del JSON-LD (deben coincidir) y, si la instalación es gratis, el texto de Planes | **Ya neutralizado:** la web no promete nada. Al llegar la respuesta se publica el dato y se retira el `TODO` |
-| 2 | Clientes reportados | `assets/js/config.js` → `planBeneficios` **y** los 5 listados de las tarjetas + la sección de beneficios en `index.html` | **Retirado** de las 6 apariciones. Si se confirma, se vuelve a añadir en esos mismos 6 sitios |
+| 2 | Clientes reportados | `assets/js/config.js` → `planBeneficios` **y** los 5 listados de las tarjetas + la sección de beneficios en `index.html` | ✅ **CONFIRMADO y publicado** de nuevo (6 apariciones). Solo avisar si hubiera condiciones |
 | 3 | Velocidad garantizada | `index.html` FAQ «¿Hay una velocidad mínima garantizada?» + su `FAQPage` | Respuesta concreta en vez de genérica |
 | 4 | Cambio de plan | `index.html` FAQ «¿Puedo cambiar de plan?» + su `FAQPage` | Ídem |
 | 5 | Dirección real | `assets/js/config.js` → `empresa.direccion` **y** `index.html` → JSON-LD `streetAddress` | Mapa, ficha de Google y `LocalBusiness` |
