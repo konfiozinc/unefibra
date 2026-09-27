@@ -106,17 +106,24 @@ window.UNEFIBRAS_CONFIG = {
    * Mientras los IDs estén vacíos NO se carga ningún script externo:
    * así no hay peticiones fallidas ni rastreo sin autorización.
    *
-   * OJO CON LA PROPIEDAD DE LOS DATOS:
-   * `G-0JKTZNMPWX` es la propiedad de Google Analytics de KONFIO ZINC
-   * (la misma que usan las demás landing pages de la agencia). Sirve
-   * para tener medición desde el primer día, pero el tráfico de
-   * UneFibra queda MEZCLADO con el de la agencia y el cliente no
-   * puede ver sus propias estadísticas.
-   * Lo ideal: crear una propiedad GA4 para UneFibra (2 minutos, gratis,
-   * en analytics.google.com) y pegar aquí su ID. Es cambiar esta línea.
+   * GA4 → G-MKD15Z7F0K
+   *   Es la propiedad de Google Analytics PROPIA de UneFibra: la creó
+   *   Google automáticamente al crear el proyecto Firebase `une-fibra`
+   *   (propiedad "une-fibra", id 552867787, cuenta 396265363) y estaba
+   *   sin usar. Los datos NO se mezclan con los de la agencia.
+   *   Se ve en la consola de Firebase → Analytics, y en
+   *   analytics.google.com con la cuenta dueña del proyecto Firebase.
+   *
+   *   Antes tenía G-0JKTZNMPWX, que es la propiedad de KONFIO ZINC: la
+   *   cambiamos el 27/09/2026 para que el cliente tenga su medición
+   *   separada. Si algún día se migra el proyecto Firebase al cliente,
+   *   esta propiedad viaja con él.
+   *
+   * La analítica solo se carga si el visitante ACEPTA el aviso de
+   * cookies (ver main.js → initAvisoCookies).
    * ---------------------------------------------------------- */
   analytics: {
-    ga4Id: "G-0JKTZNMPWX",
+    ga4Id: "G-MKD15Z7F0K",
     // Sigue vacío: no hay ningún píxel de Meta creado para UneFibra.
     // Se crea gratis en business.facebook.com → Administrador de eventos.
     // Mientras esté vacío no se carga el script de Facebook.

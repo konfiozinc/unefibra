@@ -124,27 +124,25 @@ mostrar los botones de reseñas y el puntaje en cuanto esos campos tengan datos 
 
 ---
 
-## 3. Google Analytics 4 — ✅ ACTIVADO
+## 3. Google Analytics 4 — ✅ ACTIVADO CON LA PROPIEDAD DE UNEFIBRA
 
-**Estado:** activo desde el 27/09/2026.
+**Estado:** activo desde el 27/09/2026, y con la propiedad correcta.
 
-- ID instalado: `G-0JKTZNMPWX`
+- ID instalado: **`G-MKD15Z7F0K`**
 - Dónde: `assets/js/config.js` → `analytics.ga4Id`
-- **De quién es: de KONFIO ZINC**, la misma propiedad que usan las demás landing pages de la
-  agencia. Sirve para tener medición desde hoy, pero tiene dos consecuencias que hay que
-  tener claras:
-  1. El tráfico de UneFibra queda **mezclado** con el de la agencia: el cliente no puede ver
-     sus propias estadísticas por separado.
-  2. La política de privacidad tuvo que actualizarse para declarar esta medición (era
-     obligatorio: antes decía que el sitio *no* usaba analítica).
+- **De quién es: de UneFibra.** Google creó esta propiedad automáticamente al crear el proyecto
+  Firebase `une-fibra` (propiedad «une-fibra», id `552867787`, cuenta de Analytics `396265363`)
+  y **estaba sin usar**: su etiqueta no estaba instalada en ninguna parte. El tráfico **no se
+  mezcla** con el de la agencia ni con el de otros clientes.
+- Dónde se consulta: en la consola de Firebase → **Analytics**, y en
+  <https://analytics.google.com> con la cuenta dueña del proyecto Firebase
+  (`damoa1510@gmail.com`, la de la agencia). El día que el proyecto Firebase se migre al
+  cliente, esta propiedad viaja con él.
 
-**Recomendado:** crear una propiedad GA4 propia para UneFibra y cambiar esa línea.
-
-1. <https://analytics.google.com> con la cuenta que vaya a administrarlo.
-2. **Administrar → Crear → Propiedad** → nombre `UneFibra`, zona horaria Colombia, moneda COP.
-3. **Flujo de datos → Web** → URL `https://konfiozinc.github.io/unefibra/` (o el dominio propio).
-4. Copiar el **ID de medición** (formato `G-XXXXXXXXXX`).
-5. Pegarlo en `assets/js/config.js` → `analytics.ga4Id` y publicar (push a `main`).
+> **Nota histórica:** durante unas horas quedó instalado `G-0JKTZNMPWX`, que es la propiedad de
+> **KONFIO ZINC** (la misma de las demás landing pages de la agencia). Se cambió el mismo día, en
+> cuanto se encontró por API la propiedad propia del proyecto: estaba disponible y es la correcta.
+> No hay que crear ninguna propiedad nueva ni pedirle nada al cliente.
 
 Los eventos ya están programados y empiezan a llegar solos: `cta_click`, `form_submit`,
 `plan_select`, `cuestionario_respuesta`, `qr_view` y `calculo_ahorro`.
@@ -234,6 +232,6 @@ activar App Check en todo el proyecto.
 | `robots.txt` en subcarpeta | **Sin efecto real** (no hay bloqueo; el panel ya lleva `noindex`) | Nada urgente; se resuelve con dominio propio |
 | Sitemap en Search Console | Listo para enviar (medición ya activa permite verificarlo en 1 paso) | Agencia, 3 min con `damoa1510@gmail.com` |
 | Perfil de Empresa de Google | **Ficha lista** (sección 2.2) | **Cliente** (credenciales + verificación + dirección real) |
-| Google Analytics 4 | ✅ **Activo** (`G-0JKTZNMPWX`) | Hecho; crear propiedad propia cuando se quiera |
+| Google Analytics 4 | ✅ **Activo con la propiedad propia de UneFibra** (`G-MKD15Z7F0K`) | Hecho. Nada que pedirle al cliente |
 | Píxel de Meta | ❌ No existe | **Cliente** o agencia, con cuenta de Meta |
 | App Check | ⚠️ Código preparado, desactivado a propósito | Fase 2, con los 5 pasos de la sección 5 |

@@ -101,7 +101,7 @@ Gracias. Con los 6 primeros podemos publicar sin afirmar nada que no sea cierto.
 | 8 | Perfil de Google | `assets/js/config.js` → `empresa.googleResenas` (`urlPerfil`, `urlResena`, `placeId`, `puntaje`, `cantidad`) | La sección de opiniones **se muestra sola** al llenar los enlaces |
 | 9 | Testimonios | `assets/js/config.js` → `testimonios: []` con `{ nombre, sector, frase }` | Se pinta la rejilla; con el arreglo vacío queda oculta |
 | 10 | Fotos | `assets/img/` + campo `imagen` de cada testimonio | Sustituyen a las iniciales |
-| 11 | GA4 / Meta Pixel | `assets/js/config.js` → `analytics.ga4Id` y `analytics.metaPixelId` | ⚠️ **GA4 ACTIVO** con la propiedad de Konfio Zinc (`G-0JKTZNMPWX`), solo tras aceptar el aviso de cookies. **Falta el píxel de Meta** (no existe para UneFibra). Para tener analítica propia: crear una propiedad GA4 de UneFibra y cambiar esa línea. Ver `docs/GOOGLE_PENDIENTES.md` |
+| 11 | GA4 / Meta Pixel | `assets/js/config.js` → `analytics.ga4Id` y `analytics.metaPixelId` | ✅ **GA4 ACTIVO con la propiedad propia de UneFibra** (`G-MKD15Z7F0K`, la que creó Google con el proyecto Firebase y estaba sin usar), cargado **solo tras aceptar** el aviso de cookies. **Falta el píxel de Meta** (no existe para UneFibra). Ver `docs/GOOGLE_PENDIENTES.md` |
 | 12 | Métodos de pago | Panel de administración → Configuración (colección `metodos_pago`) | No requiere programar nada |
 | 13 | reCAPTCHA | `assets/js/config.js` → `appCheck.siteKey` + `habilitado: true` | Refuerza el formulario contra spam |
 | 14 | Correo corporativo | `assets/js/config.js` → `empresa.email` | Botón «Correo» y JSON-LD |
