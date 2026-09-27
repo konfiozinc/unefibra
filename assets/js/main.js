@@ -70,9 +70,14 @@
       $$(".js-mail").forEach((el) => { el.href = `mailto:${emp.email}?subject=${asunto}&body=${cuerpo}`; });
     }
 
-    // Botón "Ver ubicación" → Google Maps
-    if (emp.direccion) {
-      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(emp.direccion)}`;
+    // Botón "Ver ubicación" → Google Maps.
+    // Se apunta a la ZONA DE COBERTURA (Robledo / occidente de Medellín), no a la
+    // dirección de la oficina: esa sigue sin confirmar y no queremos mandar a un
+    // cliente a una dirección equivocada. Si algún día se confirma la dirección,
+    // se puede cambiar aquí.
+    const zonaMapa = (CFG.cobertura && CFG.cobertura.zonaMapa) || emp.direccion;
+    if (zonaMapa) {
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(zonaMapa)}`;
       $$(".js-mapa").forEach((el) => { el.href = url; el.target = "_blank"; el.rel = "noopener"; });
     }
   }

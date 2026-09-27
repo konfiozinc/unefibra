@@ -47,7 +47,11 @@
 
   <!-- ============ Datos estructurados (JSON-LD) ============ -->
   <!-- Los datos deben coincidir con assets/js/config.js y con el texto visible.
-       TODO: Reemplazar streetAddress con la dirección real definitiva.
+       SIN streetAddress a propósito: la dirección de la empresa está pendiente de
+       confirmar, y publicarla en los datos estructurados la enviaría a Google como
+       si fuera definitiva. UneFibra es un servicio de zona (se instala en el hogar
+       del cliente), así que basta con ciudad, departamento y país. Cuando el
+       cliente confirme la dirección, se añade aquí y en config.js.
        TODO: Añadir "sameAs" con las URLs reales cuando existan las redes sociales. -->
   <script type="application/ld+json">
   {
@@ -66,7 +70,6 @@
     "openingHours": "Mo-Sa 08:00-18:00",
     "address": {
       "@type": "PostalAddress",
-      "streetAddress": "Calle 100 # 15-20",
       "addressLocality": "Medellín",
       "addressRegion": "Antioquia",
       "addressCountry": "CO"
@@ -961,6 +964,10 @@
           </label>
 
           <button type="submit" class="btn btn--primary btn--lg btn--block" id="form-submit">Solicitar información</button>
+          <p class="form__note">
+            Al enviar autorizas a UneFibra SAS para tratar tus datos con el fin de contactarte y verificar
+            cobertura, según la <a href="privacidad.html">Política de Tratamiento de Datos Personales</a>.
+          </p>
           <p class="form__note" id="form-status" role="status" aria-live="polite"></p>
           <a class="form__fallback" id="form-wa-fallback" href="#contacto" hidden>Si WhatsApp no se abrió, toca aquí para enviar tu solicitud.</a>
         </form>
@@ -1021,6 +1028,7 @@
         <h3>Empresa</h3>
         <span class="footer__item js-emp-legal">UneFibra SAS</span>
         <span class="footer__item js-emp-nit">NIT: 9020925655</span>
+        <a class="footer__item" href="privacidad.html">Política de tratamiento de datos</a>
       </div>
     </div>
     <div class="container footer__bottom">

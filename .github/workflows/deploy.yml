@@ -51,7 +51,7 @@ jobs:
         run: |
           set -e
           mkdir -p _sitio
-          cp index.html manifest.json sw.js robots.txt sitemap.xml _sitio/
+          cp index.html privacidad.html manifest.json sw.js robots.txt sitemap.xml _sitio/
           cp -r assets admin blog _sitio/
 
       - name: Configurar Pages
