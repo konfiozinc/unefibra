@@ -102,15 +102,24 @@ window.UNEFIBRAS_CONFIG = {
   },
 
   /* ------------------------------------------------------------
-   * Analytics (tarea 3.1) — PENDIENTE DEL CLIENTE.
+   * Analytics (tarea 3.1).
    * Mientras los IDs estén vacíos NO se carga ningún script externo:
    * así no hay peticiones fallidas ni rastreo sin autorización.
-   * Cuando el cliente los entregue, basta pegar los IDs aquí.
+   *
+   * OJO CON LA PROPIEDAD DE LOS DATOS:
+   * `G-0JKTZNMPWX` es la propiedad de Google Analytics de KONFIO ZINC
+   * (la misma que usan las demás landing pages de la agencia). Sirve
+   * para tener medición desde el primer día, pero el tráfico de
+   * UneFibra queda MEZCLADO con el de la agencia y el cliente no
+   * puede ver sus propias estadísticas.
+   * Lo ideal: crear una propiedad GA4 para UneFibra (2 minutos, gratis,
+   * en analytics.google.com) y pegar aquí su ID. Es cambiar esta línea.
    * ---------------------------------------------------------- */
   analytics: {
-    // TODO: Reemplazar con el ID real de Google Analytics 4 (formato "G-XXXXXXXXXX").
-    ga4Id: "",
-    // TODO: Reemplazar con el ID real del píxel de Meta (solo números).
+    ga4Id: "G-0JKTZNMPWX",
+    // Sigue vacío: no hay ningún píxel de Meta creado para UneFibra.
+    // Se crea gratis en business.facebook.com → Administrador de eventos.
+    // Mientras esté vacío no se carga el script de Facebook.
     metaPixelId: ""
   },
 
@@ -246,14 +255,21 @@ window.UNEFIBRAS_CONFIG = {
 
   /* ------------------------------------------------------------
    * Firebase App Check (opcional, sección 27)
-   * Refuerza que las peticiones provengan de esta app. Requiere
-   * configurar reCAPTCHA v3 en la consola y pegar aquí la site key.
-   * Mientras `habilitado` sea false, no se activa (evita bloqueos
-   * durante el desarrollo sin credenciales).
+   * Refuerza que las peticiones vengan de esta app y no de un script.
+   *
+   * NO está activado y NO basta con pegar la clave aquí: la clave se
+   * crea en la consola de Firebase (App Check → reCAPTCHA v3), y para
+   * activarlo de verdad hay que conectar también el panel de
+   * administración. Si se activa la "aplicación obligatoria" en la
+   * consola SIN conectar el panel, el panel deja de funcionar.
+   * El procedimiento completo está en docs/GOOGLE_PENDIENTES.md.
+   *
+   * `habilitado: true` + una site key válida (formato 6L...) hace que
+   * la landing active App Check sola; con false no se carga nada.
    * ---------------------------------------------------------- */
   appCheck: {
     habilitado: false,
-    // TODO: Reemplazar con dato real (site key de reCAPTCHA v3) si se activa.
+    // Se pega aquí la site key de reCAPTCHA v3 que genera la consola de Firebase.
     siteKey: "[RECAPTCHA_SITE_KEY]"
   },
 

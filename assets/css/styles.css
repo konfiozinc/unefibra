@@ -734,3 +734,32 @@ body.modal-open { overflow: hidden; }
 }
 .resenas__score { font-size: 1.05rem; font-weight: 700; color: var(--cyan); }
 .resenas__actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+
+/* ---------- Aviso de cookies (medición con consentimiento, Ley 1581) ---------- */
+.cookies {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 90;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px 18px;
+  padding: 14px 20px;
+  background: var(--navy);
+  color: #fff;
+  box-shadow: 0 -6px 26px rgba(8, 26, 58, .30);
+}
+.cookies p { margin: 0; max-width: 660px; font-size: .88rem; line-height: 1.5; }
+.cookies a { color: var(--cyan); text-decoration: underline; }
+.cookies__acciones { display: flex; gap: 10px; }
+.cookies .btn--ghost { color: #fff; border-color: rgba(255, 255, 255, .45); }
+.cookies .btn { white-space: nowrap; }
+@media (max-width: 640px) {
+  .cookies { padding: 12px 14px; }
+  .cookies p { font-size: .84rem; }
+  .cookies__acciones { width: 100%; }
+  .cookies__acciones .btn { flex: 1; }
+}

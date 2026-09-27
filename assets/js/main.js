@@ -232,6 +232,19 @@
     "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"
   ];
 
+  // App Check solo si hay una site key real de reCAPTCHA v3. Con la clave
+  // vacía o el placeholder no se carga ningún script extra (el sitio se
+  // comporta exactamente igual que antes de existir esta función).
+  const AC = CFG.appCheck || {};
+  const APPCHECK_ACTIVO = !!AC.habilitado && /^6L[\w-]{20,}$/.test(String(AC.siteKey || ""));
+  if (APPCHECK_ACTIVO) {
+    FIREBASE_SCRIPTS.splice(
+      FIREBASE_SCRIPTS.length - 1,
+      0,
+      "https://www.gstatic.com/firebasejs/10.12.2/firebase-app-check-compat.js"
+    );
+  }
+
   function cargarFirebase() {
     if (cargarFirebase.promesa) return cargarFirebase.promesa;
 
@@ -254,6 +267,11 @@
         if (!window.firebase) return null;
         try {
           if (!firebase.apps.length) firebase.initializeApp(cfg.config);
+          // App Check debe activarse ANTES de la primera lectura/escritura
+          // en Firestore; si falla, el formulario sigue funcionando.
+          if (APPCHECK_ACTIVO && typeof firebase.appCheck === "function") {
+            firebase.appCheck().activate(AC.siteKey, true);
+          }
           return firebase.firestore();
         } catch (e) {
           console.warn("Firebase no se pudo inicializar; se usará WhatsApp como respaldo.", e);
@@ -579,11 +597,54 @@
     });
   }
 
-  // ---------------- Analytics (tarea 3.1 — inerte sin IDs) ----------------
-  // Carga GA4 y Meta Pixel SOLO si config.js trae los IDs. Mientras estén
-  // vacíos no se inyecta ningún script externo: sin peticiones fallidas y
-  // sin rastrear al visitante sin autorización.
-  function initAnalytics() {
+  // ---------------- Analytics (tarea 3.1) ----------------
+  // GA4 y Meta Pixel SOLO se cargan si se cumplen las dos condiciones:
+  //   1) config.js trae los IDs, y
+  //   2) el visitante ACEPTÓ el aviso de cookies.
+  // Sin aceptación no se inyecta ningún script externo: ni peticiones
+  // fallidas ni rastreo sin autorización (Ley 1581 de 2012).
+  const CLAVE_CONSENTIMIENTO = "unefibra_medicion";
+
+  function decisionCookies() {
+    try { return localStorage.getItem(CLAVE_CONSENTIMIENTO); } catch (e) { return null; }
+  }
+
+  function guardarDecisionCookies(valor) {
+    try { localStorage.setItem(CLAVE_CONSENTIMIENTO, valor); } catch (e) { /* navegación privada */ }
+  }
+
+  /** Aviso discreto, solo si hay algo que medir y aún no hay decisión. */
+  function initAvisoCookies() {
+    const cfg = CFG.analytics || {};
+    const hayMedicion = !!((cfg.ga4Id || "").trim() || (cfg.metaPixelId || "").trim());
+    if (!hayMedicion || decisionCookies()) return;
+
+    const aviso = document.createElement("div");
+    aviso.className = "cookies";
+    aviso.setAttribute("role", "dialog");
+    aviso.setAttribute("aria-label", "Aviso de cookies");
+    aviso.innerHTML =
+      "<p>Usamos cookies de medición (Google Analytics) para saber cómo se usa la página y " +
+      "mejorarla. No las usamos para publicidad ni para vender datos. " +
+      '<a href="politica-de-privacidad.html">Política de privacidad</a>.</p>' +
+      '<div class="cookies__acciones">' +
+      '<button type="button" class="btn btn--ghost" data-cookies="no">Rechazar</button>' +
+      '<button type="button" class="btn btn--primary" data-cookies="si">Aceptar</button>' +
+      "</div>";
+    document.body.appendChild(aviso);
+
+    aviso.addEventListener("click", (e) => {
+      const b = e.target.closest("[data-cookies]");
+      if (!b) return;
+      const decision = b.getAttribute("data-cookies");
+      guardarDecisionCookies(decision);
+      aviso.remove();
+      if (decision === "si") cargarMedicion();
+    });
+  }
+
+  /** Inyecta los scripts de medición. Solo se llama con consentimiento. */
+  function cargarMedicion() {
     const cfg = CFG.analytics || {};
     const ga4 = (cfg.ga4Id || "").trim();
     const pixel = (cfg.metaPixelId || "").trim();
@@ -612,6 +673,11 @@
       window.fbq("init", pixel);
       window.fbq("track", "PageView");
     }
+  }
+
+  function initAnalytics() {
+    initAvisoCookies();
+    if (decisionCookies() === "si") cargarMedicion();
 
     // Medidor unificado: no hace nada si no hay destino cargado.
     window.ufTrack = function (evento, params) {

@@ -70,7 +70,7 @@ Hola. La página ya está publicada con los planes, la cobertura y el formulario
 3. **Velocidad garantizada:** ¿garantizan un porcentaje mínimo de la velocidad contratada (por ejemplo el 80%)? Si no garantizan ninguno, lo decimos así de claro.
 4. **Cambio de plan:** ¿el cliente puede subir o bajar de plan? ¿Tiene algún costo? ¿Aplica desde el siguiente pago?
 5. **Dirección definitiva:** ¿cuál es la dirección real? ¿Es una sede con atención al público o una oficina administrativa? *(Hoy figura una dirección provisional. Si es solo oficina, no conviene publicarla como punto de atención.)*
-6. **Sector «Lusitania»:** ¿se escribe así, o es «Luzitania» u otro nombre? Aparece en la lista de cobertura.
+6. ~~**Sector «Lusitania»:** ¿se escribe así, o es «Luzitania» u otro nombre?~~ **CONFIRMADO el 27/09/2026: se escribe «Lusitania».** Ya estaba correcto en los 4 sitios donde aparece (`config.js`, JSON-LD y lista de `index.html`, y el prompt del agente de WhatsApp). No hay nada que cambiar.
 
 **Cuando puedan**
 
@@ -96,12 +96,12 @@ Gracias. Con los 6 primeros podemos publicar sin afirmar nada que no sea cierto.
 | 3 | Velocidad garantizada | `index.html` FAQ «¿Hay una velocidad mínima garantizada?» + su `FAQPage` | Respuesta concreta en vez de genérica |
 | 4 | Cambio de plan | `index.html` FAQ «¿Puedo cambiar de plan?» + su `FAQPage` | Ídem |
 | 5 | Dirección real | `assets/js/config.js` → `empresa.direccion` **y** `index.html` → JSON-LD `streetAddress` | Mapa, ficha de Google y `LocalBusiness` |
-| 6 | Lusitania | `assets/js/config.js` → `cobertura.zonas` **y** los 22 sectores de `#cobertura` en `index.html` | Ortografía de la cobertura |
+| 6 | Lusitania | — | ✅ **CONFIRMADO: «Lusitania».** Ya estaba bien escrito en los 4 sitios. Sin cambios |
 | 7 | Redes sociales | `assets/js/config.js` → `empresa.redes` (`facebook`, `instagram`, `tiktok` + `confirmadas: true`) | Aparecen en el footer y en `sameAs` del JSON-LD. Con `false` no se enlaza nada |
 | 8 | Perfil de Google | `assets/js/config.js` → `empresa.googleResenas` (`urlPerfil`, `urlResena`, `placeId`, `puntaje`, `cantidad`) | La sección de opiniones **se muestra sola** al llenar los enlaces |
 | 9 | Testimonios | `assets/js/config.js` → `testimonios: []` con `{ nombre, sector, frase }` | Se pinta la rejilla; con el arreglo vacío queda oculta |
 | 10 | Fotos | `assets/img/` + campo `imagen` de cada testimonio | Sustituyen a las iniciales |
-| 11 | GA4 / Meta Pixel | `assets/js/config.js` → `analytics.ga4Id` y `analytics.metaPixelId` | Se activan los eventos que **ya están programados** (`cta_click`, `form_submit`, `plan_select`, `qr_view`, `calculo_ahorro`). Con los IDs vacíos no se carga ningún script externo |
+| 11 | GA4 / Meta Pixel | `assets/js/config.js` → `analytics.ga4Id` y `analytics.metaPixelId` | ⚠️ **GA4 ACTIVO** con la propiedad de Konfio Zinc (`G-0JKTZNMPWX`), solo tras aceptar el aviso de cookies. **Falta el píxel de Meta** (no existe para UneFibra). Para tener analítica propia: crear una propiedad GA4 de UneFibra y cambiar esa línea. Ver `docs/GOOGLE_PENDIENTES.md` |
 | 12 | Métodos de pago | Panel de administración → Configuración (colección `metodos_pago`) | No requiere programar nada |
 | 13 | reCAPTCHA | `assets/js/config.js` → `appCheck.siteKey` + `habilitado: true` | Refuerza el formulario contra spam |
 | 14 | Correo corporativo | `assets/js/config.js` → `empresa.email` | Botón «Correo» y JSON-LD |
