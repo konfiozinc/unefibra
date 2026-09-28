@@ -633,12 +633,25 @@
       "</div>";
     document.body.appendChild(aviso);
 
+    // Mientras el aviso está visible, los botones flotantes se suben lo que él
+    // mida (variable CSS --alto-aviso): en móvil el aviso es alto y, sin esto,
+    // tapaba el botón de WhatsApp y el de volver arriba.
+    const ajustarHueco = () => {
+      if (!aviso.isConnected) return;
+      const alto = Math.round(aviso.getBoundingClientRect().height);
+      document.documentElement.style.setProperty("--alto-aviso", alto + "px");
+    };
+    window.requestAnimationFrame(ajustarHueco);
+    window.addEventListener("resize", ajustarHueco, { passive: true });
+
     aviso.addEventListener("click", (e) => {
       const b = e.target.closest("[data-cookies]");
       if (!b) return;
       const decision = b.getAttribute("data-cookies");
       guardarDecisionCookies(decision);
       aviso.remove();
+      document.documentElement.style.setProperty("--alto-aviso", "0px");
+      window.removeEventListener("resize", ajustarHueco);
       if (decision === "si") cargarMedicion();
     });
   }
@@ -916,6 +929,34 @@
     if (el) el.textContent = new Date().getFullYear();
   }
 
+  // ---------------- Volver arriba ----------------
+  // Aparece al bajar más de 300 px y desaparece al volver arriba.
+  // Se usa requestAnimationFrame para no recalcular en cada evento de scroll.
+  function initVolverArriba() {
+    const btn = $("#btn-back-to-top");
+    if (!btn) return;
+
+    let pendiente = false;
+    const alternar = () => {
+      btn.classList.toggle("visible", window.scrollY > 300);
+      pendiente = false;
+    };
+
+    window.addEventListener("scroll", () => {
+      if (pendiente) return;
+      pendiente = true;
+      window.requestAnimationFrame(alternar);
+    }, { passive: true });
+
+    btn.addEventListener("click", () => {
+      // Si el usuario pidió menos movimiento en su sistema, se salta el suave.
+      const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      window.scrollTo({ top: 0, behavior: sinMovimiento ? "auto" : "smooth" });
+    });
+
+    alternar();
+  }
+
   // ---------------- Arranque ----------------
   document.addEventListener("DOMContentLoaded", () => {
     initNav();
@@ -932,6 +973,7 @@
     initRecomendador();
     initCalculadora();
     initYear();
+    initVolverArriba();
     initPWA();
     programarCargaFirebase();
   });

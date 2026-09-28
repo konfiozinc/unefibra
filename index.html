@@ -1110,6 +1110,14 @@
     <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path fill="currentColor" d="M12 2a10 10 0 0 0-8.5 15.3L2 22l4.9-1.4A10 10 0 1 0 12 2Zm0 18a8 8 0 1 1 4.1-1.1l-.3.2-2.9.8.8-2.8.2-.3A8 8 0 0 1 12 20Zm4.5-5.6c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1-.2.3-.7.8-.8 1-.1.2-.3.2-.5.1a6.6 6.6 0 0 1-3.3-2.9c-.3-.4.2-.4.6-1.3.1-.2 0-.4 0-.5l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.5.1-.7.3-.2.3-.9.9-.9 2.1s.9 2.5 1 2.6c.1.2 1.8 2.8 4.4 3.9 1.6.7 2.3.8 3.1.7.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.1-1.2 0-.2-.2-.2-.4-.4Z"/></svg>
   </a>
 
+  <!-- Volver arriba: aparece solo al bajar (ver main.js → initVolverArriba).
+       Va ARRIBA del botón de WhatsApp para que los tres flotantes no choquen. -->
+  <button id="btn-back-to-top" class="back-to-top" type="button" aria-label="Volver al inicio">
+    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">
+      <path d="M12 19V5M12 5L5 12M12 5L19 12" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>
+  </button>
+
   <!-- Configuración centralizada + lógica.
        Firebase ya NO se inyecta con document.write (bloqueaba el parser y
        dejaba la página sin JavaScript hasta que respondiera gstatic.com):

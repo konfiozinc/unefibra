@@ -36,7 +36,22 @@
           '<button aria-label="Enviar">➤</button>' +
         '</div>' +
       '</div>' +
-      '<button class="uf-agent__fab" aria-label="Abrir chat">💬</button>';
+      '<button class="uf-agent__fab" aria-label="Abrir asistente de IA">' +
+        /* Carita de robot: deja claro de un vistazo que es un asistente de IA.
+           Todo el trazo va con currentColor para que herede el color del botón
+           (blanco sobre el degradado azul), y así el contraste es siempre alto
+           sin duplicar colores en el CSS. */
+        '<svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" focusable="false">' +
+          '<circle cx="12" cy="3" r="1.2" fill="currentColor"/>' +
+          '<line x1="12" y1="4.2" x2="12" y2="6.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>' +
+          '<rect x="4" y="6.5" width="16" height="13" rx="3.5" stroke="currentColor" stroke-width="1.8"/>' +
+          '<circle cx="9" cy="12" r="1.4" fill="currentColor"/>' +
+          '<circle cx="15" cy="12" r="1.4" fill="currentColor"/>' +
+          '<path d="M9 15.5 Q12 17.5 15 15.5" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" fill="none"/>' +
+          '<line x1="2" y1="11" x2="2" y2="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+          '<line x1="22" y1="11" x2="22" y2="15" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+        '</svg>' +
+      '</button>';
     document.body.appendChild(wrap);
     return wrap;
   }

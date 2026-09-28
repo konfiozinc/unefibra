@@ -4,11 +4,16 @@
 .uf-agent { font-family: "Inter", system-ui, sans-serif; }
 
 .uf-agent__fab {
-  position: fixed; right: 18px; bottom: 18px; z-index: 9999;
+  position: fixed; right: 18px; bottom: calc(18px + var(--alto-aviso, 0px)); z-index: 9999;
   width: 58px; height: 58px; border-radius: 50%; border: none; cursor: pointer;
   background: linear-gradient(135deg, #0e6fff, #08a0ff); color: #fff; font-size: 26px;
   box-shadow: 0 8px 24px rgba(8, 26, 58, 0.35); transition: transform .2s ease, opacity .2s ease;
+  /* Centra el icono SVG del robot (antes era un emoji y se centraba solo con
+     font-size). Sin esto el SVG quedaría pegado arriba a la izquierda. */
+  display: grid; place-items: center; padding: 0;
 }
+.uf-agent__fab svg { width: 30px; height: 30px; }
+.uf-agent__fab:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
 .uf-agent__fab:hover { transform: scale(1.06); }
 .uf-agent__fab--hidden { opacity: 0; pointer-events: none; transform: scale(.6); }
 
