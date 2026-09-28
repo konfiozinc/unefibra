@@ -50,7 +50,13 @@ window.UNEFIBRAS_CONFIG = {
     telefono: "321 749 0310",
     telefonos: ["321 749 0310"],
 
-    // Número anterior: se conserva documentado, ya no se publica.
+    // Segunda línea: 302 858 9954 → +57 302 858 9954.
+    // CONFIRMADO POR EL CLIENTE EL 27/09/2026: SIGUE ACTIVA.
+    // Ya no se publica como teléfono en la landing (para llamadas se usa
+    // `telefono`), pero está activa como línea de soporte: aparece en los
+    // mensajes de cobro (configuracion/soporte → whatsapp2) y los agentes IA
+    // la ofrecen para soporte y para enviar comprobantes de pago.
+    // El nombre del campo se conserva porque así está documentado en README.
     telefonoAnterior: "302 858 9954",
 
     // Correo corporativo oficial.

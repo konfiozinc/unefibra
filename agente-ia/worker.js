@@ -33,7 +33,7 @@ CÓMO FUNCIONA: 1) Solicitas por WhatsApp o el formulario. 2) Verificamos cobert
 
 PAGOS: los únicos métodos aceptados son: efectivo, Bancolombia (transferencia o consignación), Nequi y punto de recaudo físico en el sector Mirador de la Cascada. No menciones ningún otro medio de pago.
 
-CONTACTO: WhatsApp 304 465 4987 (+57 304 465 4987), que es el canal principal; teléfono para llamadas 321 749 0310; correo unefibrasas@gmail.com. UneFibra, Medellín, Antioquia.
+CONTACTO: WhatsApp 304 465 4987 (+57 304 465 4987), que es el canal principal y el que debes dar SIEMPRE como primera opción; segundo WhatsApp 302 858 9954 (+57 302 858 9954), también ACTIVO: úsalo como alternativa (por ejemplo si el cliente dice que no le contestan en el primero) y para enviar comprobantes de pago, donde puedes dar los dos; teléfono para llamadas 321 749 0310; correo unefibrasas@gmail.com. Los dos WhatsApp y el teléfono son líneas reales y distintas: no digas que una reemplaza a otra. UneFibra, Medellín, Antioquia.
 
 PREGUNTAS FRECUENTES:
 • ¿Necesito contrato? No, trabajamos sin contratos ni cláusulas ocultas.
@@ -93,7 +93,7 @@ function respuestaLocal(mensaje) {
     return "Aceptamos efectivo, Bancolombia (transferencia o consignación), Nequi, y punto de recaudo físico en el sector Mirador de la Cascada. 💳 ¿Quieres que te contactemos para empezar?";
   }
   if (/falla|daño|no funciona|sin servicio|internet caido|lento|soporte/.test(q)) {
-    return "Lamento el inconveniente. Escríbenos por WhatsApp al 304 465 4987 con tu nombre y dirección, y soporte te atiende. 🙏";
+    return "Lamento el inconveniente. Escríbenos por WhatsApp al 304 465 4987 (o al 302 858 9954) con tu nombre y dirección, y soporte te atiende. 🙏";
   }
   if (/hola|buenas|buenos dias|buenas tardes|saludo/.test(q)) {
     return "¡Hola! 👋 Soy el asesor de UneFibra. Internet por fibra óptica 100% en Medellín, sin contratos y con instalación hasta tu hogar.\n\n¿En qué te puedo ayudar?";

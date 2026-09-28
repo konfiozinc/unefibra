@@ -91,9 +91,9 @@ Todo vive en `assets/js/config.js` (sección `empresa`) y en el texto visible de
 | Dato | Estado | Dónde |
 |---|---|---|
 | Email (`unefibrasas@gmail.com`) | ✅ Confirmado | `config.js → empresa.email` (solo detrás del botón Correo) |
-| WhatsApp (`304 465 4987`) | ✅ Confirmado | `config.js → whatsapp.numero` (único canal de WhatsApp) |
+| WhatsApp (`304 465 4987`) | ✅ Confirmado | `config.js → whatsapp.numero` (canal principal; la landing solo usa este) |
 | Llamadas (`321 749 0310`) | ✅ Confirmado | `config.js → empresa.telefono` (solo detrás del botón Llamar) |
-| Números anteriores | 🔒 Conservados sin publicar | `config.js → telefonoAnterior` / `whatsapp.numeroAnterior` |
+| WhatsApp de soporte (`302 858 9954`) | ✅ **Confirmado activo** (27/09/2026) | `config.js → telefonoAnterior` / `whatsapp.numeroAnterior`. No se publica en la landing, pero **sí está activo**: se usa en los mensajes de cobro (`configuracion/soporte → whatsapp2`) y los dos agentes IA lo ofrecen para soporte y comprobantes |
 | Cobertura (22 sectores del occidente de Medellín) | ✅ Confirmado | `config.js → cobertura.zonas` + copia estática en `index.html` |
 | Nombre legal (`UneFibra SAS`) | ✅ Confirmado | `config.js → empresa.nombreLegal` + footer + JSON-LD |
 | Dirección (`Calle 100 # 15-20, Medellín`) | ⚠️ Provisional | `config.js → empresa.direccion` (solo detrás del botón Ver ubicación + JSON-LD) |
