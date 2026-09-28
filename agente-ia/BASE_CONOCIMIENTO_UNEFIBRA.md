@@ -26,14 +26,19 @@ Se usan **siempre los nombres completos** (por ejemplo «Familiar 150 Mbps»).
 
 ## Beneficios
 Fibra 100% · máxima estabilidad · baja latencia (gaming/videollamadas) · **sin contratos**
-ni cláusulas ocultas · **instalación también para personas reportadas** (confirmado por el
-cliente: se puede afirmar) · soporte local.
+ni cláusulas ocultas · **instalación también para personas reportadas y para extranjeros,
+sin condiciones** (confirmado por el cliente: se puede afirmar) · soporte local.
 
 ## Proceso
-1. Solicitud (WhatsApp o formulario) → 2. Verificación de cobertura → 3. Instalación → 4. A navegar.
+1. Solicitud (WhatsApp o formulario) → 2. Verificación de cobertura → 3. Instalación (máximo
+dos días hábiles desde que se agenda) → 4. A navegar.
 
 ## TV por aplicación (valor agregado, GRATIS)
-- Es gratis, no tiene cobro mensual adicional.
+- Es gratis, no tiene cobro mensual adicional. La instalación de **1 app** también es gratis.
+- Es **una app concreta (definida por la empresa)**, no cualquier app que elija el cliente.
+  Su **nombre no se publica**: se confirma con un asesor.
+- **La app NO es de UneFibra: es una aplicación de terceros** que se descarga de una
+  plataforma. Nunca decir «nuestra app» ni «la app de UneFibra».
 - Si el TV tiene Android o Google TV, se instala la app sin costo.
 - Si el TV no es Android/Google TV, el cliente debe adquirir un convertidor para poder instalar la app (costo asumido por el cliente).
 

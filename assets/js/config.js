@@ -182,7 +182,9 @@ window.UNEFIBRAS_CONFIG = {
     // CONFIRMADO por el cliente: sí se instala a personas reportadas. Se había
     // retirado por falta de confirmación; ya está autorizado, así que se publica
     // aquí y también en el agente IA (web y WhatsApp).
-    "Instalación también para reportados"
+    // El 27/09/2026 el cliente añadió EXTRANJEROS, sin condiciones: se instala
+    // igual que a los reportados. Si algún día hubiera condiciones, van aquí.
+    "Instalación también para reportados y extranjeros"
   ],
   planes: [
     { nombre: "Básico 100 Mbps",   velocidad: "100 Mbps", precio: 50000,  descripcion: "Ideal para navegar, redes sociales y streaming en HD." },

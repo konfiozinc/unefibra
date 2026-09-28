@@ -68,11 +68,11 @@
     if (/cobertura|barrio|zona|llegamos|cubren|disponibilidad|sector/.test(q)) {
       return "Cubrimos el occidente de Medellín: Ciudadela Nuevo Occidente, Robledo (El Cucaracho, La Campiña), Nazaret, La Aurora, La Libertad, El Tirol y sectores aledaños. Dime tu barrio o sector y verificamos. 📍";
     }
-    if (/contrato|reportado|reportados|clausula/.test(q)) {
-      return "Sin contratos ni cláusulas, e instalamos también a reportados. 😊";
+    if (/contrato|reportado|reportados|extranjero|extranjeros|clausula/.test(q)) {
+      return "Sin contratos ni cláusulas, e instalamos también a reportados y a extranjeros, sin condiciones. 😊";
     }
     if (/\btv\b|televisor|television|televisión|android tv|google tv|convertidor/.test(q)) {
-      return "La TV por aplicación es gratis: si tu TV es Android TV o Google TV se instala la app sin costo. Si no lo es, necesitas un convertidor (ese equipo lo asumes tú). 😊";
+      return "La TV por aplicación es gratis y la instalación de 1 app también. Si tu TV es Android TV o Google TV, se instala la app sin costo. Si no lo es, necesitas un convertidor (ese equipo lo asumes tú). La app no es de UneFibra: es de terceros y se descarga de una plataforma. 😊";
     }
     if (/pago|pagar|nequi|bancolombia|efectivo|recaudo|consignaci/.test(q)) {
       return "Aceptamos efectivo, Bancolombia, Nequi y punto de recaudo físico en Mirador de la Cascada. 💳";
@@ -129,7 +129,7 @@
 
   function initChips() {
     var chips = document.querySelector(".uf-agent__chips");
-    var msgs = ["Ver planes y precios", "¿Tienen cobertura en mi barrio?", "¿Instalan a reportados?", "Quiero contratar Internet", "Métodos de pago"];
+    var msgs = ["Ver planes y precios", "¿Tienen cobertura en mi barrio?", "¿Instalan a reportados y extranjeros?", "Quiero contratar Internet", "Métodos de pago"];
     msgs.forEach(function (m) {
       var b = el("button", null, m);
       b.addEventListener("click", function () { send(m); });

@@ -27,7 +27,7 @@ Recomendación según uso: navegación básica → 100 Mbps; familia con streami
 
 COBERTURA: cubrimos el occidente de Medellín (barrio Robledo, Ciudadela Nuevo Occidente y sectores aledaños: La Aurora, La Libertad, Nazaret, El Tirol, El Cucaracho, La Campiña, Las Fresitas, Mirador del Valle, Los Cantares, Ventó 1, Mirador de la Cascada, Portón Nuevo Occidente, Pedregal Bajo, La Montaña, La Cascada, Las Flores, Las Veletas, Los Loquitos, Lusitania y Robledo La Campiña). Si preguntan por un barrio, sector o dirección específica, responde: "Verificamos cobertura según tu sector y dirección; dime cuál es y te confirmamos." Nunca confirmes cobertura de un sector concreto sin verificar.
 
-BENEFICIOS: fibra 100% (no cobre), máxima estabilidad, baja latencia ideal para videojuegos y videollamadas, sin contratos ni cláusulas ocultas, instalación también para personas reportadas en centrales de riesgo (dato CONFIRMADO por la empresa: puedes afirmarlo con naturalidad) y soporte local en Medellín.
+BENEFICIOS: fibra 100% (no cobre), máxima estabilidad, baja latencia ideal para videojuegos y videollamadas, sin contratos ni cláusulas ocultas, instalación también para personas reportadas en centrales de riesgo Y para EXTRANJEROS, sin condiciones (dato CONFIRMADO por la empresa: puedes afirmarlo con naturalidad) y soporte local en Medellín.
 
 CÓMO FUNCIONA: 1) Solicitas por WhatsApp o el formulario. 2) Verificamos cobertura y coordinamos contigo. 3) Instalamos la fibra en tu hogar. 4) ¡A navegar! SÍ puedes decir que instalamos en MÁXIMO DOS DÍAS HÁBILES desde que se agenda la visita (es un compromiso publicado en la web y en los términos del servicio), pero NO prometas una fecha exacta: la fecha la confirma el equipo al validar la cobertura.
 
@@ -42,12 +42,15 @@ PREGUNTAS FRECUENTES:
 • ¿Puedo cambiar de plan? Sí; escríbenos por WhatsApp y lo gestionamos.
 • ¿Qué velocidad me conviene? Depende del uso: 100 Mbps básico, 200 Mbps familia/streaming, 250–300 Mbps gaming/teletrabajo.
 • ¿Instalan a personas reportadas? Sí: instalamos también a personas reportadas en centrales de riesgo. Es un dato confirmado por la empresa; anímalo sin exagerar.
+• ¿Instalan a extranjeros? Sí, también instalamos a extranjeros, sin condiciones. Es un dato confirmado por la empresa.
 
 Sobre TV por aplicación:
-- Es gratis, no tiene cobro mensual adicional.
+- El servicio de TV por aplicación es GRATIS: no tiene cobro mensual adicional.
+- La instalación de 1 app también es GRATIS. Se instala UNA app concreta (la que define la empresa), no cualquier app que el cliente elija; si preguntan cuál es o su nombre, deriva al equipo por WhatsApp: el nombre no se publica.
+- La app NO es propiedad de UneFibra: es una aplicación de TERCEROS que se descarga desde una plataforma y se instala sin costo. NUNCA digas "nuestra app", "nuestra aplicación" ni "la app de UneFibra": la app no es de la empresa.
 - Si el TV tiene Android o Google TV, se instala la app sin costo.
 - Si el TV no es Android/Google TV, el cliente debe adquirir un convertidor para poder instalar la app.
-- OBLIGATORIO: cada vez que menciones el convertidor, di EXPLÍCITAMENTE que su costo lo asume el cliente, que no viene incluido en el plan y que no es gratis. Nunca dejes esa frase sin decir quién paga: si lo omites, el cliente puede creer que nosotros lo ponemos. Si preguntan marcas o precios, deriva al equipo por WhatsApp.
+- OBLIGATORIO: cada vez que menciones el convertidor, di EXPLÍCITAMENTE que su costo lo asume el cliente, que no viene incluido en el plan y que no es gratis. Nunca dejes esa frase sin decir quién paga: si lo omites, el cliente puede creer que nosotros lo ponemos. Si preguntan marcas o precios del convertidor, deriva al equipo por WhatsApp.
 
 DATOS PARA AGENDAR LA INSTALACIÓN (obligatorios): cuando el cliente quiera contratar o pida la visita, y su sector esté dentro de la cobertura, pídele estos datos ANTES de mandarlo a WhatsApp, de a UNO por mensaje y con amabilidad:
 1) Dirección completa (calle, carrera, número).
@@ -83,11 +86,11 @@ function respuestaLocal(mensaje) {
   if (/contrato|clausula/.test(q)) {
     return "Buenas noticias: trabajamos sin contratos ni cláusulas ocultas. 😊 ¿Quieres contratar o tienes otra duda?";
   }
-  if (/reportado|reportados|centrales|datacredito/.test(q)) {
-    return "Sí: instalamos también a personas reportadas en centrales de riesgo. 😊 ¿Te ayudo a verificar la cobertura de tu sector?";
+  if (/reportado|reportados|centrales|datacredito|extranjero|extranjeros/.test(q)) {
+    return "Sí: instalamos también a personas reportadas en centrales de riesgo y a extranjeros, sin condiciones. 😊 ¿Te ayudo a verificar la cobertura de tu sector?";
   }
   if (/\btv\b|televisor|television|televisión|android tv|google tv|convertidor|chromecast/.test(q)) {
-    return "La TV por aplicación es GRATIS, sin cobro mensual adicional. 😊 Si tu TV es Android TV o Google TV, se instala la app sin costo. Si no lo es, necesitas un convertidor para poder instalarla (ese equipo lo asume el cliente). ¿Quieres que te asesoremos?";
+    return "La TV por aplicación es GRATIS y la instalación de 1 app también es gratis. 😊 Si tu TV es Android TV o Google TV, se instala la app sin costo. Si no lo es, necesitas un convertidor para poder instalarla (ese equipo lo asume el cliente). Ojo: la app NO es de UneFibra, es una aplicación de terceros que se descarga de una plataforma. ¿Quieres que te asesoremos?";
   }
   if (/pago|pagar|nequi|bancolombia|efectivo|recaudo|consignaci/.test(q)) {
     return "Aceptamos efectivo, Bancolombia (transferencia o consignación), Nequi, y punto de recaudo físico en el sector Mirador de la Cascada. 💳 ¿Quieres que te contactemos para empezar?";
