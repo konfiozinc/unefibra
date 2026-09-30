@@ -205,6 +205,23 @@ Luego abre `http://localhost:8000/admin/` para iniciar sesión.
   `request.app_check.token` a las reglas de escritura.
 - **Prohibido** subir al repositorio: service accounts, claves privadas,
   secretos o credenciales del Admin SDK (`.gitignore` ya los excluye).
+- **Materia prima**: las fotos y videos originales del cliente viven en
+  `materia-prima/`, que está en `.gitignore`. El repositorio es **público**, así
+  que los originales no entran en él ni se publican (el despliegue solo copia
+  `assets/`, `admin/` y `blog/`). Las versiones optimizadas van en
+  `assets/img/carrusel/`.
+
+### Nota técnica: un video en el historial de git
+
+El video `WhatsApp Video 2026-09-27 at 22.05.16.mp4` (**1 MB**) entró en el
+historial en el commit `5369bab` por un `git add -A`. Se retiró del árbol en
+`e8a35c7`, pero **sigue dentro del historial**.
+
+**Decisión (27/09/2026): dejarlo como está.** 1 MB no justifica reescribir la
+historia y forzar el push de un repositorio ya publicado. Si algún día el
+repositorio supera los 100 MB, revisar (herramientas: `git filter-repo` o BFG).
+El archivo publicado y optimizado (`assets/img/carrusel/video-equipo.mp4`,
+354 KB) es otro distinto y ese sí debe estar versionado.
 
 ---
 
