@@ -283,6 +283,21 @@
                    alt="Técnico de UneFibra instalando el servicio en el pasillo de un edificio" loading="lazy" decoding="async" />
               <div class="carrusel__caption">Llegamos hasta tu puerta</div>
             </div>
+            <div class="carrusel__slide" role="group" aria-roledescription="diapositiva" aria-label="5 de 5">
+              <!-- Video (640x480, 6 s). NO lleva src a propósito: se le pone al
+                   llegar a esta diapositiva, así sus ~1 MB no se descargan si el
+                   visitante no llega hasta aquí. El póster evita el rectángulo
+                   negro mientras carga. -->
+              <video class="carrusel__video" muted loop playsinline preload="none"
+                     poster="assets/img/carrusel/video-equipo-poster.webp"
+                     data-src="assets/img/carrusel/video-equipo.mp4"
+                     aria-label="Video del equipo de UneFibra durante una instalación"></video>
+              <!-- El video tiene audio, pero arranca en silencio (los navegadores
+                   bloquean el autoarranque con sonido). Este botón lo activa. -->
+              <button type="button" class="carrusel__sonido" aria-pressed="false"
+                      aria-label="Activar el sonido del video">🔇</button>
+              <div class="carrusel__caption">Así instalamos, paso a paso</div>
+            </div>
           </div>
 
           <button type="button" class="carrusel__btn carrusel__btn--prev" aria-label="Foto anterior">‹</button>
@@ -293,6 +308,7 @@
             <button type="button" class="carrusel__dot" aria-current="false" aria-label="Ir a la foto 2"></button>
             <button type="button" class="carrusel__dot" aria-current="false" aria-label="Ir a la foto 3"></button>
             <button type="button" class="carrusel__dot" aria-current="false" aria-label="Ir a la foto 4"></button>
+            <button type="button" class="carrusel__dot" aria-current="false" aria-label="Ir al video"></button>
           </div>
         </div>
       </div>

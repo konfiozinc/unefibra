@@ -945,18 +945,40 @@
     if (!track || slides.length < 2) return;
 
     const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const video = raiz.querySelector(".carrusel__video");
     let actual = 0;
     let temporizador = null;
+
+    // Con "menos movimiento" activado el video no se reproduce solo: se le dan
+    // los controles nativos para que sea el visitante quien decida.
+    if (video && sinMovimiento) video.controls = true;
 
     function irA(indice) {
       actual = (indice + slides.length) % slides.length;
       track.style.transform = "translateX(-" + actual * 100 + "%)";
       puntos.forEach((p, i) => p.setAttribute("aria-current", i === actual ? "true" : "false"));
-      // Solo la visible se anuncia: si no, el lector de pantalla leería las 4.
+      // Solo la visible se anuncia: si no, el lector de pantalla las leería todas.
+      // 'inert' saca del alcance del teclado las diapositivas ocultas (si no, se
+      // podría tabular hasta el botón de sonido de un slide que no se ve).
       slides.forEach((s, i) => {
-        if (i === actual) s.removeAttribute("aria-hidden");
-        else s.setAttribute("aria-hidden", "true");
+        if (i === actual) { s.removeAttribute("aria-hidden"); s.removeAttribute("inert"); return; }
+        s.setAttribute("inert", "");
+        if (!s.contains(video)) s.setAttribute("aria-hidden", "true");
+        else s.removeAttribute("aria-hidden");
       });
+      // El video solo carga y suena cuando su diapositiva está a la vista.
+      if (video) {
+        const esSuTurno = slides[actual].contains(video);
+        if (esSuTurno) {
+          if (!video.getAttribute("src") && video.dataset.src) video.src = video.dataset.src;
+          if (!sinMovimiento) {
+            const p = video.play();
+            if (p && p.catch) p.catch(() => { /* autoplay bloqueado: queda el póster */ });
+          }
+        } else if (!video.paused) {
+          video.pause();
+        }
+      }
     }
 
     function parar() { if (temporizador) { window.clearInterval(temporizador); temporizador = null; } }
@@ -969,6 +991,20 @@
     if (btnNext) btnNext.addEventListener("click", () => { irA(actual + 1); arrancar(); });
     if (btnPrev) btnPrev.addEventListener("click", () => { irA(actual - 1); arrancar(); });
     puntos.forEach((p, i) => p.addEventListener("click", () => { irA(i); arrancar(); }));
+
+    // Sonido del video: los navegadores no dejan autoarrancar con sonido, así que
+    // empieza en silencio y este botón es la forma de oírlo.
+    const btnSonido = raiz.querySelector(".carrusel__sonido");
+    if (btnSonido && video) {
+      btnSonido.addEventListener("click", () => {
+        video.muted = !video.muted;
+        btnSonido.setAttribute("aria-pressed", video.muted ? "false" : "true");
+        btnSonido.setAttribute("aria-label", video.muted ? "Activar el sonido del video" : "Silenciar el video");
+        btnSonido.textContent = video.muted ? "🔇" : "🔊";
+        const p = video.play();
+        if (p && p.catch) p.catch(() => {});
+      });
+    }
 
     // Teclado: flechas cuando el foco está dentro del carrusel.
     raiz.addEventListener("keydown", (e) => {
