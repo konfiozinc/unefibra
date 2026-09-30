@@ -929,6 +929,73 @@
     if (el) el.textContent = new Date().getFullYear();
   }
 
+  // ---------------- Carrusel "Así trabajamos" ----------------
+  // Botones, puntos, teclado, swipe y avance automático. El avance automático se
+  // pausa al pasar el ratón o al enfocar, se detiene si la pestaña no se ve y
+  // NO se activa si el sistema pide menos movimiento.
+  function initCarrusel() {
+    const raiz = $("#carrusel-equipo");
+    if (!raiz) return;
+
+    const track = raiz.querySelector(".carrusel__track");
+    const slides = Array.prototype.slice.call(raiz.querySelectorAll(".carrusel__slide"));
+    const puntos = Array.prototype.slice.call(raiz.querySelectorAll(".carrusel__dot"));
+    const btnPrev = raiz.querySelector(".carrusel__btn--prev");
+    const btnNext = raiz.querySelector(".carrusel__btn--next");
+    if (!track || slides.length < 2) return;
+
+    const sinMovimiento = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    let actual = 0;
+    let temporizador = null;
+
+    function irA(indice) {
+      actual = (indice + slides.length) % slides.length;
+      track.style.transform = "translateX(-" + actual * 100 + "%)";
+      puntos.forEach((p, i) => p.setAttribute("aria-current", i === actual ? "true" : "false"));
+      // Solo la visible se anuncia: si no, el lector de pantalla leería las 4.
+      slides.forEach((s, i) => {
+        if (i === actual) s.removeAttribute("aria-hidden");
+        else s.setAttribute("aria-hidden", "true");
+      });
+    }
+
+    function parar() { if (temporizador) { window.clearInterval(temporizador); temporizador = null; } }
+    function arrancar() {
+      parar();
+      if (sinMovimiento || document.hidden) return;
+      temporizador = window.setInterval(() => irA(actual + 1), 5000);
+    }
+
+    if (btnNext) btnNext.addEventListener("click", () => { irA(actual + 1); arrancar(); });
+    if (btnPrev) btnPrev.addEventListener("click", () => { irA(actual - 1); arrancar(); });
+    puntos.forEach((p, i) => p.addEventListener("click", () => { irA(i); arrancar(); }));
+
+    // Teclado: flechas cuando el foco está dentro del carrusel.
+    raiz.addEventListener("keydown", (e) => {
+      if (e.key === "ArrowRight") { irA(actual + 1); arrancar(); }
+      else if (e.key === "ArrowLeft") { irA(actual - 1); arrancar(); }
+    });
+
+    // Swipe.
+    let x0 = null;
+    track.addEventListener("touchstart", (e) => { x0 = e.touches[0].clientX; }, { passive: true });
+    track.addEventListener("touchend", (e) => {
+      if (x0 === null) return;
+      const dx = x0 - e.changedTouches[0].clientX;
+      if (Math.abs(dx) > 45) { irA(actual + (dx > 0 ? 1 : -1)); arrancar(); }
+      x0 = null;
+    });
+
+    raiz.addEventListener("mouseenter", parar);
+    raiz.addEventListener("mouseleave", arrancar);
+    raiz.addEventListener("focusin", parar);
+    raiz.addEventListener("focusout", arrancar);
+    document.addEventListener("visibilitychange", () => { if (document.hidden) parar(); else arrancar(); });
+
+    irA(0);
+    arrancar();
+  }
+
   // ---------------- Volver arriba ----------------
   // Aparece al bajar más de 300 px y desaparece al volver arriba.
   // Se usa requestAnimationFrame para no recalcular en cada evento de scroll.
@@ -973,6 +1040,7 @@
     initRecomendador();
     initCalculadora();
     initYear();
+    initCarrusel();
     initVolverArriba();
     initPWA();
     programarCargaFirebase();

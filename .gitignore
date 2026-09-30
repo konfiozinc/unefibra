@@ -36,6 +36,12 @@ _*.js
 Thumbs.db
 desktop.ini
 
+# Materia prima (fotos originales del cliente sin editar)
+# El repositorio es público y el sitio se publica desde él: los originales se
+# quedan en disco para poder reprocesarlos, pero NO entran al repo ni al sitio.
+# Las versiones optimizadas viven en assets/img/carrusel/ (esas sí se publican).
+materia-prima/
+
 # Builds
 dist/
 build/

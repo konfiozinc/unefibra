@@ -246,6 +246,58 @@
       </div>
     </section>
 
+    <!-- ============ ASÍ TRABAJAMOS (carrusel de fotos reales) ============ -->
+    <!-- Fotos REALES de UneFibra (confirmado por el cliente). Los archivos de
+         assets/img/carrusel/ se generaron desde los originales de materia-prima/
+         (que no se publican). No se recortan: el encuadre lo hace el CSS con
+         object-fit:cover, así que se puede reencuadrar sin reprocesar nada.
+         Lógica del carrusel: main.js → initCarrusel. -->
+    <section class="section section--alt" id="equipo">
+      <div class="container">
+        <div class="section__head">
+          <span class="eyebrow">Así trabajamos</span>
+          <h2 class="section__title">Nuestro equipo en acción</h2>
+          <p class="section__subtitle">Instalaciones reales, técnicos reales, servicio que se siente.</p>
+        </div>
+
+        <div class="carrusel" id="carrusel-equipo" role="group" aria-roledescription="carrusel"
+             aria-label="Fotos del equipo de UneFibra trabajando">
+          <div class="carrusel__track">
+            <div class="carrusel__slide" role="group" aria-roledescription="diapositiva" aria-label="1 de 4">
+              <img src="assets/img/carrusel/mockup-sitio.webp" width="899" height="1599"
+                   alt="Así se ve la página de UneFibra en un celular" loading="lazy" decoding="async" />
+              <div class="carrusel__caption">Así se ve tu internet con UneFibra</div>
+            </div>
+            <div class="carrusel__slide" role="group" aria-roledescription="diapositiva" aria-label="2 de 4">
+              <img src="assets/img/carrusel/tecnico-poste.webp" width="1200" height="1595"
+                   alt="Técnico de UneFibra instalando fibra óptica en un poste" loading="lazy" decoding="async" />
+              <div class="carrusel__caption">Instalación aérea profesional</div>
+            </div>
+            <div class="carrusel__slide" role="group" aria-roledescription="diapositiva" aria-label="3 de 4">
+              <img src="assets/img/carrusel/tecnico-suelo.webp" width="1152" height="864"
+                   alt="Técnico de UneFibra empalmando el cable de fibra óptica" loading="lazy" decoding="async" />
+              <div class="carrusel__caption">Cada detalle cuenta</div>
+            </div>
+            <div class="carrusel__slide" role="group" aria-roledescription="diapositiva" aria-label="4 de 4">
+              <img src="assets/img/carrusel/tecnico-pasillo.webp" width="1080" height="1440"
+                   alt="Técnico de UneFibra instalando el servicio en el pasillo de un edificio" loading="lazy" decoding="async" />
+              <div class="carrusel__caption">Llegamos hasta tu puerta</div>
+            </div>
+          </div>
+
+          <button type="button" class="carrusel__btn carrusel__btn--prev" aria-label="Foto anterior">‹</button>
+          <button type="button" class="carrusel__btn carrusel__btn--next" aria-label="Foto siguiente">›</button>
+
+          <div class="carrusel__dots">
+            <button type="button" class="carrusel__dot" aria-current="true" aria-label="Ir a la foto 1"></button>
+            <button type="button" class="carrusel__dot" aria-current="false" aria-label="Ir a la foto 2"></button>
+            <button type="button" class="carrusel__dot" aria-current="false" aria-label="Ir a la foto 3"></button>
+            <button type="button" class="carrusel__dot" aria-current="false" aria-label="Ir a la foto 4"></button>
+          </div>
+        </div>
+      </div>
+    </section>
+
     <!-- ============ BENEFICIOS ============ -->
     <section class="section" id="beneficios">
       <div class="container">
