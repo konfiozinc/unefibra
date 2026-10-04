@@ -131,6 +131,7 @@ const {
 
 const { enviarAlertaError } = require("./alertas");
 const { exportarFirestore } = require("./backup");
+const { enviarWhatsApp } = require("./whatsapp");
 
 /* ------------------------------------------------------------------
  * Contexto de los mensajes de cobro
@@ -299,7 +300,7 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
  *   8. Auditoría.
  * ============================================================ */
 exports.processDueDates = functions
-  .runWith({ secrets: ["SENDGRID_API_KEY"] })
+  .runWith({ secrets: ["SENDGRID_API_KEY", "META_WHATSAPP_TOKEN", "META_PHONE_NUMBER_ID"] })
   .pubsub
   .schedule("0 8 * * *") // 08:00 diario, hora de Bogotá
   .timeZone("America/Bogota")
@@ -312,9 +313,22 @@ exports.processDueDates = functions
     const cfg = {};
     cfgSnap.forEach((d) => (cfg[d.id] = d.data().valor));
 
-    const diasAntes = cfg.diasAntes || [7, 5, 3, 1];
-    const diasDespues = cfg.diasDespues || [0, -1, -3];
+    const diasAntes = cfg.diasAntes || [5];    // WhatsApp: solo "5 días antes"
+    const diasDespues = cfg.diasDespues || [0]; // WhatsApp: solo "hoy vence"
     const diasSuspension = cfg.diasSuspension || 5;
+
+    // Recordatorio por WhatsApp: solo si el cliente dio su número (opt-in implícito)
+    // y no optó por salir explícitamente (whatsappOptIn === false).
+    async function enviarWhatsAppCliente(cliente, template, variables) {
+      if (!cliente.whatsapp || cliente.whatsappOptIn === false) return false;
+      try {
+        await enviarWhatsApp({ telefono: cliente.whatsapp, template, variables });
+        return true;
+      } catch (e) {
+        console.error(`WhatsApp falló para ${cliente.id}:`, e.message);
+        return false;
+      }
+    }
 
     // 1.bis) Ciclos de corte. Rellena el ciclo de los clientes que no lo tengan
     // (así se migran solos los que ya existían) y refresca el próximo corte,
@@ -431,6 +445,12 @@ exports.processDueDates = functions
           );
           resumen.notificaciones++;
 
+          // Recordatorio por WhatsApp (5 días antes del corte)
+          await enviarWhatsAppCliente(cliente, "recordatorio_pago_5_dias", [
+            cliente.nombreCompleto || "cliente",
+            proximoCorte || servicio.fechaVencimiento || ""
+          ]);
+
           if (avisarPorCorte) {
             resumen.avisosCorte++;
             // Queda registrado que a este cliente ya se le avisó con n días.
@@ -459,6 +479,7 @@ exports.processDueDates = functions
         );
         if (nueva) {
           await enviarPush(cliente.id, "Tu factura está vencida", "Tu servicio será suspendido.");
+          await enviarWhatsAppCliente(cliente, "recordatorio_pago_hoy", [cliente.nombreCompleto || "cliente"]);
           resumen.notificaciones++;
           resumen.avisosCorte++;
           await clienteRef.update({
@@ -487,6 +508,9 @@ exports.processDueDates = functions
         );
         if (nueva) {
           await enviarPush(cliente.id, "Aviso UneFibra", n === 0 ? "Hoy vence tu servicio." : "Tienes un pago pendiente.");
+          if (n === 0) {
+            await enviarWhatsAppCliente(cliente, "recordatorio_pago_hoy", [cliente.nombreCompleto || "cliente"]);
+          }
           resumen.notificaciones++;
         }
       }
@@ -623,6 +647,7 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
     documento: documento || null,
     telefono,
     whatsapp: data.whatsapp || telefono,
+    whatsappOptIn: true, // el cliente dio su número: opt-in implícito para recordatorios
     email: data.email || null,
     direccion: data.direccion || null,
     barrio: data.barrio || null,
