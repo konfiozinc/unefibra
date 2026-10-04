@@ -7,6 +7,16 @@
 
 export const COLOMBIA_UTC_OFFSET_MS = -5 * 3600000;
 
+/** Escapa HTML para interpolar datos de forma segura (previene XSS). */
+export function esc(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 export function fechaISO(d) {
   const y = d.getUTCFullYear();
   const m = String(d.getUTCMonth() + 1).padStart(2, "0");

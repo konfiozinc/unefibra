@@ -110,7 +110,7 @@ service cloud.firestore {
 
     match /historial_estados/{historialId} {
       allow read: if esOperador();
-      allow create: if esAdmin();
+      allow create: if false; // Solo el servidor (Admin SDK) escribe.
       allow update, delete: if false; // Historial inmutable.
     }
 
@@ -144,7 +144,7 @@ service cloud.firestore {
 
     match /auditoria/{auditoriaId} {
       allow read: if esSuperAdmin();
-      allow create: if esOperador();
+      allow create: if false; // Solo el servidor (Admin SDK) escribe.
       allow update, delete: if false; // Auditoría inmutable.
     }
 

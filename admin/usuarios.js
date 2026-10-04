@@ -10,7 +10,7 @@ import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
 import { collection, getDocs } from "firebase/firestore";
-import { msgError } from "../assets/js/admin/ui.js";
+import { msgError, esc } from "../assets/js/admin/ui.js";
 
 let ctx = null;
 let usuarios = [];
@@ -38,8 +38,8 @@ function renderTabla() {
 
   const rows = usuarios.map((u) => `
     <tr data-id="${u.id}">
-      <td>${u.nombre || "—"}</td>
-      <td>${u.email || "—"}</td>
+      <td>${esc(u.nombre || "—")}</td>
+      <td>${esc(u.email || "—")}</td>
       <td>
         <select data-rol="${u.id}" ${u.id === ctx.uid ? "disabled" : ""}>
           ${ROLES.map((r) => `<option value="${r}" ${u.rol === r ? "selected" : ""}>${r}</option>`).join("")}

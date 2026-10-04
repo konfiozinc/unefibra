@@ -12,7 +12,7 @@ import { call } from "../assets/js/admin/callables.js";
 import { collection, getDocs, doc, getDoc } from "firebase/firestore";
 import {
   badgeEstado, fmtFecha, textoDias, fmtMoney, diasRestantes,
-  hoyColombia, sumarDias, cicloSegunFecha, proximoCorteDe, etiquetaCorte
+  hoyColombia, sumarDias, cicloSegunFecha, proximoCorteDe, etiquetaCorte, esc
 } from "../assets/js/admin/ui.js";
 
 let ctx = null;
@@ -90,10 +90,10 @@ function renderTabla() {
 
   const rows = list.map((c) => `
     <tr data-id="${c.id}">
-      <td>${c.nombreCompleto || "—"}</td>
-      <td class="muted">${c.documento || "—"}</td>
-      <td>${c.telefono || "—"}</td>
-      <td>${c.planNombre || "—"}</td>
+      <td>${esc(c.nombreCompleto || "—")}</td>
+      <td class="muted">${esc(c.documento || "—")}</td>
+      <td>${esc(c.telefono || "—")}</td>
+      <td>${esc(c.planNombre || "—")}</td>
       <td>${badgeEstado(c.estadoCliente)}</td>
       <td>${fmtFecha(c.fechaVencimiento)}</td>
       <td class="muted">${textoDias(c.fechaVencimiento)}</td>
@@ -124,7 +124,7 @@ async function abrirModal() {
   }
   const root = document.getElementById("modal-root");
   const opciones = planes.length
-    ? planes.map((p) => `<option value="${p.id}">${p.nombre} — ${fmtMoney(p.precio)}</option>`).join("")
+    ? planes.map((p) => `<option value="${p.id}">${esc(p.nombre)} — ${fmtMoney(p.precio)}</option>`).join("")
     : '<option value="">Sin planes (crea uno en Planes)</option>';
 
   root.innerHTML = `

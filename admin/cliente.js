@@ -11,7 +11,7 @@ import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
 import { doc, getDoc, collection, query, where, orderBy, limit, getDocs } from "firebase/firestore";
-import { fmtFecha, fmtMoney, badgeEstado, textoDias, urlWhatsApp } from "../assets/js/admin/ui.js";
+import { fmtFecha, fmtMoney, badgeEstado, textoDias, urlWhatsApp, esc } from "../assets/js/admin/ui.js";
 
 const params = new URLSearchParams(location.search);
 const clienteId = params.get("id");
@@ -90,20 +90,20 @@ function panelDatos(cliente) {
   ];
   return `<div class="panel">
     <h2>Datos personales</h2>
-    <div class="kv">${filas.map(([k, v]) => `<div class="kv__item"><span class="kv__k">${k}</span><span class="kv__v">${v || "—"}</span></div>`).join("")}</div>
+    <div class="kv">${filas.map(([k, v]) => `<div class="kv__item"><span class="kv__k">${k}</span><span class="kv__v">${esc(v || "—")}</span></div>`).join("")}</div>
   </div>`;
 }
 
 function panelServicio(cliente, servicio, plan) {
   const filas = [
-    ["Plan", cliente.planNombre],
-    ["Velocidad", plan && plan.velocidad ? plan.velocidad : "—"],
+    ["Plan", esc(cliente.planNombre)],
+    ["Velocidad", esc(plan && plan.velocidad ? plan.velocidad : "—")],
     ["Precio", fmtMoney(cliente.precioMensual)],
     ["Fecha instalación", fmtFecha(cliente.fechaInstalacion)],
     ["Inicio de servicio", fmtFecha(cliente.fechaInicioServicio)],
     ["Vencimiento", fmtFecha(cliente.fechaVencimiento)],
     ["Estado servicio", badgeEstado(servicio ? servicio.estado : cliente.estadoServicio)],
-    ["Método preferido", cliente.metodoPagoPreferido]
+    ["Método preferido", esc(cliente.metodoPagoPreferido)]
   ];
   return `<div class="panel">
     <h2>Servicio</h2>
@@ -117,7 +117,7 @@ function panelPagos(pagos) {
   }
   const filas = pagos.map((p) => `
     <div class="kv__item">
-      <span class="kv__k">${fmtFecha(p.fechaPago)} · ${p.metodoPago || "—"}</span>
+      <span class="kv__k">${fmtFecha(p.fechaPago)} · ${esc(p.metodoPago || "—")}</span>
       <span class="kv__v">${fmtMoney(p.monto)} <span class="muted">(${p.estado})</span></span>
     </div>`).join("");
   return `<div class="panel"><h2>Pagos recientes</h2><div class="kv">${filas}</div></div>`;
@@ -129,8 +129,8 @@ function panelHistorial(historial) {
   }
   const items = historial.map((h) => `
     <div class="timeline__item">
-      <p><strong>${h.estadoAnterior || "—"} → ${h.estadoNuevo || "—"}</strong> <span class="muted">· ${h.motivo || "Sin motivo"}</span></p>
-      <p class="muted">${fmtTimestamp(h.fecha)} · ${h.usuarioNombre || h.usuarioId || "sistema"}</p>
+      <p><strong>${esc(h.estadoAnterior || "—")} → ${esc(h.estadoNuevo || "—")}</strong> <span class="muted">· ${esc(h.motivo || "Sin motivo")}</span></p>
+      <p class="muted">${fmtTimestamp(h.fecha)} · ${esc(h.usuarioNombre || h.usuarioId || "sistema")}</p>
     </div>`).join("");
   return `<div class="panel span-2"><h2>Historial de estados</h2><div class="timeline">${items}</div></div>`;
 }
@@ -165,7 +165,7 @@ async function cargar() {
   content.innerHTML = `
     <div>
       <a class="back-link" href="clientes.html">← Volver a clientes</a>
-      <h1 style="font-family:var(--font-display);font-size:1.6rem;margin-bottom:4px;">${cliente.nombreCompleto || "Cliente"}</h1>
+      <h1 style="font-family:var(--font-display);font-size:1.6rem;margin-bottom:4px;">${esc(cliente.nombreCompleto || "Cliente")}</h1>
       <p class="muted" style="margin-bottom:18px;">${badgeEstado(cliente.estadoCliente)} · ${textoDias(cliente.fechaVencimiento)}</p>
     </div>
     ${acciones(cliente)}

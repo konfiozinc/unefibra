@@ -11,7 +11,7 @@ import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
 import { collection, getDocs } from "firebase/firestore";
-import { fmtFecha, fmtMoney, hoyColombia, msgError } from "../assets/js/admin/ui.js";
+import { fmtFecha, fmtMoney, hoyColombia, msgError, esc } from "../assets/js/admin/ui.js";
 
 let ctx = null;
 let pagos = [];
@@ -91,8 +91,8 @@ function renderTabla() {
   const rows = list.map((p) => `
     <tr data-id="${p.id}">
       <td>${fmtFecha(p.fechaPago)}</td>
-      <td>${clienteNombre(p.clienteId)}</td>
-      <td>${p.metodoPago || "—"}</td>
+      <td>${esc(clienteNombre(p.clienteId))}</td>
+      <td>${esc(p.metodoPago || "—")}</td>
       <td>${fmtMoney(p.monto)}</td>
       <td class="muted">${fmtFecha(p.periodoInicio)} – ${fmtFecha(p.periodoFin)}</td>
       <td>${badgePago(p.estado)}</td>
@@ -109,7 +109,7 @@ function renderTabla() {
 // ---------------- Registrar pago ----------------
 function abrirModal() {
   const root = document.getElementById("modal-root");
-  const opClientes = clientes.map((c) => `<option value="${c.id}" ${c.id === clientePreseleccionado ? "selected" : ""}>${c.nombreCompleto}</option>`).join("");
+  const opClientes = clientes.map((c) => `<option value="${c.id}" ${c.id === clientePreseleccionado ? "selected" : ""}>${esc(c.nombreCompleto)}</option>`).join("");
   const opMetodos = metodos.map((m) => `<option value="${m}">${m}</option>`).join("") || "<option>Otro</option>";
 
   root.innerHTML = `

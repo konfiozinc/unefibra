@@ -9,7 +9,7 @@
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { collection, getDocs, addDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { fmtMoney, badgeEstado, msgError } from "../assets/js/admin/ui.js";
+import { fmtMoney, badgeEstado, msgError, esc } from "../assets/js/admin/ui.js";
 
 let ctx = null;
 let planes = [];
@@ -36,8 +36,8 @@ function renderTabla() {
 
   const rows = planes.map((p) => `
     <tr data-id="${p.id}">
-      <td>${p.nombre || "—"}</td>
-      <td>${p.velocidad || "—"}</td>
+      <td>${esc(p.nombre || "—")}</td>
+      <td>${esc(p.velocidad || "—")}</td>
       <td>${fmtMoney(p.precio)}</td>
       <td>${p.duracion} ${p.unidadDuracion || "días"}</td>
       <td>${badgeEstado(p.estado)}</td>
@@ -67,11 +67,11 @@ function abrirModal(plan) {
       <form class="modal" id="modal-form" novalidate>
         <h2>${plan ? "Editar plan" : "Nuevo plan"}</h2>
         <div class="form-grid two">
-          <label class="field"><span>Nombre *</span><input name="nombre" required maxlength="120" value="${p.nombre || ""}" /></label>
-          <label class="field"><span>Velocidad</span><input name="velocidad" placeholder="Ej. 100 Mbps" value="${p.velocidad || ""}" /></label>
+          <label class="field"><span>Nombre *</span><input name="nombre" required maxlength="120" value="${esc(p.nombre || "")}" /></label>
+          <label class="field"><span>Velocidad</span><input name="velocidad" placeholder="Ej. 100 Mbps" value="${esc(p.velocidad || "")}" /></label>
           <label class="field"><span>Precio (COP) *</span><input name="precio" type="number" required min="0" value="${p.precio ?? ""}" /></label>
           <label class="field"><span>Duración (días) *</span><input name="duracion" type="number" required min="1" value="${p.duracion ?? 30}" /></label>
-          <label class="field"><span>Descripción</span><input name="descripcion" value="${p.descripcion || ""}" /></label>
+          <label class="field"><span>Descripción</span><input name="descripcion" value="${esc(p.descripcion || "")}" /></label>
           <label class="field"><span>Estado</span>
             <select name="estado">
               <option value="ACTIVO" ${p.estado !== "INACTIVO" ? "selected" : ""}>Activo</option>

@@ -10,6 +10,7 @@
 import { auth, db, isConfigured, MENSAJE_NO_CONFIGURADO } from "./core.js";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { esc } from "./ui.js";
 
 const NAV = [
   { key: "dashboard", label: "Dashboard", href: "dashboard.html", min: "OPERADOR" },
@@ -50,7 +51,7 @@ function renderShell(activeKey, rol, nombre) {
       <a class="side__brand" href="dashboard.html">UneFibra<span>Panel</span></a>
       <nav class="side__nav">${enlaces}</nav>
       <div class="side__foot">
-        <span class="side__rol">${rol}</span>
+        <span class="side__rol">${esc(rol)}</span>
         <button class="btn btn--ghost btn--block" id="btn-logout">Cerrar sesión</button>
       </div>
     </aside>
@@ -61,7 +62,7 @@ function renderShell(activeKey, rol, nombre) {
           <span></span><span></span><span></span>
         </button>
         <span class="topbar__title">${titulo}</span>
-        <span class="topbar__user">${nombre}</span>
+        <span class="topbar__user">${esc(nombre)}</span>
       </header>
       <main class="content" id="app-content"></main>
     </div>`;
