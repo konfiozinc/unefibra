@@ -129,6 +129,9 @@ const {
   construirMensajePostCorte
 } = require("./mensajes");
 
+const { enviarAlertaError } = require("./alertas");
+const { exportarFirestore } = require("./backup");
+
 /* ------------------------------------------------------------------
  * Contexto de los mensajes de cobro
  * ----------------------------------------------------------------
@@ -295,10 +298,13 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
  *   7. Si corresponde → SUSPENDIDO.
  *   8. Auditoría.
  * ============================================================ */
-exports.processDueDates = functions.pubsub
+exports.processDueDates = functions
+  .runWith({ secrets: ["SENDGRID_API_KEY"] })
+  .pubsub
   .schedule("0 8 * * *") // 08:00 diario, hora de Bogotá
   .timeZone("America/Bogota")
   .onRun(async () => {
+    try {
     const resumen = { revisados: 0, notificaciones: 0, porVencer: 0, pendientes: 0, suspendidos: 0, ciclos: 0, avisosCorte: 0, ciclosNotificacion: 0 };
 
     // 1) Configuración de intervalos (días antes/después) y suspensión.
@@ -524,6 +530,39 @@ exports.processDueDates = functions.pubsub
     }
 
     return resumen;
+    } catch (err) {
+      console.error("processDueDates falló:", err);
+      try {
+        await enviarAlertaError("processDueDates (motor de vencimientos)", err);
+      } catch (emailErr) {
+        console.error("No se pudo enviar la alerta por email:", emailErr);
+      }
+      throw err;
+    }
+  });
+
+/* ============================================================
+ * MÓDULO: BACKUP DIARIO (función programada)
+ * ============================================================ */
+exports.backupFirestore = functions
+  .runWith({ secrets: ["SENDGRID_API_KEY"], timeoutSeconds: 540 })
+  .pubsub
+  .schedule("0 3 * * *") // 03:00 diario, hora de Bogotá
+  .timeZone("America/Bogota")
+  .onRun(async () => {
+    try {
+      const destino = await exportarFirestore();
+      console.log("Backup de Firestore completado:", destino);
+      return { destino };
+    } catch (err) {
+      console.error("backupFirestore falló:", err);
+      try {
+        await enviarAlertaError("backupFirestore (exportación diaria)", err);
+      } catch (emailErr) {
+        console.error("No se pudo enviar la alerta por email:", emailErr);
+      }
+      throw err;
+    }
   });
 
 /* ============================================================

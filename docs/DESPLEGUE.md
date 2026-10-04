@@ -72,13 +72,40 @@ Luego, desde **Usuarios** del panel ya puedes crear los demás.
 3. Importar `firebase-appcheck` en el cliente y, en `firestore.rules`, añadir
    `&& request.app_check.token != null` a las escrituras sensibles.
 
-## 8. Respaldos (sección 43)
+## 8. Respaldos (backup diario automático)
 
-Firestore no debe ser la única copia:
+Firestore no debe ser la única copia. Se programó una Cloud Function
+`backupFirestore` que exporta toda la base de datos a Google Cloud Storage
+todos los días a las 03:00 (America/Bogota).
 
-- Exportación puntual: `gcloud firestore export gs://BUCKET/ruta`
-- Importación/restauración: `gcloud firestore import gs://BUCKET/ruta`
-- Programar una exportación periódica (Cloud Scheduler) según la política interna.
+### Cómo funciona
+- Función: `backupFirestore` en `functions/src/index.js` (schedule `0 3 * * *`).
+- Destino: `gs://unefibra-firestore-backups/daily/<fecha-hora>/`.
+- Retención: lifecycle rule en el bucket borra exportaciones con más de 7 días.
+- Si falla, envía alerta por email (igual que el motor de vencimientos).
+
+### Requisitos previos (configuración manual en GCP, una sola vez)
+1. Crear el bucket (us-central1, clase Standard):
+   `gsutil mb -l us-central1 gs://unefibra-firestore-backups`
+   (o Cloud Console → Cloud Storage → Crear bucket).
+2. Otorgar el rol **Cloud Datastore Import Export Admin** a la cuenta de
+   servicio de Cloud Functions: `une-fibra@appspot.gserviceaccount.com`
+   (IAM & Admin → IAM → Otorgar acceso).
+3. Configurar la lifecycle rule (borrar objetos con más de 7 días):
+   `gsutil lifecycle set lifecycle.json gs://unefibra-firestore-backups`
+   (o Cloud Console → bucket → Ciclo de vida).
+
+### Cómo restaurar un backup
+```
+gcloud firestore import gs://unefibra-firestore-backups/daily/<carpeta>
+```
+(requiere el rol y `gcloud` instalado, o se hace desde Cloud Console).
+
+### Cómo verificar que corre
+- Cloud Console → Cloud Functions → `backupFirestore` → Registros: debe
+  aparecer "Backup de Firestore completado" a las ~03:00.
+- Cloud Storage → bucket → carpeta `daily/` con la exportación del día.
+- Si no aparece, revisar el correo de alerta (`unefibrasas@gmail.com`).
 
 ## 9. Verificación final
 
