@@ -8,7 +8,7 @@
  *   · Imágenes/fuentes → cache-first
  * ============================================================ */
 
-const CACHE = "unefibras-v4";
+const CACHE = "unefibras-v5";
 const ASSETS = [
   "./",
   "./index.html",
