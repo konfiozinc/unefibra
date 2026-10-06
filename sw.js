@@ -6,9 +6,15 @@
  *                    actualización en segundo plano, para que un
  *                    despliegue nuevo no quede "congelado")
  *   · Imágenes/fuentes → cache-first
+ *
+ * OJO AL DESPLEGAR: el JS se sirve con stale-while-revalidate, o sea que tras
+ * publicar un cambio en admin/*.js la PRIMERA carga todavía entrega el archivo
+ * viejo (y el nuevo entra en la siguiente). Para que un cambio se vea de una,
+ * HAY QUE SUBIR `CACHE` (v5 → v6 …): al activarse, `activate` borra las cachés
+ * con otro nombre, así que la siguiente carga ya pide todo de la red.
  * ============================================================ */
 
-const CACHE = "unefibras-v5";
+const CACHE = "unefibras-v6";
 const ASSETS = [
   "./",
   "./index.html",

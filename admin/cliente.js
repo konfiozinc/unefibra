@@ -44,6 +44,260 @@ async function accionEstado(nombreFn, mensaje) {
   }
 }
 
+/* ============================================================
+ * EDICIÓN Y ELIMINACIÓN DESDE LA FICHA
+ * ------------------------------------------------------------
+ * Misma experiencia que en el listado (admin/clientes.js). El ESTADO se cambia
+ * con los botones de la barra de acciones (eso deja rastro en historial_estados
+ * y sincroniza `servicios`); aquí solo se editan DATOS y se elimina el cliente,
+ * y todo pasa por Cloud Functions, que validan el rol en el servidor.
+ *
+ * OJO: esta parte está DUPLICADA A PROPÓSITO desde admin/clientes.js. Se
+ * prefirió duplicar antes que extraer un módulo compartido, para no tocar la
+ * lista, que ya está en producción. Si se cambia una de las dos copias, hay
+ * que cambiar la otra para que las dos pantallas se comporten igual.
+ * ============================================================ */
+
+/** Campos editables: los mismos 17 que acepta `actualizarCliente` en el backend. */
+const CAMPOS_EDICION = [
+  "nombreCompleto", "documento", "telefono", "whatsapp", "email",
+  "direccion", "barrio", "ciudad", "tipoVivienda", "edificioUnidad",
+  "torre", "apartamento", "planNombre", "precioMensual", "cicloCorte",
+  "metodoPagoPreferido", "observaciones"
+];
+
+function usuarioActual() {
+  return (ctx && (ctx.nombre || ctx.email)) || "";
+}
+
+/** Vacío → null (nunca cadena vacía) y `precioMensual` → número. */
+function normalizarCampo(nombre, valor) {
+  if (nombre === "precioMensual") {
+    if (valor === null || valor === undefined || String(valor).trim() === "") return null;
+    const n = Number(valor);
+    return Number.isFinite(n) ? n : null;
+  }
+  const s = String(valor === null || valor === undefined ? "" : valor).trim();
+  return s === "" ? null : s;
+}
+
+/**
+ * Arma los <option> de un <select> marcando el valor actual. Con `etiquetaVacio`
+ * se añade una opción vacía (marcada cuando el dato no existe): así, al guardar,
+ * no se inventa un valor que el usuario no eligió.
+ */
+function opcionesSelect(pares, actual, etiquetaVacio) {
+  const act = actual === null || actual === undefined ? "" : String(actual);
+  const lista = (etiquetaVacio ? [["", etiquetaVacio]] : []).concat(pares);
+  if (act !== "" && !lista.some((p) => String(p[0]) === act)) lista.push([act, act]);
+  return lista
+    .map(([valor, etiqueta]) => {
+      const marcado = String(valor) === act ? " selected" : "";
+      return `<option value="${esc(valor)}"${marcado}>${esc(etiqueta)}</option>`;
+    })
+    .join("");
+}
+
+function cerrarModal() {
+  const root = document.getElementById("modal-root");
+  if (root) root.innerHTML = "";
+}
+
+/** Mensaje visible en la ficha. Nunca se falla en silencio. */
+function aviso(texto, tipo) {
+  const el = document.getElementById("ficha-msg");
+  if (!el) return;
+  el.textContent = texto || "";
+  el.className = "modal__msg" + (tipo ? " " + tipo : "");
+}
+
+function abrirModalEditar(c) {
+  const root = document.getElementById("modal-root");
+  if (!root) return;
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <form class="modal" id="modal-form" novalidate>
+        <h2>Editar cliente</h2>
+        <div class="form-grid two">
+          <label class="field"><span>Nombre completo *</span><input name="nombreCompleto" required maxlength="120" value="${esc(c.nombreCompleto || "")}" /></label>
+          <label class="field"><span>Documento</span><input name="documento" value="${esc(c.documento || "")}" /></label>
+          <label class="field"><span>Teléfono</span><input name="telefono" inputmode="tel" value="${esc(c.telefono || "")}" /></label>
+          <label class="field"><span>WhatsApp</span><input name="whatsapp" inputmode="tel" value="${esc(c.whatsapp || "")}" /></label>
+          <label class="field"><span>Email</span><input name="email" type="email" value="${esc(c.email || "")}" /></label>
+          <label class="field"><span>Ciudad</span><input name="ciudad" value="${esc(c.ciudad || "")}" /></label>
+          <label class="field"><span>Dirección</span><input name="direccion" value="${esc(c.direccion || "")}" /></label>
+          <label class="field"><span>Barrio</span><input name="barrio" value="${esc(c.barrio || "")}" /></label>
+          <label class="field"><span>Tipo de vivienda</span>
+            <select name="tipoVivienda">${opcionesSelect(
+              [["casa", "Casa"], ["edificio", "Edificio"], ["unidad", "Unidad residencial"]],
+              c.tipoVivienda, "Sin especificar"
+            )}</select>
+          </label>
+          <label class="field"><span>Edificio o unidad residencial</span><input name="edificioUnidad" value="${esc(c.edificioUnidad || "")}" /></label>
+          <label class="field"><span>Torre</span><input name="torre" value="${esc(c.torre || "")}" /></label>
+          <label class="field"><span>Apartamento</span><input name="apartamento" value="${esc(c.apartamento || "")}" /></label>
+          <label class="field"><span>Plan</span><input name="planNombre" value="${esc(c.planNombre || "")}" /></label>
+          <label class="field"><span>Precio mensual (COP)</span><input name="precioMensual" type="number" min="0" step="1" value="${esc(c.precioMensual ?? "")}" /></label>
+          <label class="field"><span>Ciclo de corte</span>
+            <select name="cicloCorte">${opcionesSelect(
+              [["15", "Día 15"], ["30", "Día 30"]],
+              c.cicloCorte, "Sin ciclo"
+            )}</select>
+          </label>
+          <label class="field"><span>Estado del cliente</span>
+            <div>${badgeEstado(c.estadoCliente)}</div>
+            <span class="muted">Para cambiarlo usa los botones Activar / Suspender: así queda el historial de estados y se sincroniza el servicio.</span>
+          </label>
+          <label class="field"><span>Método de pago preferido</span><input name="metodoPagoPreferido" value="${esc(c.metodoPagoPreferido || "")}" /></label>
+          <label class="field"><span>Observaciones</span><input name="observaciones" value="${esc(c.observaciones || "")}" /></label>
+        </div>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" id="btn-cancelar">Cancelar</button>
+          <button type="submit" class="btn btn--primary" id="btn-guardar">Guardar cambios</button>
+        </div>
+        <p class="modal__msg" id="modal-msg" role="status"></p>
+      </form>
+    </div>`;
+
+  root.querySelector("#btn-cancelar").addEventListener("click", cerrarModal);
+  root.querySelector(".modal-backdrop").addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal-backdrop")) cerrarModal();
+  });
+  root.querySelector("#modal-form").addEventListener("submit", (ev) => guardarEdicion(ev, c));
+}
+
+async function guardarEdicion(ev, c) {
+  ev.preventDefault();
+  const msg = document.getElementById("modal-msg");
+  const btn = document.getElementById("btn-guardar");
+  const data = Object.fromEntries(new FormData(ev.target).entries());
+
+  if (!normalizarCampo("nombreCompleto", data.nombreCompleto)) {
+    msg.textContent = "El nombre completo es obligatorio.";
+    msg.className = "modal__msg err";
+    return;
+  }
+
+  // Solo se envían los campos que de verdad cambiaron: el servidor audita uno
+  // por uno y no se debe marcar como cambio lo que nadie tocó.
+  const campos = {};
+  CAMPOS_EDICION.forEach((campo) => {
+    const nuevo = normalizarCampo(campo, data[campo]);
+    const antes = normalizarCampo(campo, c[campo]);
+    if (nuevo !== antes) campos[campo] = nuevo;
+  });
+
+  if (!Object.keys(campos).length) {
+    msg.textContent = "No hay cambios que guardar.";
+    msg.className = "modal__msg";
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = "Guardando…";
+  msg.textContent = "";
+  msg.className = "modal__msg";
+
+  try {
+    const res = await call("actualizarCliente")({
+      clienteId: c.id,
+      campos,
+      usuarioNombre: usuarioActual()
+    });
+
+    // Se le hace caso al SERVIDOR: él dice qué aplicó (`cambios`) y qué ignoró
+    // (`ignorados`), en vez de dar por hecho que todo se guardó.
+    const d = (res && res.data) || {};
+    const aplicados = Array.isArray(d.cambios) ? d.cambios : Object.keys(campos);
+    const ignorados = Array.isArray(d.ignorados) ? d.ignorados : [];
+
+    if (!aplicados.length) {
+      msg.textContent = "No se actualizó ningún campo." +
+        (ignorados.length ? ` El servidor ignoró: ${ignorados.join(", ")}.` : "");
+      msg.className = "modal__msg err";
+      btn.disabled = false;
+      btn.textContent = "Guardar cambios";
+      return;
+    }
+
+    msg.textContent = `Cliente actualizado. Campos actualizados: ${aplicados.length}.` +
+      (ignorados.length ? ` El servidor ignoró: ${ignorados.join(", ")}.` : "");
+    msg.className = "modal__msg ok";
+
+    // Se relee el cliente para que la ficha muestre lo guardado. Es UNA lectura
+    // de un documento, no la colección completa.
+    setTimeout(async () => { cerrarModal(); await cargar(); }, 900);
+  } catch (err) {
+    console.error(err);
+    msg.textContent = err && err.message ? err.message : msgError(err);
+    msg.className = "modal__msg err";
+    btn.disabled = false;
+    btn.textContent = "Guardar cambios";
+  }
+}
+
+function confirmarEliminar(c) {
+  const root = document.getElementById("modal-root");
+  if (!root) return;
+  const nombre = esc(c.nombreCompleto || "este cliente");
+
+  root.innerHTML = `
+    <div class="modal-backdrop">
+      <div class="modal">
+        <h2>Eliminar cliente</h2>
+        <p>¿Seguro que quieres eliminar a ${nombre}? Esta acción no se puede deshacer</p>
+        <div class="modal__actions">
+          <button type="button" class="btn btn--ghost" id="btn-cancelar">Cancelar</button>
+          <button type="button" class="btn btn--primary" id="btn-eliminar">Eliminar</button>
+        </div>
+        <p class="modal__msg" id="modal-msg" role="status"></p>
+      </div>
+    </div>`;
+
+  root.querySelector("#btn-cancelar").addEventListener("click", cerrarModal);
+  root.querySelector(".modal-backdrop").addEventListener("click", (e) => {
+    if (e.target.classList.contains("modal-backdrop")) cerrarModal();
+  });
+  root.querySelector("#btn-eliminar").addEventListener("click", () => eliminarCliente(c));
+}
+
+async function eliminarCliente(c) {
+  const msg = document.getElementById("modal-msg");
+  const btn = document.getElementById("btn-eliminar");
+
+  btn.disabled = true;
+  btn.textContent = "Eliminando…";
+  msg.textContent = "";
+  msg.className = "modal__msg";
+
+  try {
+    const res = await call("eliminarCliente")({
+      clienteId: c.id,
+      usuarioNombre: usuarioActual()
+    });
+    const d = (res && res.data) || {};
+
+    // El borrado arrastra los servicios pero CONSERVA los pagos (registro
+    // financiero): se dice en pantalla para que no queden dudas.
+    let texto = `Cliente "${c.nombreCompleto || c.id}" eliminado.`;
+    if (typeof d.serviciosEliminados === "number") texto += ` Servicios eliminados: ${d.serviciosEliminados}.`;
+    if (d.pagosConservados) texto += ` Pagos conservados: ${d.pagosConservados}.`;
+    texto += " Volviendo a la lista…";
+    msg.textContent = texto;
+    msg.className = "modal__msg ok";
+
+    // La ficha ya no tiene sentido: el cliente no existe. Se vuelve a la lista.
+    setTimeout(() => { location.href = "clientes.html"; }, 1200);
+  } catch (err) {
+    console.error(err);
+    msg.textContent = err && err.message ? err.message : msgError(err);
+    msg.className = "modal__msg err";
+    btn.disabled = false;
+    btn.textContent = "Eliminar";
+  }
+}
+
 function acciones(cliente) {
   const esOperador = ctx.rol === "OPERADOR";
   const e = cliente.estadoCliente;
@@ -62,9 +316,13 @@ function acciones(cliente) {
     if (e === "INACTIVO") {
       btns.push('<button class="btn btn--primary" data-accion="reactivarServicio">Reactivar</button>');
     }
+    // Editar los DATOS del cliente (no el estado: eso es lo de arriba).
+    btns.push('<button class="btn btn--primary" data-accion="editar">Editar</button>');
     const msgWa = `Hola ${cliente.nombreCompleto || ""}, te escribimos de UneFibra. Tu servicio de Internet vence el ${fmtFecha(cliente.fechaVencimiento)} (valor ${fmtMoney(cliente.precioMensual)}).`;
     btns.push(`<a class="btn btn--ghost" target="_blank" rel="noopener" href="${urlWhatsApp(msgWa)}">Enviar WhatsApp</a>`);
     btns.push(`<a class="btn btn--ghost" href="pagos.html?clienteId=${cliente.id}">Registrar pago</a>`);
+    // Se deja al final por ser la acción destructiva, con confirmación aparte.
+    btns.push('<button class="btn btn--ghost" data-accion="eliminar">Eliminar</button>');
   }
 
   return `<div class="actions">${btns.join("")}</div>`;
@@ -172,22 +430,31 @@ async function cargar() {
       <p class="muted" style="margin-bottom:18px;">${badgeEstado(cliente.estadoCliente)} · ${textoDias(cliente.fechaVencimiento)}</p>
     </div>
     ${acciones(cliente)}
+    <p class="modal__msg" id="ficha-msg" role="status"></p>
     <div class="detail-grid">
       ${panelDatos(cliente)}
       ${panelServicio(cliente, servicio, plan)}
       ${panelPagos(pagos)}
       ${panelHistorial(historial)}
-    </div>`;
+    </div>
+    <div id="modal-root"></div>`;
 
   document.querySelectorAll("[data-accion]").forEach((b) => {
     b.addEventListener("click", () => {
+      const acc = b.dataset.accion;
+
+      // Editar y Eliminar no son cambios de estado: no pasan por accionEstado
+      // (que recarga la ficha) y llevan su propio diálogo.
+      if (acc === "editar") { abrirModalEditar(cliente); return; }
+      if (acc === "eliminar") { confirmarEliminar(cliente); return; }
+
       const mapa = {
         activarServicio: ["activarServicio", "¿Activar el servicio de este cliente?"],
         suspenderServicio: ["suspenderServicio", "¿Suspender el servicio de este cliente?"],
         desactivarServicio: ["desactivarServicio", "¿Desactivar (retirar) a este cliente? Conservará su historial."],
         reactivarServicio: ["reactivarServicio", "¿Reactivar a este cliente?"]
       };
-      const [fn, msg] = mapa[b.dataset.accion] || [];
+      const [fn, msg] = mapa[acc] || [];
       if (fn) accionEstado(fn, msg);
     });
   });
