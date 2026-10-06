@@ -829,7 +829,7 @@ body.modal-open { overflow: hidden; }
 
 /* Encuadre por diapositiva: cada foto tiene al sujeto en un sitio distinto. */
 .carrusel__slide:nth-child(1) img { object-position: center top; }    /* mockup: la parte de arriba */
-.carrusel__slide:nth-child(2) img { object-position: center 25%; }    /* técnico en el poste */
+.carrusel__slide:nth-child(2) img { object-position: center 50%; }    /* técnico en el poste (foto vertical 899x1599: el sujeto está al 60-73% del alto) */
 .carrusel__slide:nth-child(3) img { object-position: center center; } /* técnico en el suelo */
 .carrusel__slide:nth-child(4) img { object-position: center 20%; }    /* técnico en el pasillo */
 .carrusel__slide:nth-child(5) img { object-position: center center; } /* técnico fusionando fibra (encuadre neutro: ajustar si el sujeto queda bajo) */
