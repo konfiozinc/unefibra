@@ -65,7 +65,14 @@ export function badgeEstado(estado) {
     SUSPENDIDO: ["Suspendido", "tone-red"],
     INACTIVO: ["Inactivo", "tone-violet"]
   };
-  const [label, tone] = map[estado] || [estado || "—", ""];
+  // OJO: el valor de respaldo va ESCAPADO. Si `estado` no es uno de los 5
+  // válidos (dato viejo, edición a mano en la consola de Firebase, una
+  // importación), se estaría interpolando texto de Firestore dentro de
+  // innerHTML y eso es un XSS. Los 5 válidos son constantes de este archivo,
+  // así que solo hay que escapar el caso desconocido.
+  const conocido = map[estado];
+  const label = conocido ? conocido[0] : (estado ? esc(estado) : "—");
+  const tone = conocido ? conocido[1] : "";
   return `<span class="badge-estado ${tone}">${label}</span>`;
 }
 
@@ -96,15 +103,18 @@ export function msgError(err) {
 }
 
 /* ============================================================
- * CICLOS DE CORTE (día 15 y día 30)
+ * CICLOS DE CORTE  (COPIA de functions/src/cortes.js)
  * ------------------------------------------------------------
- * El negocio cobra en dos tandas: los clientes con corte el 15 y
- * los del corte el 30. El ciclo se guarda en `clientes.cicloCorte`
- * ("15" o "30") y de ahí se deriva la fecha del próximo corte.
+ * El negocio cobra en dos tandas y cada tanda tiene dos fechas: la del
+ * aviso de cobro y la del corte, con 5 días de gracia entre ambas:
  *
- * DECISIÓN DOCUMENTADA — febrero: el ciclo "30" usa el día 30, pero
- * si el mes no llega a 30 (febrero) el corte cae el último día del
- * mes: 28, o 29 en año bisiesto. Nunca se salta el corte del mes.
+ *     cicloCorte "15"  ->  aviso el día 15  ->  corte el día 20
+ *     cicloCorte "30"  ->  aviso el día 30  ->  corte el día 5 del mes siguiente
+ *
+ * `clientes.cicloCorte` guarda el día del AVISO, no el del corte.
+ *
+ * Este archivo es una COPIA de functions/src/cortes.js porque el navegador
+ * no puede importar CommonJS. Si cambias una regla aquí, cámbiala allí.
  * ============================================================ */
 
 export const DIAS_CORTE = ["15", "30"];
@@ -114,10 +124,13 @@ export function diasDelMes(anio, mes) {
   return new Date(Date.UTC(anio, mes, 0)).getUTCDate();
 }
 
-/** Día real del corte en un mes concreto, contemplando febrero. */
-export function diaCorteDeMes(ciclo, anio, mes) {
-  const deseado = String(ciclo) === "15" ? 15 : 30;
-  return Math.min(deseado, diasDelMes(anio, mes));
+/**
+ * Día del CORTE que corresponde a un ciclo: el "15" corta el día 20 y el
+ * "30" corta el día 5. Se mantienen anio/mes por compatibilidad con las
+ * llamadas existentes, pero ya no se usan.
+ */
+export function diaCorteDeMes(ciclo) {
+  return String(ciclo) === "15" ? 20 : 5;
 }
 
 /**
@@ -143,9 +156,9 @@ export function cicloSegunFecha(fechaISOStr) {
   return dia <= 15 ? "15" : "30";
 }
 
-/** Etiqueta corta del ciclo para la interfaz. */
+/** Etiqueta corta del ciclo para la interfaz. Muestra el día del CORTE (no el del aviso). */
 export function etiquetaCorte(ciclo) {
-  return String(ciclo) === "15" ? "Corte 15" : "Corte 30";
+  return "Corte día " + diaCorteDeMes(ciclo);
 }
 
 /** Días que faltan para el próximo corte (negativo no ocurre: se recalcula al mes siguiente). */

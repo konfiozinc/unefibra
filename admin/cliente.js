@@ -164,6 +164,9 @@ async function cargar() {
 
   content.innerHTML = `
     <div>
+      <!-- Navegación de la ficha: al panel (inicio) y de vuelta a la lista. -->
+      <a class="back-link" href="dashboard.html">← Inicio</a>
+      <span class="muted"> · </span>
       <a class="back-link" href="clientes.html">← Volver a clientes</a>
       <h1 style="font-family:var(--font-display);font-size:1.6rem;margin-bottom:4px;">${esc(cliente.nombreCompleto || "Cliente")}</h1>
       <p class="muted" style="margin-bottom:18px;">${badgeEstado(cliente.estadoCliente)} · ${textoDias(cliente.fechaVencimiento)}</p>

@@ -302,7 +302,7 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
 exports.processDueDates = functions
   .runWith({ secrets: ["SENDGRID_API_KEY", "META_WHATSAPP_TOKEN", "META_PHONE_NUMBER_ID"] })
   .pubsub
-  .schedule("0 8 * * *") // 08:00 diario, hora de Bogotá
+  .schedule("0 10 * * *") // 10:00 diario, hora de Bogotá (antes 08:00)
   .timeZone("America/Bogota")
   .onRun(async () => {
     try {
@@ -736,6 +736,149 @@ exports.migrarCiclosCorte = functions.https.onCall(async (data, context) => {
   );
 
   return { revisados: snap.size, actualizados, detalle };
+});
+
+/* ============================================================
+ * MÓDULO: EDICIÓN Y ELIMINACIÓN DE CLIENTES (callables)
+ * ------------------------------------------------------------
+ * El panel NO escribe directo a Firestore: editar o borrar un cliente pasa
+ * por aquí. Motivos:
+ *  - queda auditoría (quién, qué cambió, antes y después);
+ *  - no se pueden tocar desde el navegador los campos que calcula el sistema
+ *    (saldos, estados, fechas de vencimiento, historial);
+ *  - borrar arrastra los documentos relacionados de forma controlada.
+ *
+ * El nombre del usuario SIEMPRE se toma de `usuarios/{uid}` (lo devuelve
+ * verificarRol), nunca del payload: si el panel lo manda, se ignora, porque
+ * un cliente HTTP podría falsificarlo y ensuciar la auditoría.
+ * ============================================================ */
+
+/** Únicos campos que el panel puede editar. Cualquier otro se ignora. */
+const CAMPOS_EDITABLES_CLIENTE = [
+  "nombreCompleto", "documento", "telefono", "whatsapp", "whatsappOptIn", "email",
+  "direccion", "barrio", "ciudad", "tipoVivienda", "edificioUnidad", "torre", "apartamento",
+  "planId", "planNombre", "precioMensual", "cicloCorte", "metodoPagoPreferido", "observaciones"
+];
+
+/** Campos que el formulario manda como texto pero se guardan como número. */
+const CAMPOS_NUMERICOS_CLIENTE = ["precioMensual"];
+
+/** Campos que se guardan como booleano. */
+const CAMPOS_BOOLEANOS_CLIENTE = ["whatsappOptIn"];
+
+/**
+ * Actualiza los datos editables de un cliente (ADMIN o SUPERADMIN).
+ *
+ * Decisiones:
+ *  - NO se exige `camposDireccionObligatorios` como sí hace crearCliente: este
+ *    panel existe justamente para COMPLETAR datos que faltan (los 353 clientes
+ *    importados llegaron sin barrio). Si se exigiera, editar cualquier cosa
+ *    obligaría a rellenar el barrio primero, y no se podrían corregir errores.
+ *  - Si cambia el ciclo de corte, se recalcula `proximoCorte` con la regla
+ *    vigente (ciclo 15 -> corte el día 20; ciclo 30 -> corte el día 5).
+ */
+exports.actualizarCliente = functions.https.onCall(async (data, context) => {
+  const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const clienteId = data && data.clienteId;
+  if (!clienteId) throw new functions.https.HttpsError("invalid-argument", "Se requiere clienteId.");
+
+  const ref = db.collection("clientes").doc(clienteId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new functions.https.HttpsError("not-found", "El cliente no existe.");
+  const antes = snap.data();
+
+  const cambios = {};
+  const ignorados = [];
+  for (const [k, v] of Object.entries((data && data.campos) || {})) {
+    if (!CAMPOS_EDITABLES_CLIENTE.includes(k)) { ignorados.push(k); continue; }
+
+    let valor = v;
+    if (CAMPOS_NUMERICOS_CLIENTE.includes(k)) {
+      if (valor === null || valor === undefined || String(valor).trim() === "") {
+        valor = null;
+      } else {
+        valor = Number(String(valor).replace(/[^\d.-]/g, ""));
+        if (!Number.isFinite(valor)) {
+          throw new functions.https.HttpsError("invalid-argument", "El campo " + k + " debe ser un número.");
+        }
+      }
+    } else if (CAMPOS_BOOLEANOS_CLIENTE.includes(k)) {
+      valor = valor === true || valor === "true";
+    } else if (typeof valor === "string") {
+      valor = valor.trim();
+      if (valor === "") valor = null;
+    }
+    if (valor === undefined) valor = null;
+
+    const actual = antes[k] === undefined ? null : antes[k];
+    if (actual !== valor) cambios[k] = valor;
+  }
+
+  if ("cicloCorte" in cambios && cambios.cicloCorte !== null && !cicloValido(cambios.cicloCorte, null)) {
+    throw new functions.https.HttpsError("invalid-argument", 'El ciclo de corte solo puede ser "15" o "30".');
+  }
+
+  if (!Object.keys(cambios).length) {
+    return { clienteId, cambios: [], ignorados, mensaje: "No hay cambios que guardar." };
+  }
+
+  // Si movieron al cliente de tanda, su próximo corte cambia con la regla nueva.
+  if (cambios.cicloCorte !== undefined && cambios.cicloCorte !== null) {
+    const proximo = proximoCorteDe(cambios.cicloCorte);
+    if (antes.proximoCorte !== proximo) cambios.proximoCorte = proximo;
+  }
+
+  cambios.updatedAt = FieldValue.serverTimestamp();
+  await ref.update(cambios);
+
+  const antesMap = {}, despuesMap = {};
+  for (const k of Object.keys(cambios)) {
+    if (k === "updatedAt") continue;
+    antesMap[k] = antes[k] === undefined ? null : antes[k];
+    despuesMap[k] = cambios[k];
+  }
+  await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
+    "ACTUALIZAR_CLIENTE", "clientes", clienteId, antesMap, despuesMap);
+
+  return { clienteId, cambios: Object.keys(despuesMap), ignorados };
+});
+
+/**
+ * Elimina un cliente (ADMIN o SUPERADMIN).
+ *
+ * Qué borra y qué NO:
+ *  - Borra el documento de `clientes` y sus `servicios` asociados (si no, el
+ *    panel mostraría servicios huérfanos de un cliente que ya no existe).
+ *  - NO borra `pagos` ni `notificaciones`: son registros financieros y de
+ *    comunicaciones, y deben sobrevivir al cliente. Se cuentan y se dejan
+ *    constancia de ellos en la auditoría.
+ *  - Guarda el documento COMPLETO del cliente en la entrada de auditoría
+ *    (`datosAnteriores`) para poder restaurarlo.
+ *
+ * Si se quiere archivar en vez de borrar de verdad, usar
+ * `clientes_hoja3_4_backup` como referencia del patrón.
+ */
+exports.eliminarCliente = functions.https.onCall(async (data, context) => {
+  const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const clienteId = data && data.clienteId;
+  if (!clienteId) throw new functions.https.HttpsError("invalid-argument", "Se requiere clienteId.");
+
+  const ref = db.collection("clientes").doc(clienteId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new functions.https.HttpsError("not-found", "El cliente no existe.");
+  const cliente = snap.data();
+
+  const servicios = await db.collection("servicios").where("clienteId", "==", clienteId).get();
+  const pagos = await db.collection("pagos").where("clienteId", "==", clienteId).get();
+
+  for (const s of servicios.docs) await s.ref.delete();
+  await ref.delete();
+
+  await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
+    "ELIMINAR_CLIENTE", "clientes", clienteId, cliente,
+    { serviciosEliminados: servicios.size, pagosConservados: pagos.size, motivo: (data && data.motivo) || null });
+
+  return { clienteId, eliminado: true, serviciosEliminados: servicios.size, pagosConservados: pagos.size };
 });
 
 /**

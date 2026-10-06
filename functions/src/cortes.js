@@ -1,18 +1,27 @@
 /* ============================================================
- * UneFibra SAS — Reglas de los ciclos de corte (día 15 y día 30)
+ * UneFibra SAS — Reglas de los ciclos de corte
  * ------------------------------------------------------------
  * Módulo compartido por las Cloud Functions (functions/src/index.js)
  * y por las herramientas de línea de comandos (tools/). Una sola
  * implementación de la regla de negocio.
  *
- * El negocio cobra en dos tandas: los clientes con corte el día 15 y
- * los del corte el día 30. `clientes.cicloCorte` guarda a cuál
- * pertenece cada uno y de ahí se deriva `proximoCorte`, que es la
- * fecha que manda en los avisos de cobro.
+ * CÓMO FUNCIONA (decisión de negocio, octubre 2026): el negocio cobra en
+ * dos tandas y cada tanda tiene DOS fechas — la del aviso de cobro y la del
+ * corte, con 5 días de gracia entre ambas:
  *
- * DECISIÓN DOCUMENTADA — febrero: el ciclo "30" usa el día 30, pero si
- * el mes no llega a 30 el corte cae el último día del mes (28, o 29 en
- * año bisiesto). Nunca se salta el corte de un mes.
+ *     cicloCorte "15"  ->  aviso el día 15  ->  corte el día 20
+ *     cicloCorte "30"  ->  aviso el día 30  ->  corte el día 5 del mes SIGUIENTE
+ *
+ * OJO: `clientes.cicloCorte` guarda el identificador del ciclo ("15" o "30"),
+ * que corresponde al día del AVISO, no al día del corte. Es el vocabulario
+ * del cliente (sus hojas de cálculo se llaman "los 15" y "los 30") y NO se
+ * debe renombrar: cambiarlo obligaría a migrar los 353 clientes.
+ * `proximoCorteDe()` es la que traduce ciclo -> fecha de corte, y esa fecha
+ * es la que manda en los avisos de cobro.
+ *
+ * Los avisos NO están en días fijos: processDueDates los deriva de
+ * `proximoCorte` (avisa 5 días antes, o sea el día del aviso, y el mismo día
+ * del corte). Por eso mover el corte mueve los avisos solo.
  *
  * IMPORTANTE: el panel del navegador usa su propia copia de estas
  * funciones en assets/js/admin/ui.js, porque no puede importar CommonJS.
@@ -37,7 +46,7 @@ function hoyISO() {
   return fechaISO(new Date(Date.now() + COLOMBIA_UTC_OFFSET_MS));
 }
 
-/** Ciclos válidos, en orden. */
+/** Ciclos válidos = día del AVISO de cobro, en orden. */
 const CICLOS_CORTE = ["15", "30"];
 
 /** Días que tiene un mes (mes: 1-12). */
@@ -45,10 +54,16 @@ function diasDelMes(anio, mes) {
   return new Date(Date.UTC(anio, mes, 0)).getUTCDate();
 }
 
-/** Día real del corte en un mes concreto, contemplando febrero. */
-function diaCorteDeMes(ciclo, anio, mes) {
-  const deseado = String(ciclo) === "15" ? 15 : 30;
-  return Math.min(deseado, diasDelMes(anio, mes));
+/**
+ * Día del CORTE que corresponde a un ciclo: el "15" corta el día 20 y el
+ * "30" corta el día 5. Los dos existen en todos los meses, así que ya no
+ * hace falta el ajuste de febrero que sí necesitaba el día 30.
+ *
+ * Se mantienen los parámetros anio/mes por compatibilidad con las llamadas
+ * existentes, pero ya no se usan.
+ */
+function diaCorteDeMes(ciclo) {
+  return String(ciclo) === "15" ? 20 : 5;
 }
 
 /** Próximo corte del ciclo como "YYYY-MM-DD" a partir de una fecha. */
