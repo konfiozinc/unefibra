@@ -832,6 +832,7 @@ body.modal-open { overflow: hidden; }
 .carrusel__slide:nth-child(2) img { object-position: center 25%; }    /* técnico en el poste */
 .carrusel__slide:nth-child(3) img { object-position: center center; } /* técnico en el suelo */
 .carrusel__slide:nth-child(4) img { object-position: center 20%; }    /* técnico en el pasillo */
+.carrusel__slide:nth-child(5) img { object-position: center center; } /* técnico fusionando fibra (encuadre neutro: ajustar si el sujeto queda bajo) */
 .carrusel__caption {
   position: absolute; left: 0; right: 0; bottom: 0;
   padding: 26px 18px 14px; font-weight: 600; font-size: 0.92rem;
