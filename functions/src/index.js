@@ -299,8 +299,25 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
  *   7. Si corresponde → SUSPENDIDO.
  *   8. Auditoría.
  * ============================================================ */
+// ⚠️ OJO — SECRETOS DE WHATSAPP DESACTIVADOS A PROPÓSITO (06-oct-2026):
+// `META_WHATSAPP_TOKEN` y `META_PHONE_NUMBER_ID` NO existen en Secret Manager, y
+// mientras estén en esta lista el despliegue FALLA COMPLETO con:
+//     "Failed to validate secret versions: ... not found or has no versions"
+// Eso dejó el proyecto SIN PODER DESPLEGAR FUNCIONES desde el 4-oct: el código
+// en producción quedó congelado en esa fecha (con la regla de cortes vieja) y
+// nadie lo notó porque el error solo sale al correr el deploy.
+//
+// Consecuencia actual, ya con o sin esta lista: `enviarWhatsApp()` lanza
+// "Faltan secretos de WhatsApp" y el wrapper lo descarta escribiendo en consola,
+// así que los recordatorios por WhatsApp NO se están enviando. Sacarlos de aquí
+// no empeora nada: sin secretos, el envío ya fallaba igual.
+//
+// PARA RESTAURARLO (cuando el cliente entregue sus credenciales de Meta):
+//   1. firebase functions:secrets:set META_WHATSAPP_TOKEN  --project une-fibra
+//   2. firebase functions:secrets:set META_PHONE_NUMBER_ID --project une-fibra
+//   3. volver a agregarlos a esta lista y desplegar.
 exports.processDueDates = functions
-  .runWith({ secrets: ["SENDGRID_API_KEY", "META_WHATSAPP_TOKEN", "META_PHONE_NUMBER_ID"] })
+  .runWith({ secrets: ["SENDGRID_API_KEY"] })
   .pubsub
   .schedule("0 10 * * *") // 10:00 diario, hora de Bogotá (antes 08:00)
   .timeZone("America/Bogota")
