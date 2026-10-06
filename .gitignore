@@ -31,6 +31,15 @@ CREDENCIALES.txt
 CREDENCIALES_ADMIN.md
 _*.js
 
+# Datos de clientes para importación (JAMÁS subir al repositorio)
+# El repositorio es PÚBLICO y el sitio se publica desde él: un CSV con nombres,
+# teléfonos, direcciones, MAC/IP y credenciales de ONU de los clientes quedaría
+# expuesto a cualquiera. Estos archivos se quedan SOLO en disco.
+import/
+*.csv
+*.xlsx
+*.xls
+
 # Sistema operativo
 .DS_Store
 Thumbs.db
