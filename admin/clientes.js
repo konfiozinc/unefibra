@@ -168,8 +168,52 @@ function renderToolbar() {
       ${canWrite ? '<button class="btn btn--primary" id="btn-nuevo">+ Nuevo cliente</button>' : ""}
     </div>
     <p class="modal__msg" id="lista-msg" role="status"></p>
+    <p class="muted" id="contador"></p>
     <div class="table-wrap" id="tabla"></div>
+    <!-- Segundo "Inicio" al final: con 354 filas, volver arriba a mano es tedioso. -->
+    <p><a class="btn btn--ghost btn--sm" href="dashboard.html">← Inicio</a></p>
     <div id="modal-root"></div>`;
+}
+
+/* ============================================================
+ * NUMERACIÓN ESTABLE DE CLIENTES
+ * ------------------------------------------------------------
+ * El "#" NO es el número de fila visible: es la posición del cliente en el
+ * ORDEN DE ACTIVACIÓN (fechaInicioServicio ascendente). El #1 es el cliente más
+ * antiguo y el #N el más reciente, y el número de un cliente NO cambia al
+ * aplicar filtros, buscar ni reordenar la tabla: así "el cliente #45" siempre
+ * es el mismo.
+ *
+ * Se calcula sobre TODOS los clientes cargados, nunca sobre la lista filtrada.
+ */
+let numeros = new Map();
+
+function calcularNumeracion() {
+  const fecha = (c) => String(c.fechaInicioServicio || c.fechaInstalacion || "");
+  const orden = clientes.slice().sort((a, b) => {
+    const fa = fecha(a) || "9999-12-31"; // sin fecha: al final, no como el más antiguo
+    const fb = fecha(b) || "9999-12-31";
+    if (fa !== fb) return fa < fb ? -1 : 1;
+    // Desempate ESTABLE: dos clientes con la misma fecha no pueden intercambiarse
+    // el número entre recargas.
+    const n = String(a.nombreCompleto || "").localeCompare(String(b.nombreCompleto || ""));
+    if (n !== 0) return n;
+    return String(a.id) < String(b.id) ? -1 : 1;
+  });
+  numeros = new Map(orden.map((c, i) => [c.id, i + 1]));
+}
+
+/** "Mostrando X de Y clientes", con el detalle de los filtros activos. */
+function actualizarContador(mostrando) {
+  const el = document.getElementById("contador");
+  if (!el) return;
+  const activos = [];
+  if (filtro !== "todos") activos.push((FILTROS.find((f) => f.key === filtro) || {}).label || filtro);
+  if (filtroCiclo !== "todos") activos.push((CICLOS.find((c) => c.key === filtroCiclo) || {}).label || filtroCiclo);
+  if (busqueda) activos.push('búsqueda "' + busqueda + '"');
+  // textContent y no innerHTML: la búsqueda la escribe el usuario.
+  el.textContent = "Mostrando " + mostrando + " de " + clientes.length + " clientes" +
+    (activos.length ? " (filtrado por " + activos.join(" + ") + ")" : "");
 }
 
 function filtrar() {
@@ -204,7 +248,15 @@ function renderTabla() {
   const cont = document.getElementById("tabla");
   if (!cont) return;
 
+  // La numeración se recalcula sobre TODOS los clientes en cada render: así un
+  // cliente recién creado ya tiene su número y el orden nunca queda desfasado.
+  calcularNumeracion();
+
   const list = filtrar();
+  // El contador se actualiza ANTES del return de la lista vacía: con un filtro
+  // sin resultados hay que ver "Mostrando 0 de 354", no quedarse sin contador.
+  actualizarContador(list.length);
+
   if (!list.length) {
     cont.innerHTML = '<div class="empty">No hay clientes en este filtro.</div>';
     return;
@@ -225,6 +277,7 @@ function renderTabla() {
 
     return `
     <tr data-id="${esc(c.id)}">
+      <td class="muted">${esc(numeros.get(c.id) ?? "—")}</td>
       <td>${esc(c.nombreCompleto || "—")}</td>
       <td>${esc(c.telefono || "—")}</td>
       <td class="muted">${esc(c.ip || "—")}</td>
@@ -240,7 +293,7 @@ function renderTabla() {
   cont.innerHTML = `
     <table>
       <thead><tr>
-        <th>Nombre</th><th>Teléfono</th><th>IP</th><th>Plan</th><th>Precio mensual</th>
+        <th>#</th><th>Nombre</th><th>Teléfono</th><th>IP</th><th>Plan</th><th>Precio mensual</th>
         <th>Ciclo</th><th>Estado</th><th>Fecha de ingreso</th><th>Acciones</th>
       </tr></thead>
       <tbody>${rows}</tbody>
