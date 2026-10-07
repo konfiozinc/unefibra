@@ -32,10 +32,24 @@ CREDENCIALES_ADMIN.md
 _*.js
 
 # Datos de clientes para importación (JAMÁS subir al repositorio)
-# El repositorio es PÚBLICO y el sitio se publica desde él: un CSV con nombres,
-# teléfonos, direcciones, MAC/IP y credenciales de ONU de los clientes quedaría
-# expuesto a cualquiera. Estos archivos se quedan SOLO en disco.
-import/
+# El repositorio es PÚBLICO y el sitio se publica desde él: un CSV o un JSON con
+# nombres, teléfonos, direcciones, MAC/IP o credenciales de ONU de los clientes
+# quedaría expuesto a cualquiera.
+#
+# Se versionan SOLO los scripts (.js) de import/, por trazabilidad de las
+# transformaciones que se le hicieron a los datos. Todo lo demás de la carpeta
+# (el Excel, los JSON volcados y los TXT con listados) se queda en disco.
+#
+# ⚠️ AL AÑADIR UN SCRIPT NUEVO: va a un repositorio público, así que NO puede
+# llevar datos de clientes. Si hace falta un ejemplo en un comentario, inventa el
+# nombre (MARIA PEREZ); no cites a un cliente real. Antes de commitear:
+#   Select-String -Path import/*.js -Pattern '\b[36]\d{9}\b|@[a-z0-9.-]+\.[a-z]{2,}'
+#
+# Nota técnica: hay que ignorar `import/*` y no `import/`, porque Git no
+# desciende a una carpeta ignorada por completo y el `!import/*.js` no tendría
+# efecto.
+import/*
+!import/*.js
 *.csv
 *.xlsx
 *.xls
