@@ -18,6 +18,8 @@ const { tokenAcceso } = require("../tools/lib/google-auth");
 const PROYECTO = "une-fibra";
 const BASE = `https://firestore.googleapis.com/v1/projects/${PROYECTO}/databases/(default)/documents`;
 const mask = (t) => String(t || "").slice(0, 3) + "***" + String(t || "").slice(-2);
+/** Nombre enmascarado ("JOHN A."): esta salida se comparte, no puede ir con el nombre completo. */
+const maskNombre = (n) => String(n || "").trim().split(/\s+/).map((p, i) => (i === 0 ? p : p.slice(0, 1) + ".")).join(" ");
 
 function val(c) {
   const k = Object.keys(c)[0], v = c[k];
@@ -66,8 +68,8 @@ function compararActivacion(a, b) {
   // 1) Extremos
   const primero = orden[0], ultimo = orden[orden.length - 1];
   console.log("\n  1) Extremos del orden de activacion");
-  console.log('     #1     ' + fechaDe(primero) + '  tel ' + mask(primero.telefono) + '  "' + String(primero.nombreCompleto).slice(0, 24) + '"');
-  console.log('     #' + orden.length + '   ' + fechaDe(ultimo) + '  tel ' + mask(ultimo.telefono) + '  "' + String(ultimo.nombreCompleto).slice(0, 24) + '"');
+  console.log('     #1     ' + fechaDe(primero) + '  tel ' + mask(primero.telefono) + '  ' + maskNombre(primero.nombreCompleto));
+  console.log('     #' + orden.length + '   ' + fechaDe(ultimo) + '  tel ' + mask(ultimo.telefono) + '  ' + maskNombre(ultimo.nombreCompleto));
 
   // 2) Biyeccion 1..N
   const usados = [...numero.values()].sort((a, b) => a - b);
