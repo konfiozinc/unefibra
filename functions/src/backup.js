@@ -4,12 +4,13 @@
  * Exporta la base de datos Firestore a un bucket de Google
  * Cloud Storage usando la API de Firestore Admin.
  *
- * Requisitos (configuración manual en GCP, ver docs/DESPLEGUE.md):
- *  · Bucket GCS creado: unefibra-firestore-backups
+ * Requisitos (YA CONFIGURADOS el 08-oct-2026; ver import/configurar-backup.js,
+ * que los crea por API porque en esta máquina no hay gcloud instalado):
+ *  · Bucket GCS creado: unefibra-firestore-backups (us-central1, STANDARD).
  *  · Rol "Cloud Datastore Import Export Admin" otorgado a la
  *    cuenta de servicio de Cloud Functions
  *    (une-fibra@appspot.gserviceaccount.com).
- *  · Lifecycle rule en el bucket: borrar objetos > 7 días.
+ *  · Lifecycle rule en el bucket: borrar objetos > 30 días.
  * ============================================================ */
 
 const admin = require("firebase-admin");
