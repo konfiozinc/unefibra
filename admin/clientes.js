@@ -25,6 +25,46 @@ let planes = [];
 let filtro = "todos";
 let filtroCiclo = "todos";
 let busqueda = "";
+
+// ── Paginación y orden por columna ────────────────────────────────────────
+// `porPagina = 0` significa "Todos" (sin paginar). El tamaño elegido se
+// recuerda en localStorage para no reelegirlo cada vez que se entra al panel.
+const TAMANOS_PAGINA = [25, 50, 100, 0];
+let pagina = 1;
+let porPagina = leerPorPagina();
+let ordenCol = null;   // columna activa (null = orden por defecto)
+let ordenDir = "asc";
+
+function leerPorPagina() {
+  try {
+    const v = Number(localStorage.getItem("unefibra_clientes_porPagina"));
+    return TAMANOS_PAGINA.includes(v) ? v : 50;
+  } catch (e) {
+    return 50; // modo privado o storage bloqueado: se usa el valor por defecto
+  }
+}
+function guardarPorPagina() {
+  try { localStorage.setItem("unefibra_clientes_porPagina", String(porPagina)); } catch (e) { /* da igual */ }
+}
+
+/**
+ * Columnas de la tabla, en orden. `campo` es el campo del cliente por el que
+ * ordena esa columna; las que no lo tienen no son ordenables. El "#" NO puede
+ * serlo a propósito: es la posición en el orden de ACTIVACIÓN, no un orden
+ * visual, y debe seguir siendo el mismo aunque se reordene la tabla.
+ */
+const COLUMNAS = [
+  { label: "#" },
+  { label: "Nombre", campo: "nombreCompleto" },
+  { label: "Teléfono", campo: "telefono" },
+  { label: "IP", campo: "ip" },
+  { label: "Plan", campo: "planNombre" },
+  { label: "Precio mensual", campo: "precioMensual", numerico: true },
+  { label: "Ciclo", campo: "cicloCorte" },
+  { label: "Estado", campo: "estadoCliente" },
+  { label: "Fecha de ingreso", campo: "fechaInicioServicio" },
+  { label: "Acciones" }
+];
 // Obligatoriedad de los datos de dirección. La manda `configuracion` para que el
 // panel y el servidor exijan lo mismo; si no se puede leer, se exige (más seguro).
 let exigirDireccion = true;
@@ -168,7 +208,15 @@ function renderToolbar() {
       ${canWrite ? '<button class="btn btn--primary" id="btn-nuevo">+ Nuevo cliente</button>' : ""}
     </div>
     <p class="modal__msg" id="lista-msg" role="status"></p>
-    <p class="muted" id="contador"></p>
+    <div class="toolbar__left">
+      <p class="muted" id="contador"></p>
+      <!-- Cuántas filas por página. La elección se recuerda en localStorage. -->
+      <label class="muted">Mostrar:
+        <select id="por-pagina">
+          ${TAMANOS_PAGINA.map((n) => `<option value="${n}"${n === porPagina ? " selected" : ""}>${n === 0 ? "Todos" : n}</option>`).join("")}
+        </select>
+      </label>
+    </div>
     <div class="table-wrap" id="tabla"></div>
     <!-- Segundo "Inicio" al final: con 354 filas, volver arriba a mano es tedioso. -->
     <p><a class="btn btn--ghost btn--sm" href="dashboard.html">← Inicio</a></p>
@@ -203,17 +251,43 @@ function calcularNumeracion() {
   numeros = new Map(orden.map((c, i) => [c.id, i + 1]));
 }
 
-/** "Mostrando X de Y clientes", con el detalle de los filtros activos. */
-function actualizarContador(mostrando) {
+/**
+ * "Mostrando 1-50 de 125 clientes (filtrado por Activos — 354 en total)".
+ * `desde`/`hasta` son el rango de filas visibles y `totalFiltrado` cuántos
+ * clientes pasan el filtro (puede ser mayor que el rango si hay más páginas).
+ */
+function actualizarContador(desde, hasta, totalFiltrado) {
   const el = document.getElementById("contador");
   if (!el) return;
   const activos = [];
   if (filtro !== "todos") activos.push((FILTROS.find((f) => f.key === filtro) || {}).label || filtro);
   if (filtroCiclo !== "todos") activos.push((CICLOS.find((c) => c.key === filtroCiclo) || {}).label || filtroCiclo);
   if (busqueda) activos.push('búsqueda "' + busqueda + '"');
+  const rango = totalFiltrado ? desde + "-" + hasta : "0";
   // textContent y no innerHTML: la búsqueda la escribe el usuario.
-  el.textContent = "Mostrando " + mostrando + " de " + clientes.length + " clientes" +
-    (activos.length ? " (filtrado por " + activos.join(" + ") + ")" : "");
+  el.textContent = "Mostrando " + rango + " de " + totalFiltrado + " clientes" +
+    (activos.length ? " (filtrado por " + activos.join(" + ") + " — " + clientes.length + " en total)" : "");
+}
+
+/** Pie de la tabla, con los botones de página. Sin paginar solo informa el total. */
+function piePaginacion(total, paginas) {
+  if (!porPagina || paginas <= 1) return '<p class="muted">' + total + " cliente(s) en total.</p>";
+  return `
+    <div class="toolbar">
+      <div class="toolbar__left">
+        <button type="button" class="btn btn--ghost btn--sm" id="pag-ant"${pagina <= 1 ? " disabled" : ""}>← Anterior</button>
+        <span class="muted">Página ${pagina} de ${paginas}</span>
+        <button type="button" class="btn btn--ghost btn--sm" id="pag-sig"${pagina >= paginas ? " disabled" : ""}>Siguiente →</button>
+      </div>
+    </div>`;
+}
+
+/** Cambia de página y sube hasta la tabla (con 50 filas el pie queda muy abajo). */
+function irAPagina(n) {
+  pagina = n;
+  renderTabla();
+  const cont = document.getElementById("tabla");
+  if (cont) cont.scrollIntoView({ behavior: "smooth", block: "start" });
 }
 
 function filtrar() {
@@ -235,7 +309,28 @@ function filtrar() {
     );
   }
 
-  if (filtro === "PENDIENTE_PAGO") {
+  // Orden: si el usuario hizo clic en una columna, manda esa; si no, el orden
+  // por defecto (alfabético, salvo en Pendientes, que va por atraso).
+  if (ordenCol) {
+    const dir = ordenDir === "desc" ? -1 : 1;
+    const col = COLUMNAS.find((c) => c.campo === ordenCol) || {};
+    list.sort((a, b) => {
+      const va = a[ordenCol], vb = b[ordenCol];
+      const vacioA = va === null || va === undefined || String(va).trim() === "";
+      const vacioB = vb === null || vb === undefined || String(vb).trim() === "";
+      // Los que no tienen el dato van al final, en los DOS sentidos: si no,
+      // ordenar al revés llenaría la primera página de clientes sin IP o sin plan.
+      if (vacioA && vacioB) return String(a.id) < String(b.id) ? -1 : 1;
+      if (vacioA) return 1;
+      if (vacioB) return -1;
+
+      let r = col.numerico
+        ? Number(va) - Number(vb)
+        : String(va).localeCompare(String(vb), "es");
+      if (r !== 0) return r * dir;
+      return String(a.id) < String(b.id) ? -1 : 1; // desempate estable
+    });
+  } else if (filtro === "PENDIENTE_PAGO") {
     // Orden por mayor atraso (más negativo primero)
     list.sort((a, b) => (diasRestantes(a.fechaVencimiento) ?? 0) - (diasRestantes(b.fechaVencimiento) ?? 0));
   } else {
@@ -252,19 +347,30 @@ function renderTabla() {
   // cliente recién creado ya tiene su número y el orden nunca queda desfasado.
   calcularNumeracion();
 
-  const list = filtrar();
-  // El contador se actualiza ANTES del return de la lista vacía: con un filtro
-  // sin resultados hay que ver "Mostrando 0 de 354", no quedarse sin contador.
-  actualizarContador(list.length);
+  const lista = filtrar();
 
-  if (!list.length) {
+  // Paginación. Si la página quedó fuera de rango (tras eliminar clientes o
+  // cambiar de filtro) se recorta a la última que exista: si no, se vería vacío.
+  const total = lista.length;
+  const paginas = porPagina ? Math.max(1, Math.ceil(total / porPagina)) : 1;
+  if (pagina > paginas) pagina = paginas;
+  if (pagina < 1) pagina = 1;
+
+  const inicio = porPagina ? (pagina - 1) * porPagina : 0;
+  const visibles = porPagina ? lista.slice(inicio, inicio + porPagina) : lista;
+
+  // El contador se actualiza ANTES del return de la lista vacía: con un filtro
+  // sin resultados hay que ver "Mostrando 0 de 0", no quedarse sin contador.
+  actualizarContador(total ? inicio + 1 : 0, inicio + visibles.length, total);
+
+  if (!total) {
     cont.innerHTML = '<div class="empty">No hay clientes en este filtro.</div>';
     return;
   }
 
   const canWrite = ctx.rol !== "OPERADOR";
 
-  const rows = list.map((c) => {
+  const rows = visibles.map((c) => {
     // El estado manda: si está suspendido o inactivo se ofrece "Activar"; en
     // cualquier otro caso (activo, por vencer, pendiente) se ofrece "Suspender".
     const puedeActivar = c.estadoCliente === "SUSPENDIDO" || c.estadoCliente === "INACTIVO";
@@ -290,14 +396,39 @@ function renderTabla() {
     </tr>`;
   }).join("");
 
+  // Cabeceras generadas desde COLUMNAS: así el orden de las columnas y los
+  // campos por los que ordena cada una viven en un solo sitio.
+  const th = COLUMNAS.map((col) => {
+    if (!col.campo) return `<th>${esc(col.label)}</th>`;
+    const activa = ordenCol === col.campo;
+    const flecha = activa ? (ordenDir === "asc" ? " ↑" : " ↓") : "";
+    const ayuda = activa && ordenDir === "asc" ? "Clic para ordenar al revés" : "Clic para ordenar";
+    return `<th data-orden="${esc(col.campo)}" style="cursor:pointer" title="${ayuda}">${esc(col.label)}${flecha}</th>`;
+  }).join("");
+
   cont.innerHTML = `
     <table>
-      <thead><tr>
-        <th>#</th><th>Nombre</th><th>Teléfono</th><th>IP</th><th>Plan</th><th>Precio mensual</th>
-        <th>Ciclo</th><th>Estado</th><th>Fecha de ingreso</th><th>Acciones</th>
-      </tr></thead>
+      <thead><tr>${th}</tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>
+    ${piePaginacion(total, paginas)}`;
+
+  // Ordenar al hacer clic en la cabecera. El "#" no está aquí a propósito: su
+  // numeración es el orden de activación y no depende de cómo se vea la tabla.
+  cont.querySelectorAll("th[data-orden]").forEach((cabeza) => {
+    cabeza.addEventListener("click", () => {
+      const campo = cabeza.dataset.orden;
+      if (ordenCol === campo) ordenDir = ordenDir === "asc" ? "desc" : "asc";
+      else { ordenCol = campo; ordenDir = "asc"; }
+      pagina = 1; // al reordenar se vuelve a la primera página
+      renderTabla();
+    });
+  });
+
+  const btnAnt = cont.querySelector("#pag-ant");
+  if (btnAnt) btnAnt.addEventListener("click", () => irAPagina(pagina - 1));
+  const btnSig = cont.querySelector("#pag-sig");
+  if (btnSig) btnSig.addEventListener("click", () => irAPagina(pagina + 1));
 
   cont.querySelectorAll("[data-edit]").forEach((b) =>
     b.addEventListener("click", () => abrirModalEditar(b.dataset.edit)));
@@ -766,8 +897,31 @@ async function cambiarEstado(id, op) {
 
 // ---------------- Eventos ----------------
 function bind() {
+  // Búsqueda con DEBOUNCE: sin esto cada tecla repintaba las 354 filas y sus
+  // ~1.400 listeners. Ahora se espera a que el usuario deje de escribir.
   const input = document.getElementById("buscar");
-  if (input) input.addEventListener("input", () => { busqueda = input.value.trim(); renderTabla(); });
+  if (input) {
+    let temporizador = null;
+    input.addEventListener("input", () => {
+      clearTimeout(temporizador);
+      temporizador = setTimeout(() => {
+        busqueda = input.value.trim();
+        pagina = 1; // un filtro nuevo siempre empieza por la primera página
+        renderTabla();
+      }, 300);
+    });
+  }
+
+  // Cuántas filas por página (se recuerda en localStorage)
+  const sel = document.getElementById("por-pagina");
+  if (sel) {
+    sel.addEventListener("change", () => {
+      porPagina = Number(sel.value);
+      guardarPorPagina();
+      pagina = 1;
+      renderTabla();
+    });
+  }
 
   // Filtro por estado (los chips llevan data-filtro; los de ciclo, data-ciclo,
   // para que los dos grupos no se pisen al marcar el activo).
@@ -775,6 +929,7 @@ function bind() {
     chip.addEventListener("click", () => {
       filtro = chip.dataset.filtro;
       document.querySelectorAll(".chip[data-filtro]").forEach((c) => c.classList.toggle("is-active", c.dataset.filtro === filtro));
+      pagina = 1;
       renderTabla();
     });
   });
@@ -784,6 +939,7 @@ function bind() {
     chip.addEventListener("click", () => {
       filtroCiclo = chip.dataset.ciclo;
       document.querySelectorAll(".chip[data-ciclo]").forEach((c) => c.classList.toggle("is-active", c.dataset.ciclo === filtroCiclo));
+      pagina = 1;
       renderTabla();
     });
   });

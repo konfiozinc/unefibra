@@ -121,6 +121,45 @@ function compararActivacion(a, b) {
   futuras.slice(0, 5).forEach(c => console.log("       #" + numero.get(c.id) + "  " + fechaDe(c)));
   console.log("     con la fecha del import (2026-10-06)        : " + delImport.length + "  (el Excel no traia fecha)");
 
-  const ok = biyeccion && desorden === 0 && igualEnAmbos;
-  console.log("\n  " + (ok ? "TODO OK: la numeracion es estable y coincide con el orden de activacion." : "*** HAY ALGUN PROBLEMA ***"));
+  // 8) Paginacion: la misma cuenta que hace renderTabla().
+  const POR = 50;
+  const paginas = Math.ceil(clientes.length / POR);
+  const ultima = clientes.length - (paginas - 1) * POR;
+  console.log("\n  8) Paginacion (50 filas por pagina)");
+  console.log("     clientes                                   : " + clientes.length);
+  console.log("     paginas necesarias                         : " + paginas);
+  console.log("     filas en la pagina 1                       : " + Math.min(POR, clientes.length));
+  console.log("     filas en la ultima pagina (" + paginas + ")                : " + ultima);
+  console.log("     cuadre (paginas-1)*50 + ultima = total      : " + ((paginas - 1) * POR + ultima === clientes.length ? "SI" : "*** NO ***"));
+
+  // 9) Orden por columna: MISMA logica que el clic en la cabecera.
+  const ordenar = (campo, dir, numerico) => clientes.slice().sort((a, b) => {
+    const va = a[campo], vb = b[campo];
+    const vacioA = va === null || va === undefined || String(va).trim() === "";
+    const vacioB = vb === null || vb === undefined || String(vb).trim() === "";
+    if (vacioA && vacioB) return String(a.id) < String(b.id) ? -1 : 1;
+    if (vacioA) return 1;
+    if (vacioB) return -1;
+    const r = numerico ? Number(va) - Number(vb) : String(va).localeCompare(String(vb), "es");
+    if (r !== 0) return r * (dir === "desc" ? -1 : 1);
+    return String(a.id) < String(b.id) ? -1 : 1;
+  });
+
+  console.log("\n  9) Orden por columna");
+  const pn = ordenar("nombreCompleto", "asc", false);
+  console.log('     Nombre asc  : "' + maskNombre(pn[0].nombreCompleto) + '"  ...  "' + maskNombre(pn[pn.length - 1].nombreCompleto) + '"');
+  const pp = ordenar("precioMensual", "desc", true);
+  const sinPrecio = pp.filter(c => !c.precioMensual).length;
+  console.log("     Precio desc : " + pp[0].precioMensual + "  ...  " + pp[pp.length - 1].precioMensual);
+  console.log("     los " + sinPrecio + " sin precio quedan AL FINAL (desc y asc) : " +
+    (pp.slice(-sinPrecio).every(c => !c.precioMensual) ? "SI" : "*** NO ***") + " / " +
+    (ordenar("precioMensual", "asc", true).slice(-sinPrecio).every(c => !c.precioMensual) ? "SI" : "*** NO ***"));
+  const pf = ordenar("fechaInicioServicio", "asc", false);
+  console.log("     Fecha asc   : " + fechaDe(pf[0]) + "  ...  " + fechaDe(pf[pf.length - 1]));
+  const numsOrdenados = pp.map(c => numero.get(c.id)).sort((a, b) => a - b);
+  const numeroIntacto = numsOrdenados.every((n, i) => n === i + 1);
+  console.log("     el # sigue siendo 1..N tras ordenar por precio : " + (numeroIntacto ? "SI" : "*** NO ***"));
+
+  const ok = biyeccion && desorden === 0 && igualEnAmbos && numeroIntacto;
+  console.log("\n  " + (ok ? "TODO OK: numeracion estable, paginacion y orden correctos." : "*** HAY ALGUN PROBLEMA ***"));
 })().catch(e => { console.log("ERROR: " + e.message); process.exit(1); });

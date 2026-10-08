@@ -78,6 +78,12 @@ const REGLAS = [
     limpiar: null
   },
   {
+    id: "conjunto-sin-numero",
+    desc: "Contiene el nombre de un conjunto (direccion pegada SIN numero: la limpieza no la toca)",
+    re: /\b(LA\s+LIBERTAD|LAS\s+FLO?RES|CANTARES|LA\s+CASCADA|MIRADOR|MIRA\s+CASCADA|LA\s+MONTA(?:Ñ|N)A|MONTA(?:Ñ|N)A|VENTO|ATARDECERES|VELETAS|JARDINES|CUCARACHO|LA\s+AURORA)\b/i,
+    limpiar: null
+  },
+  {
     id: "muy-corto",
     desc: "Nombre muy corto (menos de 5 caracteres): posible dato incompleto",
     re: /^.{1,4}$/,
