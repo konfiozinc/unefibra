@@ -9,7 +9,7 @@
 > Firestore (`metodos_pago`, `configuracion/soporte`) y las decisiones registradas en
 > `docs/`. **Si algo cambia en el sitio, cambia también aquí.**
 >
-> Actualizado: **27 de septiembre de 2026**.
+> Actualizado: **8 de octubre de 2026** (reglas de corte y recordatorios corregidas).
 
 ---
 
@@ -269,15 +269,23 @@ El cliente **envía el comprobante por WhatsApp** para registrarlo en contabilid
 
 ### Cortes y recordatorios (cómo funciona el cobro)
 
-- La empresa cobra en **dos tandas** según el día de **corte** del cliente:
-  **corte 15** y **corte 30** (día 30 del mes; en **febrero**, el último día del mes:
-  28 o 29).
-- El sistema envía **recordatorios automáticos por WhatsApp** a los **7, 5, 3 y 1 día(s)**
-  antes del corte.
+- La empresa cobra en **dos tandas**, y cada tanda tiene **dos fechas distintas**: la del
+  **aviso** de cobro y la del **corte**, con **5 días de gracia** entre ambas.
+
+  | Ciclo | Aviso de cobro | **Corte** |
+  |---|---|---|
+  | **Ciclo 15** | día **15** de cada mes | día **20** de cada mes |
+  | **Ciclo 30** | día **30** de cada mes | día **5** del **mes siguiente** |
+
+- El sistema envía **2 recordatorios automáticos por WhatsApp**: uno **5 días antes del
+  corte** (es decir, el día del aviso) y otro **el mismo día del corte**.
 - Si el cliente **ya pagó por adelantado** hasta ese corte, **no se le envía recordatorio**.
 - Si la factura **se vence**, el servicio puede ser **suspendido**.
 - **El agente no calcula ni promete fechas de corte personalizadas**: eso depende de la
   ficha de cada cliente. Si preguntan «¿cuándo me toca pagar?», se confirma con un asesor.
+- ⚠️ **Nunca digas «corte el 15» ni «corte el 30»**: el 15 y el 30 son los días del
+  **aviso**, no del corte. La regla correcta es la tabla de arriba. Dar la fecha
+  equivocada hace que el cliente pague tarde y se le suspenda el servicio.
 
 ## 8. Fallas y soporte técnico
 
@@ -416,6 +424,7 @@ algo, hay que cambiar los dos:
 | Cobertura (sectores) | `assets/js/config.js` → `cobertura.zonas` | §4 |
 | Teléfonos, correo u horario | `assets/js/config.js` → `empresa` | §2 |
 | Métodos de pago o cuenta principal | Panel → Configuración (`metodos_pago`) | §7 |
+| **Reglas de corte y recordatorios** | `functions/src/cortes.js` (y su copia en `assets/js/admin/ui.js`) | **§7, tabla de ciclos** |
 | Reglas de negocio (TV, reportados, plazos) | `agente-ia/worker.js` (prompt) y la web | §5 y Bloque A |
 
 **Regla de oro:** el agente web y el de WhatsApp deben poder responder la misma pregunta
