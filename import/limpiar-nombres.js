@@ -81,6 +81,26 @@ const PATRON_CONJUNTO = new RegExp(
 );
 const PATRON_VIA = new RegExp("(?:^|\\s+)(?:\\b(?:" + VIAS.join("|") + ")\\b)(?![A-ZÑ])", "i");
 
+/* ── 3) SEGUNDA PASADA: conjuntos CON ARTÍCULO (LA / LAS / EL / LOS) ─────────
+ * Regla aprobada por el negocio para los casos que la primera pasada no tocó.
+ * El artículo NO forma parte de un apellido, así que aquí sí se puede cortar sin
+ * exigir que después venga un número: ese guardia fue justo el que dejó pasar
+ * nombres como "ADALGISA GOMEZ la cascada".
+ *
+ * Insensible a mayúsculas, porque en el Excel hay casos en minúscula.
+ * "WILSON CORREA VENTO" NO se toca: sin artículo, "VENTO" puede ser apellido.
+ */
+const CONJUNTO_CON_ARTICULO = new RegExp(
+  // El "MIRADOR DE/DEL" de delante se absorbe: sin eso, en
+  // "JOSE GABRIEL FLORES MIRADOR DE LA CASCADA" el corte caía en "LA CASCADA"
+  // y dejaba el nombre como "JOSE GABRIEL FLORES MIRADOR DE".
+  "\\s+(?:(?:MIRADOR|MIRA|NIRA|MR)\\s+(?:DE\\s+|DEL\\s+|D\\s+)?)?" +
+  "(?:LA|LAS|EL|LOS)\\s+(?:" +
+  "LIBERTAD|CASCADA|MONTA(?:Ñ|N)A|MANTA(?:Ñ|N)A|F[KL]O?R(?:ES)?|VELETAS|AURORA|FUENTE|CASITAS|CANTARES|JARDINES|FRECITAS" +
+  ")\\b",
+  "i"
+);
+
 /** Cuantas palabras hay que avanzar (tras el corte) hasta encontrar un digito. -1 si no hay. */
 function palabrasHastaElDigito(texto) {
   return String(texto).trim().split(/\s+/).findIndex(w => /\d/.test(w));
@@ -115,6 +135,19 @@ function limpiarNombre(nombre) {
     // suelto como "MARIA VENTO" no se toca. Y el nombre debe quedar con algo.
     const pos = palabrasHastaElDigito(n.slice(corte));
     if (corte >= 3 && pos >= 0 && pos <= 5) { n = n.slice(0, corte).trim(); aplicados.push("DIRECCION"); }
+  }
+
+  // Segunda pasada: conjuntos CON ARTÍCULO, sin exigir número. Solo se intenta
+  // si la primera pasada no encontró nada.
+  if (!aplicados.includes("DIRECCION")) {
+    const ma = n.match(CONJUNTO_CON_ARTICULO);
+    if (ma) {
+      const corte = inicioDelTexto(n, ma);
+      const resto = n.slice(0, corte).trim();
+      // El nombre debe quedar con al menos 2 palabras: si el corte cayera
+      // demasiado pronto, dejaría un resto sin sentido.
+      if (resto.split(/\s+/).length >= 2) { n = resto; aplicados.push("ARTICULO"); }
+    }
   }
 
   // Limpieza final de restos: comas, puntos y espacios sobrantes al final.
