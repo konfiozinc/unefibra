@@ -61,12 +61,28 @@ Si el cliente vive en CASA, no le pidas torre ni apartamento: no existen. Si fal
 
 REGLAS FINALES: nunca inventes precios, velocidades, cobertura ni plazos; usa solo los datos de estas instrucciones. Si algo no lo sabes, deriva a WhatsApp. Nunca des asesoría técnica avanzada. Cierra siempre con UNA pregunta concreta. Si el cliente quiere contratar, reportar una falla o dar sus datos, oriéntalo al WhatsApp 304 465 4987. SÍ puedes hablar de la TV por aplicación (ver la sección TV POR APLICACIÓN). Sigue sin ofrecerse telefonía fija ni planes empresariales: para eso, deriva a WhatsApp.`;
 
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
+/* ── Orígenes autorizados a llamar al Worker desde un navegador ──
+   Antes era "*" (CORS abierto). Nota: esta copia está DESACTUALIZADA respecto a
+   la fuente canónica en `9-AGENTES-IA/UneFibra-Agente/worker.js`; ante cualquier
+   duda, desplegar desde allí (esta carpeta no declara las ataduras KV). */
+const ORIGENES_PERMITIDOS = [
+  "https://konfiozinc.github.io",
+  "http://localhost:8080",
+  "http://127.0.0.1:8080",
+];
+
+const CORS_BASE = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   "Access-Control-Allow-Headers": "Content-Type",
+  "Vary": "Origin",
   "Content-Type": "application/json",
 };
+
+function corsDe(request) {
+  const origen = (request && request.headers.get("Origin")) || "";
+  const permitido = ORIGENES_PERMITIDOS.indexOf(origen) !== -1 ? origen : ORIGENES_PERMITIDOS[0];
+  return Object.assign({}, CORS_BASE, { "Access-Control-Allow-Origin": permitido });
+}
 
 function normalizar(s) {
   return String(s || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
@@ -132,6 +148,8 @@ async function callGemini(model, payload, timeoutMs, key) {
 
 export default {
   async fetch(request, env) {
+    // Cabeceras CORS calculadas para esta petición (allowlist de orígenes).
+    const CORS = corsDe(request);
     if (request.method === "OPTIONS") {
       return new Response(null, { status: 204, headers: CORS });
     }
