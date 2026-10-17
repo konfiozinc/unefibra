@@ -60,6 +60,14 @@
 
 1. Plan de actualización de dependencias y pruebas de Functions, especialmente Firebase Admin y dependencias transitivas con severidad alta/crítica.
 2. Completar App Check y controles antiabuso de solicitudes públicas.
-3. Corregir la configuración ESLint para que CI valide el backend.
+3. Revisar las 4 vulnerabilidades altas y 32 moderadas pendientes.
 4. Verificar costos y tiempos reales de los procesos diarios en Firebase/GCP.
 
+
+
+## Adenda - 17 de octubre de 2026
+
+- La proteccion anti-spam ya existia antes de esta sesion: el formulario publico incluye un honeypot visualmente oculto y descarta el envio antes de WhatsApp y Firestore cuando esta lleno. No se duplico el control.
+- Se agrego `eslint-config-google` y se ajusto ESLint para mantener reglas de calidad y desactivar reglas de estilo/documentacion que generaban mas de 700 cambios mecanicos en el codigo existente. Se corrigieron los cuatro errores restantes que reportaba lint.
+- Se actualizo `proxy-addr` de 2.0.7 a 2.0.8, compatible dentro de Express 4. Npm ya no reporta la vulnerabilidad critica GHSA-jqcg-44mw-7w3h. Permanecen las 4 altas y 32 moderadas.
+- Verificacion final: `npm audit` reporta 0 criticas, 4 altas y 32 moderadas; los cuatro sitios publicos responden HTTP 200; `npm run lint` termina sin errores. El cambio de dependencias afecta Cloud Functions, no el contenido estatico de GitHub Pages.
