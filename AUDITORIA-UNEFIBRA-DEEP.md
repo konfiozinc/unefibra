@@ -71,3 +71,11 @@
 - Se agrego `eslint-config-google` y se ajusto ESLint para mantener reglas de calidad y desactivar reglas de estilo/documentacion que generaban mas de 700 cambios mecanicos en el codigo existente. Se corrigieron los cuatro errores restantes que reportaba lint.
 - Se actualizo `proxy-addr` de 2.0.7 a 2.0.8, compatible dentro de Express 4. Npm ya no reporta la vulnerabilidad critica GHSA-jqcg-44mw-7w3h. Permanecen las 4 altas y 32 moderadas.
 - Verificacion final: `npm audit` reporta 0 criticas, 4 altas y 32 moderadas; los cuatro sitios publicos responden HTTP 200; `npm run lint` termina sin errores. El cambio de dependencias afecta Cloud Functions, no el contenido estatico de GitHub Pages.
+
+## Adenda - 17 de octubre de 2026 (actualizacion compatible de dependencias)
+
+- Se aplicaron actualizaciones de dependencias dentro de los rangos semver existentes, sin `--force` ni cambios de version mayor. El cambio queda registrado en `functions/package-lock.json`.
+- `npm audit` actualizado: **0 criticas, 2 altas y 28 moderadas** (30 total). Bajaron las altas de 4 a 2 y las moderadas de 32 a 28.
+- Las altas restantes llegan por `firebase-admin` y `node-forge`. npm ofrece resolverlas con `firebase-admin` 14.5.0, salto mayor frente a la rama 12 instalada; requiere validar compatibilidad de Cloud Functions antes de adoptar o desplegar.
+- `npm run lint`: correcto. El entorno usa Node 24 aunque `functions/package.json` requiere Node 22, por lo que npm avisa de esa diferencia; no se desplego nada.
+- No se modificaron reglas de Firebase ni se desplegaron Cloud Functions.
