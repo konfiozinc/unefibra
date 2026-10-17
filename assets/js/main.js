@@ -12,6 +12,9 @@
   // ---------------- Utilidades ----------------
   const $ = (sel, root = document) => root.querySelector(sel);
   const $$ = (sel, root = document) => Array.from(root.querySelectorAll(sel));
+  const escHtml = (value) => String(value ?? "").replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;", "<": "&lt;", ">": "&gt;", "\"": "&quot;", "\'": "&#39;"
+  })[char]);
 
   function formatoPrecio(valor) {
     return new Intl.NumberFormat("es-CO", {
@@ -139,7 +142,7 @@
 
     const html = Object.keys(NOMBRES_REDES)
       .filter((k) => typeof redes[k] === "string" && /^https?:\/\//i.test(redes[k]) && !/TODO/i.test(redes[k]))
-      .map((k) => `<li><a href="${redes[k]}" target="_blank" rel="noopener noreferrer me" aria-label="UneFibra en ${NOMBRES_REDES[k]} (se abre en una pestaña nueva)">${ICONOS_REDES[k]}</a></li>`)
+      .map((k) => `<li><a href="${escHtml(redes[k])}" target="_blank" rel="noopener noreferrer me" aria-label="UneFibra en ${NOMBRES_REDES[k]} (se abre en una pestaña nueva)">${ICONOS_REDES[k]}</a></li>`)
       .join("");
 
     if (!html) return;
@@ -151,17 +154,17 @@
   function renderPlan(plan) {
     const precio = formatoPrecio(plan.precio);
     const duracion = plan.duracion || 30;
-    const beneficios = (CFG.planBeneficios || plan.beneficios || []).map((b) => `<li>${b}</li>`).join("");
+    const beneficios = (CFG.planBeneficios || plan.beneficios || []).map((b) => `<li>${escHtml(b)}</li>`).join("");
 
     return `
       <article class="plan-card${plan.destacado ? " plan-card--featured" : ""}">
-        <h3 class="plan-card__name">${plan.nombre}</h3>
-        <span class="plan-card__tech">${plan.tecnologia || "Fibra óptica"}</span>
-        <p class="plan-card__price">${precio} <span>COP / ${duracion} ${plan.unidadDuracion || "días"}</span></p>
-        <p class="plan-card__desc">${plan.descripcion || ""}</p>
+        <h3 class="plan-card__name">${escHtml(plan.nombre)}</h3>
+        <span class="plan-card__tech">${escHtml(plan.tecnologia || "Fibra óptica")}</span>
+        <p class="plan-card__price">${precio} <span>COP / ${duracion} ${escHtml(plan.unidadDuracion || "días")}</span></p>
+        <p class="plan-card__desc">${escHtml(plan.descripcion || "")}</p>
         <ul class="plan-card__list">${beneficios}</ul>
         <a class="btn btn--primary btn--block js-whatsapp" href="#"
-           data-mensaje="Hola, me interesa el plan de ${plan.nombre} de UneFibra (${precio} por ${duracion} días).">
+           data-mensaje="Hola, me interesa el plan de ${escHtml(plan.nombre)} de UneFibra (${precio} por ${duracion} días).">
           Quiero este plan
         </a>
       </article>`;
@@ -217,7 +220,7 @@
 
     const zonas = $(".js-cobertura-zonas");
     if (zonas && CFG.cobertura && CFG.cobertura.zonas) {
-      zonas.innerHTML = CFG.cobertura.zonas.map((z) => `<li>${z}</li>`).join("");
+      zonas.innerHTML = CFG.cobertura.zonas.map((z) => `<li>${escHtml(z)}</li>`).join("");
     }
   }
 
@@ -750,8 +753,8 @@
       else indice = 3;
 
       const plan = planes[Math.min(indice, planes.length - 1)];
-      salida.innerHTML = "Según tus respuestas te sugerimos <strong>" + plan.nombre + "</strong> (" +
-        plan.velocidad + "). Es una orientación comercial: si tienes dudas, escríbenos y lo revisamos contigo.";
+      salida.innerHTML = "Según tus respuestas te sugerimos <strong>" + escHtml(plan.nombre) + "</strong> (" +
+        escHtml(plan.velocidad) + "). Es una orientación comercial: si tienes dudas, escríbenos y lo revisamos contigo.";
 
       if (cta) {
         cta.hidden = false;
@@ -803,17 +806,17 @@
       if (diferencia > 0) {
         salida.className = "ahorro__result ahorro__result--ok";
         salida.innerHTML =
-          `<strong>Ahorrarías ${formatoPrecio(diferencia)} al mes</strong> con ${plan.nombre}. ` +
+          `<strong>Ahorrarías ${formatoPrecio(diferencia)} al mes</strong> con ${escHtml(plan.nombre)}. ` +
           `Son <strong>${formatoPrecio(alAnio)} al año</strong> frente a lo que pagas hoy.`;
       } else if (diferencia === 0) {
         salida.className = "ahorro__result";
         salida.innerHTML =
-          `Con ${plan.nombre} pagarías prácticamente lo mismo que hoy, ` +
-          `pero con fibra óptica de ${plan.velocidad}.`;
+          `Con ${escHtml(plan.nombre)} pagarías prácticamente lo mismo que hoy, ` +
+          `pero con fibra óptica de ${escHtml(plan.velocidad)}.`;
       } else {
         salida.className = "ahorro__result ahorro__result--warn";
         salida.innerHTML =
-          `${plan.nombre} cuesta ${formatoPrecio(-diferencia)} más al mes que lo que pagas hoy. ` +
+          `${escHtml(plan.nombre)} cuesta ${formatoPrecio(-diferencia)} más al mes que lo que pagas hoy. ` +
           `Compara con un plan menor de la lista o escríbenos y lo revisamos contigo.`;
       }
 
