@@ -79,3 +79,11 @@
 - Las altas restantes llegan por `firebase-admin` y `node-forge`. npm ofrece resolverlas con `firebase-admin` 14.5.0, salto mayor frente a la rama 12 instalada; requiere validar compatibilidad de Cloud Functions antes de adoptar o desplegar.
 - `npm run lint`: correcto. El entorno usa Node 24 aunque `functions/package.json` requiere Node 22, por lo que npm avisa de esa diferencia; no se desplego nada.
 - No se modificaron reglas de Firebase ni se desplegaron Cloud Functions.
+
+## Adenda - 17 de octubre de 2026 (controles básicos del formulario)
+
+- Se añadió al formulario público una espera mínima de 2,5 segundos y una pausa local de un minuto tras un envío exitoso, además del honeypot que ya existía.
+- La landing ya tenía integración opcional de Firebase App Check; ahora un fallo al inicializarla no impide inicializar Firestore ni usar el respaldo de WhatsApp.
+- Se documentaron el registro de reCAPTCHA v3, la configuración de la site key y la revisión de métricas. App Check sigue desactivado hasta que el responsable configure las claves.
+- El control de tiempo y la pausa se ejecutan en el navegador y no frenan una escritura directa a Firestore. La guía advierte que no se debe exigir App Check a Firestore hasta integrar también el panel administrativo.
+- No se desplegaron cambios a Firebase ni se activó enforcement.

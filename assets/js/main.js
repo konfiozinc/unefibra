@@ -273,7 +273,14 @@
           // App Check debe activarse ANTES de la primera lectura/escritura
           // en Firestore; si falla, el formulario sigue funcionando.
           if (APPCHECK_ACTIVO && typeof firebase.appCheck === "function") {
-            firebase.appCheck().activate(AC.siteKey, true);
+            try {
+              firebase.appCheck().activate(AC.siteKey, true);
+            } catch (e) {
+              // App Check es una defensa adicional. Si su inicialización falla
+              // o todavía está en preparación, no debe desactivar Firestore ni
+              // impedir que el formulario use su respaldo de WhatsApp.
+              console.warn("App Check no se pudo activar; el formulario continuará.", e);
+            }
           }
           return firebase.firestore();
         } catch (e) {
@@ -302,6 +309,26 @@
     const status = $("#form-status");
     const btn = $("#form-submit");
     const fallback = $("#form-wa-fallback");
+    const TIEMPO_MINIMO_FORMULARIO_MS = 2500;
+    const ESPERA_ENTRE_SOLICITUDES_MS = 60000;
+    const CLAVE_ULTIMO_ENVIO = "unefibra_form_ultimo_envio";
+    const formularioListoEn = Date.now();
+
+    function ultimoEnvioLocal() {
+      try {
+        return Number(localStorage.getItem(CLAVE_ULTIMO_ENVIO)) || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+
+    function registrarEnvioLocal() {
+      try {
+        localStorage.setItem(CLAVE_ULTIMO_ENVIO, String(Date.now()));
+      } catch (e) {
+        // El control de frecuencia local es opcional (p. ej., navegación privada).
+      }
+    }
 
     // ---------------- Datos de dirección (tarea 3) ----------------
     // En una casa no hay torre ni apartamento: exigirlos siempre obligaría a
@@ -416,6 +443,23 @@
         return;
       }
 
+      // Reto de tiempo básico contra bots que cargan el formulario y lo envían
+      // inmediatamente. Es una barrera de cliente, no sustituye App Check.
+      if (Date.now() - formularioListoEn < TIEMPO_MINIMO_FORMULARIO_MS) {
+        status.textContent = "Espera un momento antes de enviar tu solicitud.";
+        status.className = "form__note err";
+        return;
+      }
+
+      // Evita envíos repetidos desde el mismo navegador después de un registro
+      // correcto. El servidor sigue siendo necesario para frenar clientes falsos.
+      const esperaRestante = ESPERA_ENTRE_SOLICITUDES_MS - (Date.now() - ultimoEnvioLocal());
+      if (esperaRestante > 0) {
+        status.textContent = "Ya recibimos una solicitud desde este navegador. Intenta de nuevo en un minuto.";
+        status.className = "form__note err";
+        return;
+      }
+
       // Medición de conversión (inerte si no hay analytics configurado).
       window.ufTrack && window.ufTrack("form_submit", {});
 
@@ -483,6 +527,7 @@
             estado: "NUEVA",
             createdAt: new Date().toISOString()
           });
+          registrarEnvioLocal();
           status.textContent = ventana
             ? "¡Solicitud registrada! Completa el envío en la pestaña de WhatsApp."
             : "¡Solicitud registrada! Te contactaremos pronto.";
@@ -490,6 +535,9 @@
           form.reset();
         } else if (!ventana) {
           console.warn("Sin Firebase y con WhatsApp bloqueado: la solicitud no se pudo enviar.");
+        } else {
+          // Si Firebase está apagado, el envío se completa por WhatsApp.
+          registrarEnvioLocal();
         }
       } catch (err) {
         console.error("Error al enviar la solicitud:", err);
