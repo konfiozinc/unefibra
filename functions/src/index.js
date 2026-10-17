@@ -336,7 +336,7 @@ exports.processDueDates = functions
 
     // Recordatorio por WhatsApp: solo si el cliente dio su número (opt-in implícito)
     // y no optó por salir explícitamente (whatsappOptIn === false).
-    async function enviarWhatsAppCliente(cliente, template, variables) {
+    const enviarWhatsAppCliente = async (cliente, template, variables) => {
       if (!cliente.whatsapp || cliente.whatsappOptIn === false) return false;
       try {
         await enviarWhatsApp({ telefono: cliente.whatsapp, template, variables });
@@ -345,7 +345,7 @@ exports.processDueDates = functions
         console.error(`WhatsApp falló para ${cliente.id}:`, e.message);
         return false;
       }
-    }
+    };
 
     // 1.bis) Ciclos de corte. Rellena el ciclo de los clientes que no lo tengan
     // (así se migran solos los que ya existían) y refresca el próximo corte,
@@ -832,7 +832,7 @@ exports.actualizarCliente = functions.https.onCall(async (data, context) => {
   }
 
   if ("cicloCorte" in cambios && cambios.cicloCorte !== null && !cicloValido(cambios.cicloCorte, null)) {
-    throw new functions.https.HttpsError("invalid-argument", 'El ciclo de corte solo puede ser "15" o "30".');
+    throw new functions.https.HttpsError("invalid-argument", "El ciclo de corte solo puede ser \"15\" o \"30\".");
   }
 
   if (!Object.keys(cambios).length) {
@@ -1231,8 +1231,8 @@ exports.actualizarUsuario = functions.https.onCall(async (data, context) => {
   await db.collection("usuarios").doc(uid).update(update);
 
   // Reflejar la des/activación también en Firebase Auth.
-  if (activo === false) { try { await admin.auth().updateUser(uid, { disabled: true }); } catch (e) {} }
-  if (activo === true) { try { await admin.auth().updateUser(uid, { disabled: false }); } catch (e) {} }
+  if (activo === false) { try { await admin.auth().updateUser(uid, { disabled: true }); } catch (e) { /* Keep Firestore status if Auth synchronization fails. */ } }
+  if (activo === true) { try { await admin.auth().updateUser(uid, { disabled: false }); } catch (e) { /* Keep Firestore status if Auth synchronization fails. */ } }
 
   await auditar(context.auth.uid, context.auth.uid, "GESTIONAR_USUARIO", "usuarios", uid, null, update);
   return { uid };
