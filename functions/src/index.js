@@ -1115,7 +1115,7 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
 exports.anularPago = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
-  const { pagoId } = data || {};
+  const { pagoId, motivo } = data || {};
   if (!pagoId) throw new functions.https.HttpsError("invalid-argument", "Se requiere pagoId.");
 
   const pagoRef = db.collection("pagos").doc(pagoId);
@@ -1127,8 +1127,35 @@ exports.anularPago = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("already-exists", "El pago ya fue anulado.");
   }
 
-  await pagoRef.update({ estado: ESTADO_PAGO.ANULADO, updatedAt: FieldValue.serverTimestamp() });
-  await auditar(context.auth.uid, usuario.nombre || context.auth.uid, "ANULAR_PAGO", "pagos", pagoId, { estado: anterior }, { estado: ESTADO_PAGO.ANULADO });
+  // ── Guardas de anulación (harness/unef-010) ────────────────────────────
+  // Un pago CONFIRMADO ya renovó el servicio y movió el vencimiento del
+  // cliente: anularlo aquí dejaría un período pagado sin respaldo contable y un
+  // servicio extendido sin pago. Se rechaza; ese caso exige un ajuste
+  // administrativo reversible, no borrar la evidencia del pago.
+  if (anterior === ESTADO_PAGO.CONFIRMADO) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Un pago confirmado ya renovó el servicio: no se anula desde aquí. Requiere un ajuste administrativo."
+    );
+  }
+  // El motivo es obligatorio: una anulación sin razón no es trazable.
+  if (typeof motivo !== "string" || motivo.trim().length < 3) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "Se requiere un motivo de anulación (mínimo 3 caracteres)."
+    );
+  }
+
+  await pagoRef.update({
+    estado: ESTADO_PAGO.ANULADO,
+    motivoAnulacion: motivo.trim(),
+    anuladoPor: context.auth.uid,
+    anuladoEn: FieldValue.serverTimestamp(),
+    updatedAt: FieldValue.serverTimestamp()
+  });
+  await auditar(context.auth.uid, (context.auth.token && context.auth.token.name) || usuario.nombre || context.auth.uid,
+    "ANULAR_PAGO", "pagos", pagoId, { estado: anterior },
+    { estado: ESTADO_PAGO.ANULADO, motivo: motivo.trim() });
 
   return { id: pagoId, estado: ESTADO_PAGO.ANULADO };
 });
