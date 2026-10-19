@@ -707,8 +707,8 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
     createdAt: FieldValue.serverTimestamp()
   });
 
-  await registrarHistorial(clienteRef.id, null, ESTADO_CLIENTE.ACTIVO, "Alta de cliente", context.auth.uid, data.usuarioNombre || context.auth.uid);
-  await auditar(context.auth.uid, data.usuarioNombre || context.auth.uid, "CREAR_CLIENTE", "clientes", clienteRef.id, null, cliente);
+  await registrarHistorial(clienteRef.id, null, ESTADO_CLIENTE.ACTIVO, "Alta de cliente", context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid);
+  await auditar(context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid, "CREAR_CLIENTE", "clientes", clienteRef.id, null, cliente);
 
   return { id: clienteRef.id, fechaVencimiento, cicloCorte, proximoCorte };
 });
@@ -1015,7 +1015,7 @@ exports.registrarPago = functions.https.onCall(async (data, context) => {
   };
 
   const ref = await db.collection("pagos").add(pago);
-  await auditar(context.auth.uid, data.usuarioNombre || context.auth.uid, "REGISTRAR_PAGO", "pagos", ref.id, null, pago);
+  await auditar(context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid, "REGISTRAR_PAGO", "pagos", ref.id, null, pago);
   return { id: ref.id, estado: ESTADO_PAGO.PENDIENTE };
 });
 
@@ -1106,8 +1106,8 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
   });
 
   const pagoFinal = (await pagoRef.get()).data();
-  await registrarHistorial(pagoFinal.clienteId, pagoFinal.estado, ESTADO_CLIENTE.ACTIVO, "Pago recibido", context.auth.uid, data.usuarioNombre || context.auth.uid);
-  await auditar(context.auth.uid, data.usuarioNombre || context.auth.uid, "CONFIRMAR_PAGO", "pagos", pagoId, { estado: ESTADO_PAGO.PENDIENTE }, { estado: ESTADO_PAGO.CONFIRMADO });
+  await registrarHistorial(pagoFinal.clienteId, pagoFinal.estado, ESTADO_CLIENTE.ACTIVO, "Pago recibido", context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid);
+  await auditar(context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid, "CONFIRMAR_PAGO", "pagos", pagoId, { estado: ESTADO_PAGO.PENDIENTE }, { estado: ESTADO_PAGO.CONFIRMADO });
 
   return { id: pagoId, estado: ESTADO_PAGO.CONFIRMADO };
 });
@@ -1280,6 +1280,16 @@ exports.actualizarUsuario = functions.https.onCall(async (data, context) => {
  * `demo: true` + prefijo "DEMO -"). Nunca mezclar con datos reales.
  * ============================================================ */
 exports.seedDemo = functions.https.onCall(async (data, context) => {
+    // ── Guardián de entorno (harness/unef-010) ──────────────────────────
+    // Estas funciones crean o borran datos de demostración. En producción no
+    // deben poder ejecutarse: se exige el emulador o el proyecto demo.
+    const proyectoActual = (functions.app || {}).options && functions.app.options.projectId;
+    const esDemo = !!process.env.FIRESTORE_EMULATOR_HOST
+      || String(proyectoActual || '').startsWith('demo-')
+      || process.env.FUNCTIONS_EMULATOR === 'true';
+    if (!esDemo) {
+      throw new functions.https.HttpsError('failed-precondition', 'Las funciones de demostración solo se ejecutan en el emulador o en un proyecto demo-.');
+    }
   await verificarRol(context, ["SUPERADMIN"]);
 
   const existentes = await db.collection("clientes").where("demo", "==", true).limit(1).get();
@@ -1379,6 +1389,16 @@ exports.seedDemo = functions.https.onCall(async (data, context) => {
 });
 
 exports.borrarDemo = functions.https.onCall(async (data, context) => {
+    // ── Guardián de entorno (harness/unef-010) ──────────────────────────
+    // Estas funciones crean o borran datos de demostración. En producción no
+    // deben poder ejecutarse: se exige el emulador o el proyecto demo.
+    const proyectoActual = (functions.app || {}).options && functions.app.options.projectId;
+    const esDemo = !!process.env.FIRESTORE_EMULATOR_HOST
+      || String(proyectoActual || '').startsWith('demo-')
+      || process.env.FUNCTIONS_EMULATOR === 'true';
+    if (!esDemo) {
+      throw new functions.https.HttpsError('failed-precondition', 'Las funciones de demostración solo se ejecutan en el emulador o en un proyecto demo-.');
+    }
   await verificarRol(context, ["SUPERADMIN"]);
 
   let eliminados = 0;
