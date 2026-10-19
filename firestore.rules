@@ -103,6 +103,36 @@ service cloud.firestore {
     }
 
     match /pagos/{pagoId} {
+        // ── Integridad financiera (harness/unef-010) ─────────────────────
+        // Antes: solo se comprobaba el rol, así que un ADMIN podía crear un
+        // pago ya CONFIRMADO o con monto negativo, reescribir monto/cliente/
+        // autor de un pago existente, y un SUPERADMIN podía borrarlo.
+        function numero(v) { return v is number; }
+        function dineroIntacto() {
+          return request.resource.data.get('monto', null) == resource.data.get('monto', null)
+              && request.resource.data.get('clienteId', null) == resource.data.get('clienteId', null)
+              && request.resource.data.get('registradoPor', null) == resource.data.get('registradoPor', null)
+              && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null);
+        }
+        function tocados() { return request.resource.data.diff(resource.data).affectedKeys(); }
+        function transicionValida() {
+          return (resource.data.get('estado', '') == 'PENDIENTE' && request.resource.data.estado == 'CONFIRMADO')
+              || (resource.data.get('estado', '') == 'PENDIENTE' && request.resource.data.estado == 'ANULADO')
+              || (resource.data.get('estado', '') == 'CONFIRMADO' && request.resource.data.estado == 'ANULADO');
+        }
+        allow read: if esOperador();
+        allow create: if esAdmin()
+          && request.resource.data.get('estado', '') == 'PENDIENTE'
+          && numero(request.resource.data.get('monto', 0))
+          && request.resource.data.get('monto', 0) > 0
+          && request.resource.data.get('clienteId', '') is string
+          && request.resource.data.get('clienteId', '').size() > 0;
+        allow update: if esAdmin()
+          && dineroIntacto()
+          && transicionValida()
+          && tocados().hasOnly(['estado','confirmadoPor','confirmadoEn','periodoInicio','periodoFin','anuladoPor','motivo','anuladoEn','metodoPago','referencia','comprobanteUrl']);
+        allow delete: if false; // un pago se anula; jamás se borra
+      } {
       allow read: if esOperador();
       allow create, update: if esAdmin();
       allow delete: if esSuperAdmin();
