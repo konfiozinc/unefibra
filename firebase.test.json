@@ -1,0 +1,1 @@
+{"firestore":{"rules":"firestore.rules"},"functions":{"source":"functions","runtime":"nodejs20"},"emulators":{"auth":{"host":"127.0.0.1","port":9199},"firestore":{"host":"127.0.0.1","port":8080},"functions":{"host":"127.0.0.1","port":5001},"ui":{"enabled":false},"singleProjectMode":true}}

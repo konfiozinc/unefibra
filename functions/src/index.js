@@ -23,11 +23,19 @@
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 
+// ADMIN_FIELDVALUE_FIX: en firebase-admin 12 el namespace no expone firebase.firestore.FieldValue
+// en el emulador; sin esto, cualquier serverTimestamp() revienta con TypeError y el pago no se crea.
+try {
+  const _fvs = require('firebase-admin/firestore');
+  if (!admin.firestore.FieldValue) { admin.firestore.FieldValue = _fvs.FieldValue; }
+  if (!admin.firestore.Timestamp) { admin.firestore.Timestamp = _fvs.Timestamp; }
+} catch (e) { /* si el paquete no expone el submódulo, se sigue como antes */ }
+
 admin.initializeApp();
 
 const db = admin.firestore();
 const messaging = admin.messaging();
-const FieldValue = admin.firestore.FieldValue;
+const { FieldValue, Timestamp } = require('firebase-admin/firestore');
 
 /* ------------------------------------------------------------------
  * Constantes de estados (coinciden con el modelo de datos)
