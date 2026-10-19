@@ -1030,6 +1030,20 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
   // Transacción: renovación atómica sin duplicados.
   await db.runTransaction(async (t) => {
     const pagoSnap = await t.get(pagoRef);
+      // ── Estado previo verificado DENTRO de la transacción (harness/unef-010)
+      // Sin esto, dos confirmaciones simultáneas (o un reintento del cliente)
+      // renovaban dos veces al mismo cliente, y un pago anulado podía
+      // confirmarse y reactivar un servicio dado de baja.
+      if (!pagoSnap.exists) {
+        throw new functions.https.HttpsError("not-found", "El pago no existe.");
+      }
+      const estadoPrevio = pagoSnap.data().estado;
+      if (estadoPrevio === "ANULADO") {
+        throw new functions.https.HttpsError("failed-precondition", "El pago está anulado: no se puede confirmar.");
+      }
+      if (estadoPrevio === "CONFIRMADO") {
+        throw new functions.https.HttpsError("failed-precondition", "El pago ya está confirmado: no se renueva dos veces.");
+      }
     if (!pagoSnap.exists) throw new functions.https.HttpsError("not-found", "El pago no existe.");
     const pago = pagoSnap.data();
     if (pago.estado === ESTADO_PAGO.CONFIRMADO) {
