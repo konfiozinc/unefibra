@@ -976,7 +976,28 @@ exports.registrarPago = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { clienteId, servicioId, monto, metodoPago, referencia, comprobanteUrl } = data || {};
-  if (!clienteId || !monto) throw new functions.https.HttpsError("invalid-argument", "clienteId y monto son obligatorios.");
+  // ── Validación del importe y del cliente (harness/unef-010) ──────────
+    // Antes: `if (!clienteId || !monto)` aceptaba negativos, textos e
+    // Infinity. Ahora el monto tiene que ser un número finito y positivo, en
+    // pesos enteros (el esquema guarda COP sin decimales), y el cliente tiene
+    // que existir de verdad antes de crear el pago.
+    if (typeof clienteId !== "string" || clienteId.trim() === "") {
+      throw new functions.https.HttpsError("invalid-argument", "clienteId es obligatorio.");
+    }
+    const montoNum = Number(monto);
+    if (typeof monto === "string" || !Number.isFinite(montoNum) || montoNum <= 0) {
+      throw new functions.https.HttpsError("invalid-argument", "El monto debe ser un número finito mayor que cero.");
+    }
+    if (!Number.isSafeInteger(montoNum)) {
+      throw new functions.https.HttpsError("invalid-argument", "El monto debe expresarse en pesos enteros (sin decimales).");
+    }
+    if (data.fechaPago != null && !/^\d{4}-\d{2}-\d{2}$/.test(String(data.fechaPago))) {
+      throw new functions.https.HttpsError("invalid-argument", "fechaPago debe tener formato AAAA-MM-DD.");
+    }
+    const clienteSnap = await db.collection("clientes").doc(clienteId).get();
+    if (!clienteSnap.exists) {
+      throw new functions.https.HttpsError("not-found", "El cliente no existe.");
+    }
 
   const pago = {
     clienteId,
