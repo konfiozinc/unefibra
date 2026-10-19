@@ -1,20 +1,20 @@
 rules_version = '2';
 
 // ============================================================
-// UneFibra SAS — Firestore Security Rules
+// UneFibra SAS Ã¢â‚¬â€ Firestore Security Rules
 // ------------------------------------------------------------
 // Principios:
-//  · Usuario no autenticado NO accede a datos administrativos.
-//  · Usuario autenticado solo accede a lo que su rol permite.
-//  · El rol se lee de  usuarios/{uid}.rol  (nunca del frontend).
-//  · Las colecciones públicas (planes, métodos de pago y el alta
-//    de solicitudes) son lo ÚNICO accesible sin sesión.
+//  Ã‚Â· Usuario no autenticado NO accede a datos administrativos.
+//  Ã‚Â· Usuario autenticado solo accede a lo que su rol permite.
+//  Ã‚Â· El rol se lee de  usuarios/{uid}.rol  (nunca del frontend).
+//  Ã‚Â· Las colecciones pÃƒÂºblicas (planes, mÃƒÂ©todos de pago y el alta
+//    de solicitudes) son lo ÃƒÅ¡NICO accesible sin sesiÃƒÂ³n.
 //
 // IMPORTANTE: el documento usuarios/{uid} debe existir para cada
-// usuario autenticado (se crea vía Cloud Function/Admin SDK).
+// usuario autenticado (se crea vÃƒÂ­a Cloud Function/Admin SDK).
 //
-// App Check (sección 27): una vez configurado en la consola, se puede
-// reforzar añadiendo `&& request.app_check.token != null` a las reglas
+// App Check (secciÃƒÂ³n 27): una vez configurado en la consola, se puede
+// reforzar aÃƒÂ±adiendo `&& request.app_check.token != null` a las reglas
 // de escritura sensibles. No se activa por defecto para no bloquear el
 // desarrollo sin credenciales.
 // ============================================================
@@ -51,14 +51,14 @@ service cloud.firestore {
       allow create, update, delete: if esSuperAdmin();
     }
 
-    // ---------------- Público (landing) ----------------
-    // Planes: lectura pública (la landing muestra el precio), escritura solo admin.
+    // ---------------- PÃƒÂºblico (landing) ----------------
+    // Planes: lectura pÃƒÂºblica (la landing muestra el precio), escritura solo admin.
     match /planes/{planId} {
       allow read: if true;
       allow write: if esAdmin();
     }
 
-    // Métodos de pago: lectura pública, administración solo SUPERADMIN.
+    // MÃƒÂ©todos de pago: lectura pÃƒÂºblica, administraciÃƒÂ³n solo SUPERADMIN.
     match /metodos_pago/{metodoId} {
       allow read: if true;
       allow write: if esSuperAdmin();
@@ -78,10 +78,10 @@ service cloud.firestore {
     }
 
     // ---------------- Blog ----------------
-    // Publicados: lectura pública, porque el generador de HTML estático
-    // (tools/generar-blog.js) corre SIN sesión y los lee por la API REST con
-    // una consulta filtrada por `estado`. Los BORRADORES no son públicos:
-    // solo los ve el personal con sesión.
+    // Publicados: lectura pÃƒÂºblica, porque el generador de HTML estÃƒÂ¡tico
+    // (tools/generar-blog.js) corre SIN sesiÃƒÂ³n y los lee por la API REST con
+    // una consulta filtrada por `estado`. Los BORRADORES no son pÃƒÂºblicos:
+    // solo los ve el personal con sesiÃƒÂ³n.
     match /posts/{postId} {
       allow read: if esOperador();
       allow read: if resource.data.estado == 'PUBLICADO';
@@ -89,11 +89,11 @@ service cloud.firestore {
       allow delete: if esAdmin();
     }
 
-    // ---------------- Operación ----------------
+    // ---------------- OperaciÃƒÂ³n ----------------
     match /clientes/{clienteId} {
       allow read: if esOperador();
       allow create, update: if esAdmin();
-      allow delete: if false; // NUNCA se eliminan clientes físicamente.
+      allow delete: if false; // NUNCA se eliminan clientes fÃƒÂ­sicamente.
     }
 
     match /servicios/{servicioId} {
@@ -102,41 +102,17 @@ service cloud.firestore {
       allow delete: if false;
     }
 
-    match /pagos/{pagoId} {
-        // ── Integridad financiera (harness/unef-010) ─────────────────────
-        // Antes: solo se comprobaba el rol, así que un ADMIN podía crear un
-        // pago ya CONFIRMADO o con monto negativo, reescribir monto/cliente/
-        // autor de un pago existente, y un SUPERADMIN podía borrarlo.
-        function numero(v) { return v is number; }
-        function dineroIntacto() {
-          return request.resource.data.get('monto', null) == resource.data.get('monto', null)
-              && request.resource.data.get('clienteId', null) == resource.data.get('clienteId', null)
-              && request.resource.data.get('registradoPor', null) == resource.data.get('registradoPor', null)
-              && request.resource.data.get('createdAt', null) == resource.data.get('createdAt', null);
-        }
-        function tocados() { return request.resource.data.diff(resource.data).affectedKeys(); }
-        function transicionValida() {
-          return (resource.data.get('estado', '') == 'PENDIENTE' && request.resource.data.estado == 'CONFIRMADO')
-              || (resource.data.get('estado', '') == 'PENDIENTE' && request.resource.data.estado == 'ANULADO')
-              || (resource.data.get('estado', '') == 'CONFIRMADO' && request.resource.data.estado == 'ANULADO');
-        }
+      // ── pagos · solo servidor (harness/unef-010) ─────────────────────
+      // Los pagos los escriben Cloud Functions con Admin SDK, que NO pasa por
+      // estas reglas. Por eso el navegador no escribe nunca en `pagos`: cualquier
+      // escritura del SDK cliente se deniega, sin condiciones que se puedan
+      // sortear. La lectura sigue permitida al personal (OPERADOR+).
+      // LIMITACIÓN DECLARADA: esto cierra la vía del navegador; la exactitud de
+      // lo que escriben las funciones es responsabilidad de las funciones.
+      match /pagos/{pagoId} {
         allow read: if esOperador();
-        allow create: if esAdmin()
-          && request.resource.data.get('estado', '') == 'PENDIENTE'
-          && numero(request.resource.data.get('monto', 0))
-          && request.resource.data.get('monto', 0) > 0
-          && request.resource.data.get('clienteId', '') is string
-          && request.resource.data.get('clienteId', '').size() > 0;
-        allow update: if esAdmin()
-          && dineroIntacto()
-          && transicionValida()
-          && tocados().hasOnly(['estado','confirmadoPor','confirmadoEn','periodoInicio','periodoFin','anuladoPor','motivo','anuladoEn','metodoPago','referencia','comprobanteUrl']);
-        allow delete: if false; // un pago se anula; jamás se borra
-      } {
-      allow read: if esOperador();
-      allow create, update: if esAdmin();
-      allow delete: if esSuperAdmin();
-    }
+        allow create, update, delete: if false;
+      }
 
     match /historial_estados/{historialId} {
       allow read: if esOperador();
@@ -152,12 +128,12 @@ service cloud.firestore {
 
     match /tokens_notificacion/{tokenId} {
       allow read: if esOperador();
-      // El alta es pública porque el portal del cliente registra su propio token
+      // El alta es pÃƒÂºblica porque el portal del cliente registra su propio token
       // tras autorizar las notificaciones. Pero NO se acepta cualquier cosa: la
-      // forma del documento se valida aquí para que nadie use esta vía como
-      // buzón de basura. (Esta regla es visible en el archivo de reglas, que es
-      // público: por eso importa que lo abierto sea abierto con condiciones y no
-      // un `if true` a secas. No se pueden enumerar `clientes` sin sesión, así
+      // forma del documento se valida aquÃƒÂ­ para que nadie use esta vÃƒÂ­a como
+      // buzÃƒÂ³n de basura. (Esta regla es visible en el archivo de reglas, que es
+      // pÃƒÂºblico: por eso importa que lo abierto sea abierto con condiciones y no
+      // un `if true` a secas. No se pueden enumerar `clientes` sin sesiÃƒÂ³n, asÃƒÂ­
       // que no hay forma de registrar un token en el cliente de otro.)
       allow create: if request.resource.data.keys().hasAll(['clienteId', 'token'])
                     && request.resource.data.clienteId is string
@@ -175,7 +151,7 @@ service cloud.firestore {
     match /auditoria/{auditoriaId} {
       allow read: if esSuperAdmin();
       allow create: if false; // Solo el servidor (Admin SDK) escribe.
-      allow update, delete: if false; // Auditoría inmutable.
+      allow update, delete: if false; // AuditorÃƒÂ­a inmutable.
     }
 
     match /configuracion/{configId} {
