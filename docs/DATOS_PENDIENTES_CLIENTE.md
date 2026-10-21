@@ -144,7 +144,7 @@ Pendiente de decisión técnica: agregar los clics requiere escrituras desde el 
 - Sin contratos de permanencia.
 - **Instalación GRATIS ($0 COP)** (confirmado en la Fase 11).
 - **Métodos de pago:** Nequi, Transferencia Bancolombia y Efectivo (solo nombres).
-- **Recordatorios:** 7 y 3 días antes + el mismo día (0). **Suspensión:** a los 3 días de mora.
+- **Recordatorios:** 3 días antes + el mismo día (0). **Suspensión:** a los 3 días de mora.
 - Soporte por WhatsApp (la garantía de «instalación en 48 horas» está publicada).
 
 ---

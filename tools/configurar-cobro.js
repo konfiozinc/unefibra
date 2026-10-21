@@ -11,7 +11,7 @@
  *   configuracion/soporte                  → WhatsApp que van en el mensaje
  *   configuracion/plantillasMensaje        → textos editables de los mensajes
  *   configuracion/camposDireccionObligatorios → exigir los datos de dirección
- *   configuracion/diasAntes/diasDespues/diasSuspension → recordatorios 7/3/0 y suspensión 3 días
+ *   configuracion/diasAntes/diasDespues/diasSuspension → recordatorios 3/0 (3 días antes + el mismo día) y suspensión 3 días
  *   configuracion/instalacionGratis        → instalación gratuita ($0 COP)
  *
  * Es IDEMPOTENTE: usa identificadores fijos, así que ejecutarlo dos veces
@@ -183,10 +183,10 @@ async function escribir(token, ruta, campos) {
   // ---------------- Recordatorios y suspensión (decisión comercial confirmada) ----------------
   cambios.push({
     ruta: "configuracion/diasAntes",
-    que: "Recordatorios: 7 y 3 días antes del vencimiento",
+    que: "Recordatorio: 3 días antes del vencimiento",
     campos: {
       clave: "diasAntes",
-      valor: [7, 3],
+      valor: [3],
       descripcion: "Días antes del vencimiento para recordatorios",
       updatedAt: ahora
     }

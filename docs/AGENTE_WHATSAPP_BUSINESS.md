@@ -277,10 +277,10 @@ El cliente **envía el comprobante por WhatsApp** para registrarlo en contabilid
   | **Ciclo 15** | día **15** de cada mes | día **20** de cada mes |
   | **Ciclo 30** | día **30** de cada mes | día **5** del **mes siguiente** |
 
-- El sistema envía recordatorios automáticos **7 y 3 días antes** del vencimiento y
+- El sistema envía recordatorios automáticos **3 días antes** del vencimiento y
   **el mismo día (0)**. Por WhatsApp queda activo el aviso del **mismo día**
-  (`recordatorio_pago_hoy`); los avisos previos por WhatsApp (7 y 3 días) quedan
-  pendientes de crear sus templates en Meta (ver `WHATSAPP_META_SETUP.md`).
+  (`recordatorio_pago_hoy`); el aviso previo por WhatsApp (3 días) queda
+  pendiente de crear su template en Meta (ver `WHATSAPP_META_SETUP.md`).
 - Si el cliente **ya pagó por adelantado** hasta ese corte, **no se le envía recordatorio**.
 - Si la factura **se vence**, el servicio puede ser **suspendido**.
 - **El agente no calcula ni promete fechas de corte personalizadas**: eso depende de la

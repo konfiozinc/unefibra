@@ -341,9 +341,9 @@ async function ejecutarMotorVencimientos() {
     const cfg = {};
     cfgSnap.forEach((d) => (cfg[d.id] = d.data().valor));
 
-    // Recordatorios (decisión comercial confirmada): 7 y 3 días antes del
-    // vencimiento, y el mismo día (0). Suspensión: 3 días naturales de mora.
-    const diasAntes = cfg.diasAntes || [7, 3];
+    // Recordatorios (decisión comercial confirmada): 3 días antes del vencimiento
+    // y el mismo día (0). Suspensión: 3 días naturales de mora.
+    const diasAntes = cfg.diasAntes || [3];
     const diasDespues = cfg.diasDespues || [0];
     const diasSuspension = cfg.diasSuspension || 3;
 
@@ -476,8 +476,7 @@ async function ejecutarMotorVencimientos() {
           resumen.notificaciones++;
 
           // WhatsApp: el recordatorio "X días antes" ya no se envía desde aquí.
-          // El intervalo de 5 días quedó fuera de la configuración 7/3/0. El aviso
-          // por WhatsApp queda solo para el día del vencimiento (template
+          // El aviso por WhatsApp queda solo para el día del vencimiento (template
           // "recordatorio_pago_hoy"), más abajo.
 
           if (avisarPorCorte) {

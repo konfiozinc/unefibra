@@ -54,7 +54,7 @@ Luego, desde **Usuarios** del panel ya puedes crear los demás.
 
 1. **Planes → + Nuevo plan**: crea los 5 planes del volante — 100/150/200/250/300 Mbps ($50.000/$60.000/$70.000/$85.000/$100.000, 30 días).
 2. **Configuración → Métodos de pago**: agregar Nequi, Transferencia Bancolombia y Efectivo (solo nombres; la cuenta bancaria y el teléfono de Nequi se cargan cuando el cliente los entregue).
-3. **Configuración → Recordatorios**: revisar `7,3` / `0` / `3`.
+3. **Configuración → Recordatorios**: revisar `3` / `0` / `3`.
 
 ## 6. GitHub Pages
 

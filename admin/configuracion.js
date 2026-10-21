@@ -215,7 +215,7 @@ async function cargarConfig() {
   const snap = await getDocs(collection(db, "configuracion"));
   const cfg = {};
   snap.forEach((d) => { cfg[d.id] = d.data().valor; });
-  document.getElementById("cfg-diasAntes").value = (cfg.diasAntes || [7, 3]).join(", ");
+  document.getElementById("cfg-diasAntes").value = (cfg.diasAntes || [3]).join(", ");
   document.getElementById("cfg-diasDespues").value = (cfg.diasDespues || [0]).join(", ");
   document.getElementById("cfg-diasSuspension").value = cfg.diasSuspension ?? 3;
 

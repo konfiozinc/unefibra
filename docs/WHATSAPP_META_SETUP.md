@@ -8,9 +8,9 @@ en Meta y luego setear 2 secrets en Firebase.
 **Recordatorio implementado en código (1):**
 1. **Día del vencimiento (0)** → template `recordatorio_pago_hoy`
 
-**Pendientes de template en Meta:** los recordatorios de **7 y 3 días antes** del
-vencimiento (decisión comercial confirmada 7/3/0). Hasta crear y aprobar esos templates,
-los avisos previos salen por notificación (push / dentro del panel), no por WhatsApp.
+**Pendiente de template en Meta:** el recordatorio de **3 días antes** del
+vencimiento (decisión comercial confirmada 3/0). Hasta crear y aprobar ese template,
+el aviso previo sale por notificación (push / dentro del panel), no por WhatsApp.
 
 ---
 
@@ -47,11 +47,11 @@ Hola {{1}}, hoy vence tu pago. Realízalo para evitar la suspensión de tu servi
 ```
 - Variables: `{{1}}` = nombre
 
-### Pendientes (7 y 3 días antes)
-Cuando el cliente quiera recordatorios por WhatsApp también **7 y 3 días antes**, crear dos
-templates más (p. ej. `recordatorio_pago_7_dias` y `recordatorio_pago_3_dias`) y volver a
-conectar el envío en `functions/src/index.js`. Hoy el motor envía esos avisos por
-notificación (push / dentro del panel), no por WhatsApp.
+### Pendiente (3 días antes)
+Cuando el cliente quiera el recordatorio por WhatsApp también **3 días antes**, crear un
+template más (p. ej. `recordatorio_pago_3_dias`) y volver a conectar el envío en
+`functions/src/index.js`. Hoy el motor envía ese aviso por notificación
+(push / dentro del panel), no por WhatsApp.
 
 > ⚠️ El nombre del template debe quedar **exactamente** igual al que usa el código
 > (`recordatorio_pago_hoy`).

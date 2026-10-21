@@ -1,8 +1,8 @@
 'use strict';
 /* Motor de vencimientos (trigger controlado, emulador): verifica las decisiones
-   comerciales CONFIRMADAS — recordatorios 7/3/0, suspensión a los 3 días de mora,
-   instalación gratis y medios de pago (solo nombres). Usa el callable
-   `ejecutarMotor` (SUPERADMIN) para no esperar el cron. */
+   comerciales CONFIRMADAS — recordatorios 3/0 (3 días antes + el mismo día),
+   suspensión a los 3 días de mora, instalación gratis y medios de pago (solo
+   nombres). Usa el callable `ejecutarMotor` (SUPERADMIN) para no esperar el cron. */
 const FS='http://127.0.0.1:8080', FN='http://127.0.0.1:5001', AUTH='http://127.0.0.1:9199', P='demo-unefibra', K='clave-ficticia';
 const u=r=>`${FS}/v1/projects/${P}/databases/(default)/documents/${r}`;
 const s=v=>({stringValue:v}), n=v=>({integerValue:String(v)}), b=v=>({booleanValue:v});
@@ -24,9 +24,9 @@ let ok=0,fail=0;const chk=(nm,c,d)=>{if(c){ok++;console.log('  PASA   '+nm.padEn
   await crear('usuarios',ad.uid,{email:s('motor@i.test'),rol:s('SUPERADMIN'),activo:b(true),nombre:s('Admin Motor')});
   await crear('planes','p1',{nombre:s('Plan'),precio:n(50000),duracion:n(30),estado:s('ACTIVO')});
 
-  // Configuración comercial CONFIRMADA (recordatorios 7/3/0, suspensión 3, instalación gratis).
+  // Configuración comercial CONFIRMADA (recordatorios 3/0, suspensión 3, instalación gratis).
   const arrInt=(xs)=>({arrayValue:{values:xs.map(x=>({integerValue:String(x)}))}});
-  await crear('configuracion','diasAntes',{clave:s('diasAntes'),valor:arrInt([7,3]),descripcion:s('Recordatorios 7 y 3 días antes')});
+  await crear('configuracion','diasAntes',{clave:s('diasAntes'),valor:arrInt([3]),descripcion:s('Recordatorio 3 días antes')});
   await crear('configuracion','diasDespues',{clave:s('diasDespues'),valor:arrInt([0]),descripcion:s('El mismo día (0)')});
   await crear('configuracion','diasSuspension',{clave:s('diasSuspension'),valor:n(3),descripcion:s('Suspensión a los 3 días de mora')});
   await crear('configuracion','instalacionGratis',{clave:s('instalacionGratis'),valor:b(true),descripcion:s('Instalación $0 COP')});
@@ -72,10 +72,21 @@ let ok=0,fail=0;const chk=(nm,c,d)=>{if(c){ok++;console.log('  PASA   '+nm.padEn
   // Configuración sembrada correctamente.
   chk('config diasSuspension = 3', (await leer('configuracion/diasSuspension')).j.fields.valor.integerValue==='3');
   chk('config instalacionGratis = true', (await leer('configuracion/instalacionGratis')).j.fields.valor.booleanValue===true);
+  const da = (await leer('configuracion/diasAntes')).j.fields.valor;
+  const diasArr = (da && da.arrayValue && da.arrayValue.values) ? da.arrayValue.values.map(v=>v.integerValue) : [];
+  chk('config diasAntes = [3] (sin 7)', diasArr.length===1 && diasArr[0]==='3', 'diasAntes='+JSON.stringify(diasArr));
   const mp = await listar('metodos_pago');
   const nombres = mp.map(x=>x.fields.nombre.stringValue).sort();
   const esperados = ['Efectivo','Nequi','Transferencia Bancolombia'].sort();
   chk('3 métodos de pago (solo nombres)', mp.length===3 && JSON.stringify(nombres)===JSON.stringify(esperados), nombres.join(', '));
+
+  // Anti-duplicados: correr el motor otra vez no re-suspende ni re-audita.
+  const audSuspend1 = (await listar('auditoria')).filter(x=>x.fields.accion.stringValue==='SUSPENDER_SERVICIO').length;
+  const r2 = await callable('ejecutarMotor',{},ad.tok);
+  const resumen2 = (r2.j && r2.j.result) || {};
+  chk('segunda corrida: no re-suspende', resumen2.suspendidos===0, 'suspendidos2='+resumen2.suspendidos);
+  const audSuspend2 = (await listar('auditoria')).filter(x=>x.fields.accion.stringValue==='SUSPENDER_SERVICIO').length;
+  chk('segunda corrida: no duplica auditoría de suspensión', audSuspend2===audSuspend1, `SUSPENDER_SERVICIO ${audSuspend1}→${audSuspend2}`);
 
   console.log(`\n  TOTAL ${ok+fail} · PASA ${ok} · FALLA ${fail}`);
   process.exit(fail?1:0);
