@@ -21,9 +21,12 @@ if (!isConfigured()) {
   throw new Error("Firebase no configurado");
 }
 
-// Si ya hay sesión, ir directo al dashboard.
+// Si ya había sesión al cargar la página, ir directo al dashboard.
+// (No redirigir durante un login en curso: el redirect lo hace el submit
+//  DESPUÉS de verificar el rol, evitando una carrera con Firestore.)
+let loginEnCurso = false;
 onAuthStateChanged(auth, (user) => {
-  if (user) location.replace("dashboard.html");
+  if (user && !loginEnCurso) location.replace("dashboard.html");
 });
 
 form.addEventListener("submit", async (ev) => {
@@ -43,6 +46,7 @@ form.addEventListener("submit", async (ev) => {
 
   submit.disabled = true;
   submit.textContent = "Verificando…";
+  loginEnCurso = true;
 
   try {
     const cred = await signInWithEmailAndPassword(auth, email, password);

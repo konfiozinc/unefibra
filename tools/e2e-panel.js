@@ -21,11 +21,16 @@ const chk = (c, n, d='') => { if (c) { ok++; console.log('  PASA   ' + n + (d?' 
   await pag.fill('input[name="email"]', 'admin@unefibra.test');
   await pag.fill('input[name="password"]', 'AdminFicticio#1');
   await pag.click('#login-submit');
-  await pag.waitForTimeout(2500);
+  await pag.waitForTimeout(3500);
+  chk(pag.url().includes('dashboard.html'), 'login redirige al dashboard', pag.url());
 
-  // 2) sesión establecida → dashboard renderiza el shell con el rol correcto.
-  await pag.goto(BASE + 'admin/dashboard.html?emulador=1', { waitUntil: 'load', timeout: 60000 });
-  await pag.waitForTimeout(3000);
+  // 2) dashboard renderiza el shell con el rol correcto.
+  if (!pag.url().includes('dashboard.html')) {
+    await pag.goto(BASE + 'admin/dashboard.html?emulador=1', { waitUntil: 'load', timeout: 60000 });
+    await pag.waitForTimeout(2500);
+  } else {
+    await pag.waitForTimeout(1500);
+  }
   const shell = await pag.evaluate(() => ({
     url: location.href,
     superadmin: document.body.textContent.includes('SUPERADMIN'),

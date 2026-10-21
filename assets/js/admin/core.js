@@ -19,9 +19,18 @@ function esPlaceholder(v) {
   return !v || typeof v !== "string" || v.startsWith("[") || v.indexOf("FIREBASE_") !== -1 || v.indexOf("[TU_") !== -1;
 }
 
-// Dev: ?emulador=1 conecta Auth/Firestore a los emuladores (nunca en producción).
+// Dev: ?emulador=1 conecta Auth/Firestore a los emuladores. El flag se guarda en
+// sessionStorage para que sobreviva a las redirecciones internas del panel
+// (login → dashboard), que usan rutas relativas sin el parámetro.
 function esModoEmulador() {
-  return new URLSearchParams(window.location.search).get("emulador") === "1";
+  try {
+    if (new URLSearchParams(window.location.search).get("emulador") === "1") {
+      sessionStorage.setItem("unefibra-emulador", "1");
+    }
+    return sessionStorage.getItem("unefibra-emulador") === "1";
+  } catch (e) {
+    return false;
+  }
 }
 
 /** Indica si Firebase está realmente configurado (sin placeholders). */
