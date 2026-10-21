@@ -140,9 +140,9 @@ function renderTabla(ciclo) {
     </table>`;
 
   // El texto NO se arma aquí: lo construye la Cloud Function `mensajeCobro` con
-  // la plantilla, la cuenta bancaria y los WhatsApp configurados. Así el mensaje
-  // que envía el operador es exactamente el mismo que manda el sistema solo, y el
-  // panel no necesita tener los datos bancarios en memoria.
+  // la plantilla, la cuenta bancaria y los WhatsApp configurados. El operador abre
+  // WhatsApp Business con el mensaje prellenado y lo envía manualmente; abrir
+  // WhatsApp no registra ningún envío (no hay envío automático ni Cloud API).
   cont.querySelectorAll("[data-wa]").forEach((btn) => {
     btn.addEventListener("click", async (ev) => {
       ev.stopPropagation();

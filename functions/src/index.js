@@ -20,7 +20,11 @@
  *   3. firebase deploy --only functions
  * ============================================================ */
 
-const functions = require("firebase-functions");
+// firebase-functions 7 expone la API v2 en el export raíz. El frontend usa el SDK
+// de Firebase 10.12.2, que solo invoca callables v1 (https://...cloudfunctions.net).
+// Por eso se usa la API v1 explícita (`firebase-functions/v1`), que produce funciones
+// v1 compatibles con el panel y con el despliegue productivo existente.
+const functions = require("firebase-functions/v1");
 const admin = require("firebase-admin");
 // firebase-admin 14 quita los namespaces legacy (admin.firestore/admin.messaging/
 // admin.auth): se usan los submódulos oficiales.
@@ -32,14 +36,6 @@ admin.initializeApp();
 
 const db = getFirestore();
 const messaging = getMessaging();
-
-/* firebase-functions 7 cambió `functions.https.onCall` a la variante v2, que invoca
-   el handler como (request, response) con `request.data` y `request.auth`. Para no
-   reescribir los 18 callables con la firma v1 (data, context), este shim conserva
-   esa firma: `context` recibe el `request` v2 (que trae `.auth` con uid/token). */
-function onCall(handler) {
-  return functions.https.onCall(async (request) => handler(request.data, request));
-}
 
 /* ------------------------------------------------------------------
  * Constantes de estados (coinciden con el modelo de datos)
@@ -143,7 +139,6 @@ const {
 
 const { enviarAlertaError } = require("./alertas");
 const { exportarFirestore } = require("./backup");
-const { enviarWhatsApp } = require("./whatsapp");
 
 /* ------------------------------------------------------------------
  * Contexto de los mensajes de cobro
@@ -311,23 +306,11 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
  *   7. Si corresponde → SUSPENDIDO.
  *   8. Auditoría.
  * ============================================================ */
-// ⚠️ OJO — SECRETOS DE WHATSAPP DESACTIVADOS A PROPÓSITO (06-oct-2026):
-// `META_WHATSAPP_TOKEN` y `META_PHONE_NUMBER_ID` NO existen en Secret Manager, y
-// mientras estén en esta lista el despliegue FALLA COMPLETO con:
-//     "Failed to validate secret versions: ... not found or has no versions"
-// Eso dejó el proyecto SIN PODER DESPLEGAR FUNCIONES desde el 4-oct: el código
-// en producción quedó congelado en esa fecha (con la regla de cortes vieja) y
-// nadie lo notó porque el error solo sale al correr el deploy.
-//
-// Consecuencia actual, ya con o sin esta lista: `enviarWhatsApp()` lanza
-// "Faltan secretos de WhatsApp" y el wrapper lo descarta escribiendo en consola,
-// así que los recordatorios por WhatsApp NO se están enviando. Sacarlos de aquí
-// no empeora nada: sin secretos, el envío ya fallaba igual.
-//
-// PARA RESTAURARLO (cuando el cliente entregue sus credenciales de Meta):
-//   1. firebase functions:secrets:set META_WHATSAPP_TOKEN  --project une-fibra
-//   2. firebase functions:secrets:set META_PHONE_NUMBER_ID --project une-fibra
-//   3. volver a agregarlos a esta lista y desplegar.
+// NOTA (lanzamiento): la integración con WhatsApp Cloud API quedó CANCELADA de
+// forma definitiva. Los recordatorios se preparan como avisos en el panel
+// (`notificaciones` + push) y el empleado los envía por WhatsApp Business de forma
+// manual con el mensaje prellenado (botón "Cobrar" de las listas de corte). No hay
+// llamadas a la Cloud API ni dependencia de plantillas de Meta.
 /* Motor de vencimientos. Lógica en una función propia para poder dispararla:
    - desde el cron diario (processDueDates) y
    - manualmente desde un callable (ejecutarMotor, solo SUPERADMIN) para operación
@@ -346,19 +329,6 @@ async function ejecutarMotorVencimientos() {
     const diasAntes = cfg.diasAntes || [3];
     const diasDespues = cfg.diasDespues || [0];
     const diasSuspension = cfg.diasSuspension || 3;
-
-    // Recordatorio por WhatsApp: solo si el cliente dio su número (opt-in implícito)
-    // y no optó por salir explícitamente (whatsappOptIn === false).
-    const enviarWhatsAppCliente = async (cliente, template, variables) => {
-      if (!cliente.whatsapp || cliente.whatsappOptIn === false) return false;
-      try {
-        await enviarWhatsApp({ telefono: cliente.whatsapp, template, variables });
-        return true;
-      } catch (e) {
-        console.error(`WhatsApp falló para ${cliente.id}:`, e.message);
-        return false;
-      }
-    };
 
     // 1.bis) Ciclos de corte. Rellena el ciclo de los clientes que no lo tengan
     // (así se migran solos los que ya existían) y refresca el próximo corte,
@@ -475,10 +445,6 @@ async function ejecutarMotorVencimientos() {
           );
           resumen.notificaciones++;
 
-          // WhatsApp: el recordatorio "X días antes" ya no se envía desde aquí.
-          // El aviso por WhatsApp queda solo para el día del vencimiento (template
-          // "recordatorio_pago_hoy"), más abajo.
-
           if (avisarPorCorte) {
             resumen.avisosCorte++;
             // Queda registrado que a este cliente ya se le avisó con n días.
@@ -507,7 +473,6 @@ async function ejecutarMotorVencimientos() {
         );
         if (nueva) {
           await enviarPush(cliente.id, "Tu factura está vencida", "Tu servicio será suspendido.");
-          await enviarWhatsAppCliente(cliente, "recordatorio_pago_hoy", [cliente.nombreCompleto || "cliente"]);
           resumen.notificaciones++;
           resumen.avisosCorte++;
           await clienteRef.update({
@@ -536,9 +501,6 @@ async function ejecutarMotorVencimientos() {
         );
         if (nueva) {
           await enviarPush(cliente.id, "Aviso UneFibra", n === 0 ? "Hoy vence tu servicio." : "Tienes un pago pendiente.");
-          if (n === 0) {
-            await enviarWhatsAppCliente(cliente, "recordatorio_pago_hoy", [cliente.nombreCompleto || "cliente"]);
-          }
           resumen.notificaciones++;
         }
       }
@@ -598,18 +560,16 @@ async function ejecutarMotorVencimientos() {
     }
 }
 
-/* Cron diario (10:00 Bogotá). firebase-functions 7 usa scheduler.onSchedule. */
-exports.processDueDates = functions.scheduler.onSchedule(
-  {
-    schedule: "0 10 * * *", // 10:00 diario, hora de Bogotá (antes 08:00)
-    timeZone: "America/Bogota",
-    secrets: ["SENDGRID_API_KEY"]
-  },
-  () => ejecutarMotorVencimientos()
-);
+/* Cron diario (10:00 Bogotá). v1: pubsub.schedule + timeZone. */
+exports.processDueDates = functions
+  .runWith({ secrets: ["SENDGRID_API_KEY"] })
+  .pubsub
+  .schedule("0 10 * * *") // 10:00 diario, hora de Bogotá (antes 08:00)
+  .timeZone("America/Bogota")
+  .onRun(() => ejecutarMotorVencimientos());
 
 /* Disparo manual (solo SUPERADMIN) para operación y pruebas controladas. */
-exports.ejecutarMotor = onCall(async (data, context) => {
+exports.ejecutarMotor = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
   return ejecutarMotorVencimientos();
 });
@@ -617,14 +577,12 @@ exports.ejecutarMotor = onCall(async (data, context) => {
 /* ============================================================
  * MÓDULO: BACKUP DIARIO (función programada)
  * ============================================================ */
-exports.backupFirestore = functions.scheduler.onSchedule(
-  {
-    schedule: "0 3 * * *", // 03:00 diario, hora de Bogotá
-    timeZone: "America/Bogota",
-    secrets: ["SENDGRID_API_KEY"],
-    timeoutSeconds: 540
-  },
-  async () => {
+exports.backupFirestore = functions
+  .runWith({ secrets: ["SENDGRID_API_KEY"], timeoutSeconds: 540 })
+  .pubsub
+  .schedule("0 3 * * *") // 03:00 diario, hora de Bogotá
+  .timeZone("America/Bogota")
+  .onRun(async () => {
     try {
       const destino = await exportarFirestore();
       console.log("Backup de Firestore completado:", destino);
@@ -638,13 +596,12 @@ exports.backupFirestore = functions.scheduler.onSchedule(
       }
       throw err;
     }
-  }
-);
+  });
 
 /* ============================================================
  * MÓDULO: CLIENTES (callable)
  * ============================================================ */
-exports.crearCliente = onCall(async (data, context) => {
+exports.crearCliente = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { nombreCompleto, documento, telefono, planId, precioMensual } = data || {};
@@ -757,7 +714,7 @@ exports.crearCliente = onCall(async (data, context) => {
  * No es obligatorio ejecutarla, porque el motor diario hace el mismo trabajo;
  * sirve para no tener que esperar a la madrugada justo después de desplegar.
  */
-exports.migrarCiclosCorte = onCall(async (data, context) => {
+exports.migrarCiclosCorte = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
 
   const snap = await db.collection("clientes").get();
@@ -829,7 +786,7 @@ const CAMPOS_BOOLEANOS_CLIENTE = ["whatsappOptIn"];
  *  - Si cambia el ciclo de corte, se recalcula `proximoCorte` con la regla
  *    vigente (ciclo 15 -> corte el día 20; ciclo 30 -> corte el día 5).
  */
-exports.actualizarCliente = onCall(async (data, context) => {
+exports.actualizarCliente = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
   const clienteId = data && data.clienteId;
   if (!clienteId) throw new functions.https.HttpsError("invalid-argument", "Se requiere clienteId.");
@@ -910,7 +867,7 @@ exports.actualizarCliente = onCall(async (data, context) => {
  * Si se quiere archivar en vez de borrar de verdad, usar
  * `clientes_hoja3_4_backup` como referencia del patrón.
  */
-exports.eliminarCliente = onCall(async (data, context) => {
+exports.eliminarCliente = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
   const clienteId = data && data.clienteId;
   if (!clienteId) throw new functions.https.HttpsError("invalid-argument", "Se requiere clienteId.");
@@ -945,7 +902,7 @@ exports.eliminarCliente = onCall(async (data, context) => {
  * @param {string} clienteId
  * @param {"antesCorte"|"despuesCorte"} tipo  por defecto "antesCorte"
  */
-exports.mensajeCobro = onCall(async (data, context) => {
+exports.mensajeCobro = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["OPERADOR", "ADMIN", "SUPERADMIN"]);
 
   const { clienteId, tipo } = data || {};
@@ -1007,7 +964,7 @@ exports.mensajeCobro = onCall(async (data, context) => {
  * confirmarPago  → confirma y renueva el servicio en transacción
  *                  (evita extensiones/cobros duplicados).
  * ============================================================ */
-exports.registrarPago = onCall(async (data, context) => {
+exports.registrarPago = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { clienteId, servicioId, monto, metodoPago, referencia, comprobanteUrl } = data || {};
@@ -1054,7 +1011,7 @@ exports.registrarPago = onCall(async (data, context) => {
   return { id: ref.id, estado: ESTADO_PAGO.PENDIENTE };
 });
 
-exports.confirmarPago = onCall(async (data, context) => {
+exports.confirmarPago = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { pagoId } = data || {};
@@ -1147,7 +1104,7 @@ exports.confirmarPago = onCall(async (data, context) => {
   return { id: pagoId, estado: ESTADO_PAGO.CONFIRMADO };
 });
 
-exports.anularPago = onCall(async (data, context) => {
+exports.anularPago = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { pagoId, motivo } = data || {};
@@ -1228,22 +1185,22 @@ async function cambiarEstadoCliente(clienteId, estadoNuevo, estadoServicioNuevo,
   return { clienteId, estado: estadoNuevo };
 }
 
-exports.activarServicio = onCall((data, context) =>
+exports.activarServicio = functions.https.onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.ACTIVO, ESTADO_SERVICIO.ACTIVO, "Activación de servicio", context, "ACTIVAR_SERVICIO"));
 
-exports.suspenderServicio = onCall((data, context) =>
+exports.suspenderServicio = functions.https.onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.SUSPENDIDO, ESTADO_SERVICIO.SUSPENDIDO, data.motivo || "Suspensión administrativa", context, "SUSPENDER_SERVICIO"));
 
-exports.desactivarServicio = onCall((data, context) =>
+exports.desactivarServicio = functions.https.onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.INACTIVO, ESTADO_SERVICIO.INACTIVO, data.motivo || "Cliente retirado", context, "DESACTIVAR_SERVICIO"));
 
-exports.reactivarServicio = onCall((data, context) =>
+exports.reactivarServicio = functions.https.onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.ACTIVO, ESTADO_SERVICIO.ACTIVO, "Reactivación de cliente", context, "REACTIVAR_SERVICIO"));
 
 /* ============================================================
  * MÓDULO: ENVÍO MANUAL DE NOTIFICACIÓN (callable)
  * ============================================================ */
-exports.enviarNotificacion = onCall(async (data, context) => {
+exports.enviarNotificacion = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { clienteId, titulo, mensaje } = data || {};
@@ -1273,7 +1230,7 @@ exports.enviarNotificacion = onCall(async (data, context) => {
 /* ============================================================
  * MÓDULO: USUARIOS (callable, solo SUPERADMIN)
  * ============================================================ */
-exports.crearUsuario = onCall(async (data, context) => {
+exports.crearUsuario = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
 
   const { nombre, email, password, rol } = data || {};
@@ -1307,7 +1264,7 @@ exports.crearUsuario = onCall(async (data, context) => {
   return { uid: userRecord.uid };
 });
 
-exports.actualizarUsuario = onCall(async (data, context) => {
+exports.actualizarUsuario = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
 
   const { uid, rol, activo, nombre } = data || {};
@@ -1341,7 +1298,7 @@ exports.actualizarUsuario = onCall(async (data, context) => {
  * Crea/borra datos DEMO claramente identificados (campo
  * `demo: true` + prefijo "DEMO -"). Nunca mezclar con datos reales.
  * ============================================================ */
-exports.seedDemo = onCall(async (data, context) => {
+exports.seedDemo = functions.https.onCall(async (data, context) => {
     // ── Guardián de entorno (harness/unef-010) ──────────────────────────
     // Estas funciones crean o borran datos de demostración. En producción no
     // deben poder ejecutarse: se exige el emulador o el proyecto demo.
@@ -1450,7 +1407,7 @@ exports.seedDemo = onCall(async (data, context) => {
   return { creados: demoClientes.length };
 });
 
-exports.borrarDemo = onCall(async (data, context) => {
+exports.borrarDemo = functions.https.onCall(async (data, context) => {
     // ── Guardián de entorno (harness/unef-010) ──────────────────────────
     // Estas funciones crean o borran datos de demostración. En producción no
     // deben poder ejecutarse: se exige el emulador o el proyecto demo.
