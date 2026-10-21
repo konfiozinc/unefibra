@@ -22,20 +22,24 @@
 
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
-
-// ADMIN_FIELDVALUE_FIX: en firebase-admin 12 el namespace no expone firebase.firestore.FieldValue
-// en el emulador; sin esto, cualquier serverTimestamp() revienta con TypeError y el pago no se crea.
-try {
-  const _fvs = require('firebase-admin/firestore');
-  if (!admin.firestore.FieldValue) { admin.firestore.FieldValue = _fvs.FieldValue; }
-  if (!admin.firestore.Timestamp) { admin.firestore.Timestamp = _fvs.Timestamp; }
-} catch (e) { /* si el paquete no expone el submódulo, se sigue como antes */ }
+// firebase-admin 14 quita los namespaces legacy (admin.firestore/admin.messaging/
+// admin.auth): se usan los submódulos oficiales.
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
+const { getMessaging } = require("firebase-admin/messaging");
+const { getAuth } = require("firebase-admin/auth");
 
 admin.initializeApp();
 
-const db = admin.firestore();
-const messaging = admin.messaging();
-const { FieldValue, Timestamp } = require('firebase-admin/firestore');
+const db = getFirestore();
+const messaging = getMessaging();
+
+/* firebase-functions 7 cambió `functions.https.onCall` a la variante v2, que invoca
+   el handler como (request, response) con `request.data` y `request.auth`. Para no
+   reescribir los 18 callables con la firma v1 (data, context), este shim conserva
+   esa firma: `context` recibe el `request` v2 (que trae `.auth` con uid/token). */
+function onCall(handler) {
+  return functions.https.onCall(async (request) => handler(request.data, request));
+}
 
 /* ------------------------------------------------------------------
  * Constantes de estados (coinciden con el modelo de datos)
@@ -595,16 +599,18 @@ async function ejecutarMotorVencimientos() {
     }
 }
 
-/* Cron diario (10:00 Bogotá). */
-exports.processDueDates = functions
-  .runWith({ secrets: ["SENDGRID_API_KEY"] })
-  .pubsub
-  .schedule("0 10 * * *") // 10:00 diario, hora de Bogotá (antes 08:00)
-  .timeZone("America/Bogota")
-  .onRun(() => ejecutarMotorVencimientos());
+/* Cron diario (10:00 Bogotá). firebase-functions 7 usa scheduler.onSchedule. */
+exports.processDueDates = functions.scheduler.onSchedule(
+  {
+    schedule: "0 10 * * *", // 10:00 diario, hora de Bogotá (antes 08:00)
+    timeZone: "America/Bogota",
+    secrets: ["SENDGRID_API_KEY"]
+  },
+  () => ejecutarMotorVencimientos()
+);
 
 /* Disparo manual (solo SUPERADMIN) para operación y pruebas controladas. */
-exports.ejecutarMotor = functions.https.onCall(async (data, context) => {
+exports.ejecutarMotor = onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
   return ejecutarMotorVencimientos();
 });
@@ -612,12 +618,14 @@ exports.ejecutarMotor = functions.https.onCall(async (data, context) => {
 /* ============================================================
  * MÓDULO: BACKUP DIARIO (función programada)
  * ============================================================ */
-exports.backupFirestore = functions
-  .runWith({ secrets: ["SENDGRID_API_KEY"], timeoutSeconds: 540 })
-  .pubsub
-  .schedule("0 3 * * *") // 03:00 diario, hora de Bogotá
-  .timeZone("America/Bogota")
-  .onRun(async () => {
+exports.backupFirestore = functions.scheduler.onSchedule(
+  {
+    schedule: "0 3 * * *", // 03:00 diario, hora de Bogotá
+    timeZone: "America/Bogota",
+    secrets: ["SENDGRID_API_KEY"],
+    timeoutSeconds: 540
+  },
+  async () => {
     try {
       const destino = await exportarFirestore();
       console.log("Backup de Firestore completado:", destino);
@@ -631,12 +639,13 @@ exports.backupFirestore = functions
       }
       throw err;
     }
-  });
+  }
+);
 
 /* ============================================================
  * MÓDULO: CLIENTES (callable)
  * ============================================================ */
-exports.crearCliente = functions.https.onCall(async (data, context) => {
+exports.crearCliente = onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { nombreCompleto, documento, telefono, planId, precioMensual } = data || {};
@@ -749,7 +758,7 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
  * No es obligatorio ejecutarla, porque el motor diario hace el mismo trabajo;
  * sirve para no tener que esperar a la madrugada justo después de desplegar.
  */
-exports.migrarCiclosCorte = functions.https.onCall(async (data, context) => {
+exports.migrarCiclosCorte = onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
 
   const snap = await db.collection("clientes").get();
@@ -821,7 +830,7 @@ const CAMPOS_BOOLEANOS_CLIENTE = ["whatsappOptIn"];
  *  - Si cambia el ciclo de corte, se recalcula `proximoCorte` con la regla
  *    vigente (ciclo 15 -> corte el día 20; ciclo 30 -> corte el día 5).
  */
-exports.actualizarCliente = functions.https.onCall(async (data, context) => {
+exports.actualizarCliente = onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
   const clienteId = data && data.clienteId;
   if (!clienteId) throw new functions.https.HttpsError("invalid-argument", "Se requiere clienteId.");
@@ -902,7 +911,7 @@ exports.actualizarCliente = functions.https.onCall(async (data, context) => {
  * Si se quiere archivar en vez de borrar de verdad, usar
  * `clientes_hoja3_4_backup` como referencia del patrón.
  */
-exports.eliminarCliente = functions.https.onCall(async (data, context) => {
+exports.eliminarCliente = onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
   const clienteId = data && data.clienteId;
   if (!clienteId) throw new functions.https.HttpsError("invalid-argument", "Se requiere clienteId.");
@@ -937,7 +946,7 @@ exports.eliminarCliente = functions.https.onCall(async (data, context) => {
  * @param {string} clienteId
  * @param {"antesCorte"|"despuesCorte"} tipo  por defecto "antesCorte"
  */
-exports.mensajeCobro = functions.https.onCall(async (data, context) => {
+exports.mensajeCobro = onCall(async (data, context) => {
   await verificarRol(context, ["OPERADOR", "ADMIN", "SUPERADMIN"]);
 
   const { clienteId, tipo } = data || {};
@@ -999,7 +1008,7 @@ exports.mensajeCobro = functions.https.onCall(async (data, context) => {
  * confirmarPago  → confirma y renueva el servicio en transacción
  *                  (evita extensiones/cobros duplicados).
  * ============================================================ */
-exports.registrarPago = functions.https.onCall(async (data, context) => {
+exports.registrarPago = onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { clienteId, servicioId, monto, metodoPago, referencia, comprobanteUrl } = data || {};
@@ -1046,7 +1055,7 @@ exports.registrarPago = functions.https.onCall(async (data, context) => {
   return { id: ref.id, estado: ESTADO_PAGO.PENDIENTE };
 });
 
-exports.confirmarPago = functions.https.onCall(async (data, context) => {
+exports.confirmarPago = onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { pagoId } = data || {};
@@ -1139,7 +1148,7 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
   return { id: pagoId, estado: ESTADO_PAGO.CONFIRMADO };
 });
 
-exports.anularPago = functions.https.onCall(async (data, context) => {
+exports.anularPago = onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { pagoId, motivo } = data || {};
@@ -1220,22 +1229,22 @@ async function cambiarEstadoCliente(clienteId, estadoNuevo, estadoServicioNuevo,
   return { clienteId, estado: estadoNuevo };
 }
 
-exports.activarServicio = functions.https.onCall((data, context) =>
+exports.activarServicio = onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.ACTIVO, ESTADO_SERVICIO.ACTIVO, "Activación de servicio", context, "ACTIVAR_SERVICIO"));
 
-exports.suspenderServicio = functions.https.onCall((data, context) =>
+exports.suspenderServicio = onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.SUSPENDIDO, ESTADO_SERVICIO.SUSPENDIDO, data.motivo || "Suspensión administrativa", context, "SUSPENDER_SERVICIO"));
 
-exports.desactivarServicio = functions.https.onCall((data, context) =>
+exports.desactivarServicio = onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.INACTIVO, ESTADO_SERVICIO.INACTIVO, data.motivo || "Cliente retirado", context, "DESACTIVAR_SERVICIO"));
 
-exports.reactivarServicio = functions.https.onCall((data, context) =>
+exports.reactivarServicio = onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.ACTIVO, ESTADO_SERVICIO.ACTIVO, "Reactivación de cliente", context, "REACTIVAR_SERVICIO"));
 
 /* ============================================================
  * MÓDULO: ENVÍO MANUAL DE NOTIFICACIÓN (callable)
  * ============================================================ */
-exports.enviarNotificacion = functions.https.onCall(async (data, context) => {
+exports.enviarNotificacion = onCall(async (data, context) => {
   await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { clienteId, titulo, mensaje } = data || {};
@@ -1265,7 +1274,7 @@ exports.enviarNotificacion = functions.https.onCall(async (data, context) => {
 /* ============================================================
  * MÓDULO: USUARIOS (callable, solo SUPERADMIN)
  * ============================================================ */
-exports.crearUsuario = functions.https.onCall(async (data, context) => {
+exports.crearUsuario = onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
 
   const { nombre, email, password, rol } = data || {};
@@ -1278,7 +1287,7 @@ exports.crearUsuario = functions.https.onCall(async (data, context) => {
 
   let userRecord;
   try {
-    userRecord = await admin.auth().createUser({ email, password, displayName: nombre });
+    userRecord = await getAuth().createUser({ email, password, displayName: nombre });
   } catch (err) {
     if (err.code === "auth/email-already-exists") {
       throw new functions.https.HttpsError("already-exists", "Ya existe un usuario con ese correo.");
@@ -1299,7 +1308,7 @@ exports.crearUsuario = functions.https.onCall(async (data, context) => {
   return { uid: userRecord.uid };
 });
 
-exports.actualizarUsuario = functions.https.onCall(async (data, context) => {
+exports.actualizarUsuario = onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
 
   const { uid, rol, activo, nombre } = data || {};
@@ -1320,8 +1329,8 @@ exports.actualizarUsuario = functions.https.onCall(async (data, context) => {
   await db.collection("usuarios").doc(uid).update(update);
 
   // Reflejar la des/activación también en Firebase Auth.
-  if (activo === false) { try { await admin.auth().updateUser(uid, { disabled: true }); } catch (e) { /* Keep Firestore status if Auth synchronization fails. */ } }
-  if (activo === true) { try { await admin.auth().updateUser(uid, { disabled: false }); } catch (e) { /* Keep Firestore status if Auth synchronization fails. */ } }
+  if (activo === false) { try { await getAuth().updateUser(uid, { disabled: true }); } catch (e) { /* Keep Firestore status if Auth synchronization fails. */ } }
+  if (activo === true) { try { await getAuth().updateUser(uid, { disabled: false }); } catch (e) { /* Keep Firestore status if Auth synchronization fails. */ } }
 
   await auditar(context.auth.uid, context.auth.uid, "GESTIONAR_USUARIO", "usuarios", uid, null, update);
   return { uid };
@@ -1333,7 +1342,7 @@ exports.actualizarUsuario = functions.https.onCall(async (data, context) => {
  * Crea/borra datos DEMO claramente identificados (campo
  * `demo: true` + prefijo "DEMO -"). Nunca mezclar con datos reales.
  * ============================================================ */
-exports.seedDemo = functions.https.onCall(async (data, context) => {
+exports.seedDemo = onCall(async (data, context) => {
     // ── Guardián de entorno (harness/unef-010) ──────────────────────────
     // Estas funciones crean o borran datos de demostración. En producción no
     // deben poder ejecutarse: se exige el emulador o el proyecto demo.
@@ -1442,7 +1451,7 @@ exports.seedDemo = functions.https.onCall(async (data, context) => {
   return { creados: demoClientes.length };
 });
 
-exports.borrarDemo = functions.https.onCall(async (data, context) => {
+exports.borrarDemo = onCall(async (data, context) => {
     // ── Guardián de entorno (harness/unef-010) ──────────────────────────
     // Estas funciones crean o borran datos de demostración. En producción no
     // deben poder ejecutarse: se exige el emulador o el proyecto demo.

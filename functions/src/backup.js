@@ -25,7 +25,8 @@ async function exportarFirestore() {
   const outputUriPrefix = `gs://${BUCKET}/daily/${stamp}`;
 
   // Token de la cuenta de servicio por defecto (Application Default Credentials).
-  const token = await admin.app().options.credential.getAccessToken();
+  // firebase-admin 14: `admin.app()` ya no existe; se usa `admin.getApp()`.
+  const token = await admin.getApp().options.credential.getAccessToken();
 
   const url = `https://firestore.googleapis.com/v1/projects/${PROJECT_ID}/databases/(default):exportDocuments`;
 
