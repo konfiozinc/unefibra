@@ -26,12 +26,13 @@ Se usan **siempre los nombres completos** (por ejemplo «Familiar 150 Mbps»).
 
 ## Beneficios
 Fibra 100% · máxima estabilidad · baja latencia (gaming/videollamadas) · **sin contratos**
-ni cláusulas ocultas · **instalación también para personas reportadas y para extranjeros,
-sin condiciones** (confirmado por el cliente: se puede afirmar) · soporte local.
+ni cláusulas ocultas · **instalación GRATIS ($0)** · **instalación también para personas
+reportadas y para extranjeros, sin condiciones** (confirmado por el cliente: se puede
+afirmar) · soporte local.
 
 ## Proceso
-1. Solicitud (WhatsApp o formulario) → 2. Verificación de cobertura → 3. Instalación (máximo
-dos días hábiles desde que se agenda) → 4. A navegar.
+1. Solicitud (WhatsApp o formulario) → 2. Verificación de cobertura → 3. Instalación GRATIS
+($0, máximo dos días hábiles desde que se agenda) → 4. A navegar.
 
 ## TV por aplicación (valor agregado, GRATIS)
 - Es gratis, no tiene cobro mensual adicional. La instalación de **1 app** también es gratis.
@@ -43,7 +44,7 @@ dos días hábiles desde que se agenda) → 4. A navegar.
 - Si el TV no es Android/Google TV, el cliente debe adquirir un convertidor para poder instalar la app (costo asumido por el cliente).
 
 ## Métodos de pago
-Efectivo · Bancolombia (transferencia o consignación) · Nequi · Punto de recaudo físico en el sector Mirador de la Cascada.
+Nequi · Transferencia Bancolombia · Efectivo.
 
 ## Contacto
 - WhatsApp: **304 465 4987** (+57 304 465 4987) — canal principal

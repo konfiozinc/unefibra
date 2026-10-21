@@ -89,8 +89,11 @@
     if (/\btv\b|televisor|television|televisión|android tv|google tv|convertidor/.test(q)) {
       return "La TV por aplicación es gratis y la instalación de 1 app también. Si tu TV es Android TV o Google TV, se instala la app sin costo. Si no lo es, necesitas un convertidor (ese equipo lo asumes tú). La app no es de UneFibra: es de terceros y se descarga de una plataforma. 😊";
     }
+    if (/instalaci|instalacion|instalar/.test(q)) {
+      return "La instalación de Internet es GRATIS ($0): no tiene costo aparte del plan. Nuestro equipo la agenda en máximo dos días hábiles. 😊";
+    }
     if (/pago|pagar|nequi|bancolombia|efectivo|recaudo|consignaci/.test(q)) {
-      return "Aceptamos efectivo, Bancolombia, Nequi y punto de recaudo físico en Mirador de la Cascada. 💳";
+      return "Aceptamos Nequi, transferencia Bancolombia y efectivo. 💳";
     }
     if (/correo|email|e-mail|escribir|contacto/.test(q)) {
       return "Puedes escribirnos a unefibrasas@gmail.com o por WhatsApp al 304 465 4987. 📧";

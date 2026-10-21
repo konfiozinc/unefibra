@@ -154,6 +154,12 @@ window.UNEFIBRAS_CONFIG = {
   },
 
   /* ------------------------------------------------------------
+   * Instalación — decisión comercial CONFIRMADA: GRATIS ($0 COP).
+   * No se genera ningún concepto de cobro automático por instalación.
+   * ---------------------------------------------------------- */
+  instalacionGratis: true,
+
+  /* ------------------------------------------------------------
    * WhatsApp
    * Número en formato internacional SIN "+" ni espacios.
    * Ejemplo real: "573001234567"
@@ -184,7 +190,9 @@ window.UNEFIBRAS_CONFIG = {
     // aquí y también en el agente IA (web y WhatsApp).
     // El 27/09/2026 el cliente añadió EXTRANJEROS, sin condiciones: se instala
     // igual que a los reportados. Si algún día hubiera condiciones, van aquí.
-    "Instalación también para reportados y extranjeros"
+    "Instalación también para reportados y extranjeros",
+    // CONFIRMADO: la instalación es GRATIS ($0 COP), sin cobro aparte.
+    "Instalación GRATIS ($0)"
   ],
   planes: [
     { nombre: "Básico 100 Mbps",   velocidad: "100 Mbps", precio: 50000,  descripcion: "Ideal para navegar, redes sociales y streaming en HD." },
@@ -321,10 +329,9 @@ window.UNEFIBRAS_CONFIG = {
   // vienen de la colección `metodos_pago` de Firestore; esto es el respaldo.
   // Los que NO están aquí no deben ofrecerse al cliente en ninguna parte.
   metodosPagoPorDefecto: [
-    "Efectivo",
-    "Bancolombia",
     "Nequi",
-    "Punto de recaudo físico"
+    "Transferencia Bancolombia",
+    "Efectivo"
   ],
 
   /* ------------------------------------------------------------

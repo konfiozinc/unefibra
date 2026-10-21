@@ -22,19 +22,22 @@ de la web: hoy la página **no afirma nada** sobre estos dos puntos. Las pregunt
 siguen abiertas y son las que bloquean una campaña de publicidad: en cuanto el
 cliente responda, se vuelven a publicar con la redacción correcta.
 
-### 0.1 La instalación: la web se contradecía a sí misma
+### 0.1 La instalación — ✅ CONFIRMADO: GRATIS ($0 COP)
 
-| Dónde | Qué decía | Estado |
-|---|---|---|
-| Planes (texto para navegadores sin JS) | «Todos los planes **incluyen** instalación y soporte» | **Retirado.** Ahora dice: «Todos los planes son 100% fibra óptica. Escríbenos y te confirmamos las condiciones de instalación en tu sector» |
-| FAQ «¿Debo pagar la instalación?» | «Escríbenos y **te confirmamos las condiciones**» | Se mantiene: no afirma nada |
-| Garantías | «**Instalación en 48 horas**» | Se mantiene (es un plazo, no un precio). Conviene reconfirmarlo con el punto 1 |
-| Ficha del producto (datos para Google) | «…con instalación en el hogar…» | Se mantiene (dice dónde, no cuánto) |
+El cliente confirmó que **la instalación es gratuita**. Se publicó en la FAQ, el
+JSON-LD (`FAQPage`), el texto de Planes (noscript), los términos y los agentes IA.
+No se genera ningún concepto de cobro automático por instalación.
 
-El problema era que **«incluyen» significa que no se cobra aparte**, mientras la FAQ esquivaba esa misma pregunta: las dos no podían ser verdad a la vez. Mientras no haya respuesta, la web no promete nada.
+| Dónde | Estado |
+|---|---|
+| Planes (noscript) | ✅ «…incluyen instalación GRATIS ($0)» |
+| FAQ «¿Debo pagar la instalación?» | ✅ «No. La instalación es gratis ($0)…» |
+| JSON-LD `FAQPage` | ✅ Coincide con la FAQ |
+| Garantías «Instalación en 48 horas» | Se mantiene (es un plazo, no un precio) |
+| Ficha del producto (Google) | Se mantiene (dice dónde, no cuánto) |
 
-- Si **se cobra**: ya no hay promesa falsa; solo falta publicar el precio.
-- Si **es gratis**: hay que decirlo en la FAQ, porque hoy se pierde una ventaja comercial fuerte por una respuesta evasiva.
+Queda abierto solo el detalle del **router/módem** (si está incluido o lo pone el
+cliente), que es independiente del costo de la instalación.
 
 ### 0.2 «Instalación también para reportados» — ✅ CONFIRMADO Y PUBLICADO
 
@@ -64,8 +67,7 @@ Hola. La página ya está publicada con los planes, la cobertura y el formulario
 
 **Importantes**
 
-1. **Instalación:** ¿el cliente paga la instalación? Si se cobra, ¿cuánto y en qué casos es gratis? ¿El router o módem está incluido o lo pone el cliente?
-   *(Mientras no nos confirmen, la página no dice nada sobre el costo: preferimos no prometer de más.)*
+1. ~~**Instalación:** ¿el cliente paga la instalación?~~ **CONFIRMADO: la instalación es GRATIS ($0).** Publicado en la web, los términos y los agentes. Queda pendiente solo si el **router/módem** está incluido o lo pone el cliente.
 2. ~~**Clientes reportados:** ¿instalan a personas reportadas en Datacrédito?~~ **CONFIRMADO: sí se instala.** Publicado en la web y en los dos agentes IA. Solo falta avisar si hubiera condiciones (¿aplica siempre y en todos los sectores?).
 3. **Velocidad garantizada:** ¿garantizan un porcentaje mínimo de la velocidad contratada (por ejemplo el 80%)? Si no garantizan ninguno, lo decimos así de claro.
 4. **Cambio de plan:** ¿el cliente puede subir o bajar de plan? ¿Tiene algún costo? ¿Aplica desde el siguiente pago?
@@ -79,7 +81,7 @@ Hola. La página ya está publicada con los planes, la cobertura y el formulario
 9. **Testimonios reales:** ¿hay 3 clientes que quieran dar su nombre, su sector y una frase corta, autorizando su publicación? *(Quitamos los tres de ejemplo porque eran inventados: preferimos no mostrar prueba social a mostrar una falsa.)*
 10. **Fotos:** fotos de esos clientes, del equipo o de instalaciones, con autorización de uso de imagen.
 11. **Estadísticas:** ¿tienen cuenta de Google Analytics 4? Necesitamos el identificador (formato `G-XXXXXXXX`). Si van a pautar en Facebook o Instagram, también el píxel de Meta.
-12. **Métodos de pago:** ¿cuáles aceptan y quieren mostrar? (Nequi, Bancolombia, PSE…).
+12. ~~**Métodos de pago:** ¿cuáles aceptan y quieren mostrar?~~ **CONFIRMADO: Nequi, Transferencia Bancolombia y Efectivo** (solo nombres). Quedan pendientes los datos de cuenta/teléfono (cuenta Bancolombia y número de Nequi) para los mensajes de cobro.
 13. **Antispam del formulario:** ¿autorizan activar la protección de Google reCAPTCHA? Evita que lleguen solicitudes falsas. Requiere crear una clave en la cuenta de Google del negocio.
 14. **Correo:** hoy usamos `unefibrasas@gmail.com`. Si van a tener dominio propio, conviene pasar a algo como `contacto@…`.
 
@@ -91,7 +93,7 @@ Gracias. Con los 6 primeros podemos publicar sin afirmar nada que no sea cierto.
 
 | # | Dato | Dónde entra exactamente | Qué cambia |
 |---|---|---|---|
-| 1 | Costo de instalación + router | `index.html`: FAQ «¿Debo pagar la instalación?» **y** el `FAQPage` del JSON-LD (deben coincidir) y, si la instalación es gratis, el texto de Planes | **Ya neutralizado:** la web no promete nada. Al llegar la respuesta se publica el dato y se retira el `TODO` |
+| 1 | Costo de instalación + router | `index.html`: FAQ «¿Debo pagar la instalación?» **y** el `FAQPage` del JSON-LD (deben coincidir) y el texto de Planes | ✅ **CONFIRMADO: GRATIS ($0)** y publicado (FAQ, JSON-LD, Planes, términos, agentes). Queda el detalle del router/módem |
 | 2 | Clientes reportados | `assets/js/config.js` → `planBeneficios` **y** los 5 listados de las tarjetas + la sección de beneficios en `index.html` | ✅ **CONFIRMADO y publicado** de nuevo (6 apariciones). Solo avisar si hubiera condiciones |
 | 3 | Velocidad garantizada | `index.html` FAQ «¿Hay una velocidad mínima garantizada?» + su `FAQPage` | Respuesta concreta en vez de genérica |
 | 4 | Cambio de plan | `index.html` FAQ «¿Puedo cambiar de plan?» + su `FAQPage` | Ídem |
@@ -102,7 +104,7 @@ Gracias. Con los 6 primeros podemos publicar sin afirmar nada que no sea cierto.
 | 9 | Testimonios | `assets/js/config.js` → `testimonios: []` con `{ nombre, sector, frase }` | Se pinta la rejilla; con el arreglo vacío queda oculta |
 | 10 | Fotos | `assets/img/` + campo `imagen` de cada testimonio | Sustituyen a las iniciales |
 | 11 | GA4 / Meta Pixel | `assets/js/config.js` → `analytics.ga4Id` y `analytics.metaPixelId` | ✅ **GA4 ACTIVO con la propiedad propia de UneFibra** (`G-MKD15Z7F0K`, la que creó Google con el proyecto Firebase y estaba sin usar), cargado **solo tras aceptar** el aviso de cookies. **Falta el píxel de Meta** (no existe para UneFibra). Ver `docs/GOOGLE_PENDIENTES.md` |
-| 12 | Métodos de pago | Panel de administración → Configuración (colección `metodos_pago`) | No requiere programar nada |
+| 12 | Métodos de pago | Panel de administración → Configuración (colección `metodos_pago`) | ✅ **CONFIRMADO: Nequi, Transferencia Bancolombia y Efectivo** (solo nombres). Falta la cuenta bancaria y el teléfono de Nequi |
 | 13 | reCAPTCHA | `assets/js/config.js` → `appCheck.siteKey` + `habilitado: true` | Refuerza el formulario contra spam |
 | 14 | Correo corporativo | `assets/js/config.js` → `empresa.email` | Botón «Correo» y JSON-LD |
 
@@ -140,7 +142,10 @@ Pendiente de decisión técnica: agregar los clics requiere escrituras desde el 
 - **5 planes y sus precios:** Básico 100 `$50.000` · Familiar 150 `$60.000` · Plus 200 `$70.000` · Premium 250 `$85.000` · Ultra 300 `$100.000`.
 - **22 sectores** de cobertura en el occidente de Medellín y el mapa centrado en El Cucaracho.
 - Sin contratos de permanencia.
-- Soporte por WhatsApp (la garantía de «instalación en 48 horas» está publicada; conviene confirmarla junto con el punto 1).
+- **Instalación GRATIS ($0 COP)** (confirmado en la Fase 11).
+- **Métodos de pago:** Nequi, Transferencia Bancolombia y Efectivo (solo nombres).
+- **Recordatorios:** 7 y 3 días antes + el mismo día (0). **Suspensión:** a los 3 días de mora.
+- Soporte por WhatsApp (la garantía de «instalación en 48 horas» está publicada).
 
 ---
 

@@ -324,12 +324,11 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
 //   1. firebase functions:secrets:set META_WHATSAPP_TOKEN  --project une-fibra
 //   2. firebase functions:secrets:set META_PHONE_NUMBER_ID --project une-fibra
 //   3. volver a agregarlos a esta lista y desplegar.
-exports.processDueDates = functions
-  .runWith({ secrets: ["SENDGRID_API_KEY"] })
-  .pubsub
-  .schedule("0 10 * * *") // 10:00 diario, hora de Bogotá (antes 08:00)
-  .timeZone("America/Bogota")
-  .onRun(async () => {
+/* Motor de vencimientos. Lógica en una función propia para poder dispararla:
+   - desde el cron diario (processDueDates) y
+   - manualmente desde un callable (ejecutarMotor, solo SUPERADMIN) para operación
+     y para pruebas controladas sin esperar el cron. Es idempotente y audita. */
+async function ejecutarMotorVencimientos() {
     try {
     const resumen = { revisados: 0, notificaciones: 0, porVencer: 0, pendientes: 0, suspendidos: 0, ciclos: 0, avisosCorte: 0, ciclosNotificacion: 0 };
 
@@ -338,9 +337,11 @@ exports.processDueDates = functions
     const cfg = {};
     cfgSnap.forEach((d) => (cfg[d.id] = d.data().valor));
 
-    const diasAntes = cfg.diasAntes || [5];    // WhatsApp: solo "5 días antes"
-    const diasDespues = cfg.diasDespues || [0]; // WhatsApp: solo "hoy vence"
-    const diasSuspension = cfg.diasSuspension || 5;
+    // Recordatorios (decisión comercial confirmada): 7 y 3 días antes del
+    // vencimiento, y el mismo día (0). Suspensión: 3 días naturales de mora.
+    const diasAntes = cfg.diasAntes || [7, 3];
+    const diasDespues = cfg.diasDespues || [0];
+    const diasSuspension = cfg.diasSuspension || 3;
 
     // Recordatorio por WhatsApp: solo si el cliente dio su número (opt-in implícito)
     // y no optó por salir explícitamente (whatsappOptIn === false).
@@ -470,11 +471,10 @@ exports.processDueDates = functions
           );
           resumen.notificaciones++;
 
-          // Recordatorio por WhatsApp (5 días antes del corte)
-          await enviarWhatsAppCliente(cliente, "recordatorio_pago_5_dias", [
-            cliente.nombreCompleto || "cliente",
-            proximoCorte || servicio.fechaVencimiento || ""
-          ]);
+          // WhatsApp: el recordatorio "X días antes" ya no se envía desde aquí.
+          // El intervalo de 5 días quedó fuera de la configuración 7/3/0. El aviso
+          // por WhatsApp queda solo para el día del vencimiento (template
+          // "recordatorio_pago_hoy"), más abajo.
 
           if (avisarPorCorte) {
             resumen.avisosCorte++;
@@ -540,28 +540,33 @@ exports.processDueDates = functions
         }
       }
 
-      // 6) Si venció y no hay pago que cubra el periodo → PENDIENTE_PAGO
-      if (dias < 0 && cliente.estadoCliente !== ESTADO_CLIENTE.PENDIENTE_PAGO && cliente.estadoCliente !== ESTADO_CLIENTE.SUSPENDIDO) {
-        const pagoCubre = await db.collection("pagos")
+      // 6) Si venció: busca si hay un pago CONFIRMADO que cubra el periodo. Así no
+      //    se marca como moroso (y, más abajo, tampoco se suspende) a quien ya
+      //    pagó o renovó por adelantado.
+      let pagoCubre = { empty: true };
+      if (dias < 0) {
+        pagoCubre = await db.collection("pagos")
           .where("clienteId", "==", cliente.id)
           .where("estado", "==", ESTADO_PAGO.CONFIRMADO)
           .where("periodoFin", ">=", hoyISO())
           .limit(1)
           .get();
-
-        if (pagoCubre.empty) {
-          await clienteRef.update({
-            estadoCliente: ESTADO_CLIENTE.PENDIENTE_PAGO,
-            updatedAt: FieldValue.serverTimestamp()
-          });
-          await registrarHistorial(cliente.id, cliente.estadoCliente, ESTADO_CLIENTE.PENDIENTE_PAGO, "Vencimiento del periodo", "sistema", "Motor de vencimientos");
-          await auditar("sistema", "Motor de vencimientos", "VENCER_SERVICIO", "clientes", cliente.id, { estadoCliente: cliente.estadoCliente }, { estadoCliente: ESTADO_CLIENTE.PENDIENTE_PAGO });
-          resumen.pendientes++;
-        }
       }
 
-      // 7) Suspensión por mora prolongada
-      if (dias <= -diasSuspension && cliente.estadoCliente !== ESTADO_CLIENTE.SUSPENDIDO && cliente.estadoCliente !== ESTADO_CLIENTE.INACTIVO) {
+      // Si venció y NO hay pago que cubra el periodo → PENDIENTE_PAGO
+      if (dias < 0 && pagoCubre.empty && cliente.estadoCliente !== ESTADO_CLIENTE.PENDIENTE_PAGO && cliente.estadoCliente !== ESTADO_CLIENTE.SUSPENDIDO) {
+        await clienteRef.update({
+          estadoCliente: ESTADO_CLIENTE.PENDIENTE_PAGO,
+          updatedAt: FieldValue.serverTimestamp()
+        });
+        await registrarHistorial(cliente.id, cliente.estadoCliente, ESTADO_CLIENTE.PENDIENTE_PAGO, "Vencimiento del periodo", "sistema", "Motor de vencimientos");
+        await auditar("sistema", "Motor de vencimientos", "VENCER_SERVICIO", "clientes", cliente.id, { estadoCliente: cliente.estadoCliente }, { estadoCliente: ESTADO_CLIENTE.PENDIENTE_PAGO });
+        resumen.pendientes++;
+      }
+
+      // 7) Suspensión por mora prolongada (3 días naturales). NUNCA se suspende a
+      //    quien tiene un pago CONFIRMADO que cubre el periodo.
+      if (dias <= -diasSuspension && pagoCubre.empty && cliente.estadoCliente !== ESTADO_CLIENTE.SUSPENDIDO && cliente.estadoCliente !== ESTADO_CLIENTE.INACTIVO) {
         await clienteRef.update({
           estadoCliente: ESTADO_CLIENTE.SUSPENDIDO,
           estadoServicio: ESTADO_SERVICIO.SUSPENDIDO,
@@ -580,15 +585,29 @@ exports.processDueDates = functions
 
     return resumen;
     } catch (err) {
-      console.error("processDueDates falló:", err);
+      console.error("Motor de vencimientos falló:", err);
       try {
-        await enviarAlertaError("processDueDates (motor de vencimientos)", err);
+        await enviarAlertaError("motor de vencimientos (processDueDates/ejecutarMotor)", err);
       } catch (emailErr) {
         console.error("No se pudo enviar la alerta por email:", emailErr);
       }
       throw err;
     }
-  });
+}
+
+/* Cron diario (10:00 Bogotá). */
+exports.processDueDates = functions
+  .runWith({ secrets: ["SENDGRID_API_KEY"] })
+  .pubsub
+  .schedule("0 10 * * *") // 10:00 diario, hora de Bogotá (antes 08:00)
+  .timeZone("America/Bogota")
+  .onRun(() => ejecutarMotorVencimientos());
+
+/* Disparo manual (solo SUPERADMIN) para operación y pruebas controladas. */
+exports.ejecutarMotor = functions.https.onCall(async (data, context) => {
+  await verificarRol(context, ["SUPERADMIN"]);
+  return ejecutarMotorVencimientos();
+});
 
 /* ============================================================
  * MÓDULO: BACKUP DIARIO (función programada)

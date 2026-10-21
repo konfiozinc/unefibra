@@ -5,11 +5,14 @@
  * Deja en Firestore los datos que usan los mensajes de cobro, para
  * que NO vivan en el código y se puedan editar desde el panel:
  *
- *   metodos_pago/bancolombia-91280742282   → cuenta PRINCIPAL del cobro
- *   metodos_pago/bancolombia-23046299451   → la otra cuenta (inactiva, sin confirmar)
+ *   metodos_pago/nequi                     → Nequi (solo nombre, sin teléfono: pendiente del cliente)
+ *   metodos_pago/bancolombia-91280742282   → Transferencia Bancolombia (cuenta PRINCIPAL confirmada)
+ *   metodos_pago/efectivo                  → Efectivo (solo nombre)
  *   configuracion/soporte                  → WhatsApp que van en el mensaje
  *   configuracion/plantillasMensaje        → textos editables de los mensajes
  *   configuracion/camposDireccionObligatorios → exigir los datos de dirección
+ *   configuracion/diasAntes/diasDespues/diasSuspension → recordatorios 7/3/0 y suspensión 3 días
+ *   configuracion/instalacionGratis        → instalación gratuita ($0 COP)
  *
  * Es IDEMPOTENTE: usa identificadores fijos, así que ejecutarlo dos veces
  * deja exactamente lo mismo y nunca duplica cuentas.
@@ -37,7 +40,6 @@ const APLICAR = process.argv.includes("--aplicar");
 
 const TITULAR = "Elkin Nazar Pérez";
 const CUENTA_PRINCIPAL = "91280742282";
-const CUENTA_ALTERNATIVA = "23046299451";
 
 /** Convierte un valor de JavaScript al formato tipado de la API REST. */
 function aFirestore(valor) {
@@ -86,17 +88,29 @@ async function escribir(token, ruta, campos) {
   const ahora = new Date().toISOString();
   const cambios = [];
 
-  // ---------------- Cuentas bancarias (colección metodos_pago) ----------------
-  // Los mensajes de cobro leen de aquí la cuenta principal. Se guardan las dos
-  // cuentas que llegaron del cliente: la confirmada como principal y la otra
-  // documentada pero inactiva, para poder cambiarla desde el panel sin tocar código.
-  const cuentas = [
+  // ---------------- Métodos de pago (colección metodos_pago) ----------------
+  // Decisión comercial CONFIRMADA: Nequi, Transferencia Bancolombia y Efectivo.
+  // Solo se guardan los NOMBRES (sin números de cuenta ni teléfonos inventados).
+  // La única cuenta con datos reales es la Bancolombia ya confirmada por el cliente;
+  // el número de teléfono de Nequi queda pendiente hasta que el cliente lo entregue.
+  const metodos = [
+    {
+      id: "nequi",
+      datos: {
+        nombre: "Nequi",
+        tipo: "nequi",
+        descripcion: "Pago por Nequi (número de teléfono pendiente de confirmar por el cliente)",
+        activo: true,
+        principal: false,
+        orden: 1
+      }
+    },
     {
       id: "bancolombia-91280742282",
       datos: {
-        nombre: "Bancolombia",
+        nombre: "Transferencia Bancolombia",
         banco: "Bancolombia",
-        tipo: "ahorros",
+        tipo: "transferencia",
         tipoCuenta: "Ahorros",
         numeroCuenta: CUENTA_PRINCIPAL,
         titular: TITULAR,
@@ -104,36 +118,30 @@ async function escribir(token, ruta, campos) {
         activo: true,
         principal: true,
         confirmada: true,
-        orden: 1
+        orden: 2
       }
     },
     {
-      id: "bancolombia-23046299451",
+      id: "efectivo",
       datos: {
-        nombre: "Bancolombia",
-        banco: "Bancolombia",
-        tipo: "ahorros",
-        tipoCuenta: "Ahorros",
-        numeroCuenta: CUENTA_ALTERNATIVA,
-        titular: TITULAR,
-        descripcion: "Otra cuenta que aparecía en los ejemplos. INACTIVA y SIN CONFIRMAR: " +
-          "actívala y márcala como principal desde el panel si esta es la correcta.",
-        activo: false,
+        nombre: "Efectivo",
+        tipo: "efectivo",
+        descripcion: "Pago en efectivo (punto de recaudo que indique la empresa)",
+        activo: true,
         principal: false,
-        confirmada: false,
-        orden: 2
+        orden: 3
       }
     }
   ];
 
-  for (const cuenta of cuentas) {
-    const ruta = `metodos_pago/${cuenta.id}`;
+  for (const metodo of metodos) {
+    const ruta = `metodos_pago/${metodo.id}`;
     const existente = await obtener(token, ruta);
     cambios.push({
       ruta,
-      que: (existente ? "actualizar " : "crear ") + `cuenta ${cuenta.datos.numeroCuenta}` +
-        (cuenta.datos.principal ? " (PRINCIPAL)" : " (inactiva)"),
-      campos: { ...cuenta.datos, createdAt: existente ? undefined : ahora, updatedAt: ahora }
+      que: (existente ? "actualizar " : "crear ") + "método " + metodo.datos.nombre +
+        (metodo.datos.principal ? " (PRINCIPAL)" : ""),
+      campos: { ...metodo.datos, createdAt: existente ? undefined : ahora, updatedAt: ahora }
     });
   }
 
@@ -168,6 +176,51 @@ async function escribir(token, ruta, campos) {
       valor: true,
       descripcion: "Si es true, dirección/sector/edificio/torre/apartamento son obligatorios " +
         "según el tipo de vivienda",
+      updatedAt: ahora
+    }
+  });
+
+  // ---------------- Recordatorios y suspensión (decisión comercial confirmada) ----------------
+  cambios.push({
+    ruta: "configuracion/diasAntes",
+    que: "Recordatorios: 7 y 3 días antes del vencimiento",
+    campos: {
+      clave: "diasAntes",
+      valor: [7, 3],
+      descripcion: "Días antes del vencimiento para recordatorios",
+      updatedAt: ahora
+    }
+  });
+
+  cambios.push({
+    ruta: "configuracion/diasDespues",
+    que: "Recordatorio el mismo día del vencimiento (0)",
+    campos: {
+      clave: "diasDespues",
+      valor: [0],
+      descripcion: "Día del vencimiento (0)",
+      updatedAt: ahora
+    }
+  });
+
+  cambios.push({
+    ruta: "configuracion/diasSuspension",
+    que: "Suspensión a los 3 días naturales de mora",
+    campos: {
+      clave: "diasSuspension",
+      valor: 3,
+      descripcion: "Días naturales de mora antes de suspender el servicio",
+      updatedAt: ahora
+    }
+  });
+
+  cambios.push({
+    ruta: "configuracion/instalacionGratis",
+    que: "Instalación gratuita ($0 COP)",
+    campos: {
+      clave: "instalacionGratis",
+      valor: true,
+      descripcion: "La instalación es gratuita ($0 COP); no se genera ningún concepto de cobro automático",
       updatedAt: ahora
     }
   });

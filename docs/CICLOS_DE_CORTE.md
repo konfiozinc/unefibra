@@ -59,12 +59,12 @@ ordena por **fecha de vencimiento ascendente**: primero quien más debe, que es 
 
 ## 3. Avisos automáticos
 
-El motor diario (`processDueDates`, 08:00 hora de Bogotá) ahora calcula los avisos
+El motor diario (`processDueDates`, 10:00 hora de Bogotá) ahora calcula los avisos
 a partir de `proximoCorte`:
 
 - Si el cliente **tiene ciclo**, el aviso que manda es el del **corte** (la fecha
   real de cobro): «Tu corte está programado», en los días configurados en
-  `configuracion.diasAntes` (por defecto 7, 5, 3 y 1).
+  `configuracion.diasAntes` (por defecto 7 y 3).
 - Si **ya pagó por adelantado** hasta ese corte, **no se le avisa**: la condición
   es `fechaVencimiento >= proximoCorte`. Sin esta guarda el sistema molestaría
   todos los meses a clientes que están al día.
@@ -83,7 +83,7 @@ repetir avisos y poder auditarlo:
 |---|---|
 | `fechaUltimaNotificacion` | Timestamp del último aviso enviado |
 | `tipoUltimaNotificacion` | `"antesCorte"` o `"despuesCorte"` |
-| `diasAntesNotificados` | Array con los avisos ya enviados en el ciclo (ej. `[7, 5]`) |
+| `diasAntesNotificados` | Array con los avisos ya enviados en el ciclo (ej. `[7, 3]`) |
 | `cicloActualNotificacion` | Mes del corte vigente, `"YYYY-MM"` |
 
 Comportamiento del motor diario:
@@ -93,8 +93,9 @@ Comportamiento del motor diario:
 2. Al enviarlo, añade el número al array y actualiza los campos de fecha y tipo.
 3. Cuando cambia el ciclo (mes nuevo de corte), **reinicia** `diasAntesNotificados`
    y actualiza `cicloActualNotificacion`, para que el mes siguiente vuelvan a salir.
-4. Los días de aviso se leen de `configuracion.diasAntes` (por defecto 7, 5, 3 y 1);
-   no están escritos en el código.
+4. Los días de aviso se leen de `configuracion.diasAntes` (por defecto 7 y 3);
+   no están escritos en el código. El mismo día (0) se cubre con
+   `configuracion.diasDespues`.
 
 Esto se suma al anti-duplicados que ya existía en la colección `notificaciones`
 (clave `clienteId + periodo + tipo`), que evita reenviar el mismo aviso si el motor

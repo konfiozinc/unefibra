@@ -9,9 +9,9 @@
 |---|---|---|---|
 | **Confirmado** | 5 planes (Básico 100 $50.000 · Familiar 150 $60.000 · Plus 200 $70.000 · Premium 250 $85.000 · Ultra 300 $100.000) | Cargables en Firestore | Cliente (DATOS_PENDIENTES_CLIENTE.md parte 4) |
 | **Confirmado** | Razón social, NIT, teléfonos, WhatsApp, horario, cobertura (22 sectores), sin permanencia | En `assets/js/config.js` | Cliente |
-| **Configurable (pendiente de decisión)** | `metodos_pago` (Nequi/Bancolombia/PSE…) | **NO inventado**: se carga cuando el cliente confirme | Panel → Configuración |
-| **Configurable (pendiente de decisión)** | `configuracion.diasSuspension`, `diasAntes`, `diasDespues` | **NO inventado**: valores por confirmar | Panel → Configuración |
-| **Configurable (pendiente de decisión)** | Costo de instalación | Neutralizado en la web (no se afirma nada) | Cliente |
+| **Confirmado (Fase 11)** | `metodos_pago`: Nequi, Transferencia Bancolombia, Efectivo (solo nombres, sin cuentas/teléfonos inventados) | `tools/configurar-cobro.js`, `tools/sembrar-e2e.js` | Cliente |
+| **Confirmado (Fase 11)** | Recordatorios `diasAntes=[7,3]`, `diasDespues=[0]`; suspensión `diasSuspension=3` | `functions/src/index.js`, panel → Configuración | Cliente |
+| **Confirmado (Fase 11)** | Instalación GRATIS ($0 COP), sin cobros automáticos | `assets/js/config.js`, FAQ/JSON-LD de `index.html`, términos | Cliente |
 | **Solo prueba** | `admin@unefibra.test`, clientes/pagos ficticios de los tests | Solo emulador, nunca producción | `tools/sembrar-e2e.js`, suites |
 
 **Carga reproducible:** `node tools/sembrar-e2e.js` (emulador). En producción, los 5
@@ -30,6 +30,11 @@ planes se crean desde el panel (Planes → Nuevo) o con un script de Admin SDK.
 - Programado: `0 10 * * *` (10:00 Bogotá). Recorre clientes/servicios activos y
   transiciona POR_VENCER → PENDIENTE_PAGO → SUSPENDIDO; envía recordatorios (dedup
   por `clienteId_periodo_tipo`) y cancela pendientes al confirmar pago.
+- **Valores comerciales confirmados:** recordatorios 7 y 3 días antes + el mismo día
+  (`diasAntes=[7,3]`, `diasDespues=[0]`); suspensión a los 3 días de mora
+  (`diasSuspension=3`).
+- **Disparo manual:** callable `ejecutarMotor` (solo SUPERADMIN) corre la misma lógica
+  bajo demanda, para operación y pruebas controladas sin esperar el cron.
 - **Costo:** lineal con el volumen (1 lectura por servicio activo). Despreciable para
   volúmenes actuales; medir métricas antes de escalar (auditoría).
 - **Alerta de fallo:** `enviarAlertaError` (SendGrid, secret `SENDGRID_API_KEY`).
@@ -61,8 +66,8 @@ y `tokens_notificacion` (escrituras públicas); alertas de cuota/presupuesto en 
 
 ## 6. Checklist de despliegue (cuando se autorice)
 
-1. [ ] Confirmar `metodos_pago` y `configuracion` con el cliente.
-2. [ ] Migrar `firebase-admin` a v14 (rama de mantenimiento) + re-probar 73+ suites.
+1. [x] Confirmar `metodos_pago` y `configuracion` con el cliente (Nequi / Transferencia Bancolombia / Efectivo; recordatorios 7/3/0; suspensión 3 días; instalación gratis).
+2. [ ] Migrar `firebase-admin` a v14 (rama de mantenimiento) + re-probar las suites (82+).
 3. [ ] Activar Blaze y desplegar Functions (`firebase deploy --only functions`).
 4. [ ] Crear bucket GCS + rol IAM para `backupFirestore`.
 5. [ ] Activar App Check (conectar panel primero) y rate-limit.

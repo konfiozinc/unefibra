@@ -32,7 +32,7 @@ firebase deploy --only functions
 ```
 
 El motor de vencimientos (`processDueDates`) queda programado automáticamente
-(08:00 America/Bogota). En el plan Blaze de Firebase las funciones programadas
+(10:00 America/Bogota). En el plan Blaze de Firebase las funciones programadas
 están disponibles; en Spark no se ejecutan.
 
 ## 4. Crear el SUPERADMIN inicial
@@ -52,9 +52,9 @@ Luego, desde **Usuarios** del panel ya puedes crear los demás.
 
 ## 5. Datos iniciales (desde el panel)
 
-1. **Planes → + Nuevo plan**: crea los 5 planes del volante — 100/150/200/250/300 Mbps ($50.000/$60.000/$70.000/$95.000/$100.000, 30 días).
-2. **Configuración → Métodos de pago**: agregar Efectivo, Bancolombia, Nequi y el punto de recaudo físico.
-3. **Configuración → Recordatorios**: revisar `7,5,3,1` / `0,-1,-3` / `5`.
+1. **Planes → + Nuevo plan**: crea los 5 planes del volante — 100/150/200/250/300 Mbps ($50.000/$60.000/$70.000/$85.000/$100.000, 30 días).
+2. **Configuración → Métodos de pago**: agregar Nequi, Transferencia Bancolombia y Efectivo (solo nombres; la cuenta bancaria y el teléfono de Nequi se cargan cuando el cliente los entregue).
+3. **Configuración → Recordatorios**: revisar `7,3` / `0` / `3`.
 
 ## 6. GitHub Pages
 

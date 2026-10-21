@@ -215,9 +215,9 @@ async function cargarConfig() {
   const snap = await getDocs(collection(db, "configuracion"));
   const cfg = {};
   snap.forEach((d) => { cfg[d.id] = d.data().valor; });
-  document.getElementById("cfg-diasAntes").value = (cfg.diasAntes || [7, 5, 3, 1]).join(", ");
-  document.getElementById("cfg-diasDespues").value = (cfg.diasDespues || [0, -1, -3]).join(", ");
-  document.getElementById("cfg-diasSuspension").value = cfg.diasSuspension ?? 5;
+  document.getElementById("cfg-diasAntes").value = (cfg.diasAntes || [7, 3]).join(", ");
+  document.getElementById("cfg-diasDespues").value = (cfg.diasDespues || [0]).join(", ");
+  document.getElementById("cfg-diasSuspension").value = cfg.diasSuspension ?? 3;
 
   document.getElementById("cfg-whatsapp1").value = (cfg.soporte && cfg.soporte.whatsapp1) || "";
   document.getElementById("cfg-whatsapp2").value = (cfg.soporte && cfg.soporte.whatsapp2) || "";

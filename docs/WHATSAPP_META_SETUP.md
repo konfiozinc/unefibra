@@ -5,9 +5,12 @@ El código de `functions/src/whatsapp.js` envía recordatorios de pago vía la
 Cloud API de WhatsApp. Para que funcione, hay que hacer este setup UNA sola vez
 en Meta y luego setear 2 secrets en Firebase.
 
-**Recordatorios implementados (2):**
-1. **5 días antes** del corte → template `recordatorio_pago_5_dias`
-2. **Día del corte** → template `recordatorio_pago_hoy`
+**Recordatorio implementado en código (1):**
+1. **Día del vencimiento (0)** → template `recordatorio_pago_hoy`
+
+**Pendientes de template en Meta:** los recordatorios de **7 y 3 días antes** del
+vencimiento (decisión comercial confirmada 7/3/0). Hasta crear y aprobar esos templates,
+los avisos previos salen por notificación (push / dentro del panel), no por WhatsApp.
 
 ---
 
@@ -33,25 +36,25 @@ en Meta y luego setear 2 secrets en Firebase.
 
 ---
 
-## Parte 2 — Registrar los 2 templates (Meta los aprueba en 24-48h)
+## Parte 2 — Registrar el template (Meta lo aprueba en 24-48h)
 
 En **WhatsApp Manager → Plantillas de mensaje → Crear plantilla**,
 categoría **Utilidad** (utility), idioma **Español**:
 
-### Template 1 — `recordatorio_pago_5_dias`
-```
-Hola {{1}}, tu pago vence el {{2}}. Realiza tu pago para mantener tu servicio activo.
-```
-- Variables: `{{1}}` = nombre, `{{2}}` = fecha (formato DD/MM/AAAA)
-
-### Template 2 — `recordatorio_pago_hoy`
+### Template — `recordatorio_pago_hoy`
 ```
 Hola {{1}}, hoy vence tu pago. Realízalo para evitar la suspensión de tu servicio.
 ```
 - Variables: `{{1}}` = nombre
 
-> ⚠️ Los nombres de template deben quedar **exactamente** igual a los que usa
-> el código (`recordatorio_pago_5_dias` y `recordatorio_pago_hoy`).
+### Pendientes (7 y 3 días antes)
+Cuando el cliente quiera recordatorios por WhatsApp también **7 y 3 días antes**, crear dos
+templates más (p. ej. `recordatorio_pago_7_dias` y `recordatorio_pago_3_dias`) y volver a
+conectar el envío en `functions/src/index.js`. Hoy el motor envía esos avisos por
+notificación (push / dentro del panel), no por WhatsApp.
+
+> ⚠️ El nombre del template debe quedar **exactamente** igual al que usa el código
+> (`recordatorio_pago_hoy`).
 
 ---
 

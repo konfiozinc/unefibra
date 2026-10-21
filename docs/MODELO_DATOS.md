@@ -100,11 +100,15 @@
 | activo | boolean |
 | orden | number |
 
+Métodos CONFIRMADOS por el cliente: **Nequi**, **Transferencia Bancolombia** y **Efectivo**
+(solo nombres; sin números de cuenta ni teléfonos inventados). El número de cuenta
+bancaria y el teléfono de Nequi se cargan aparte cuando el cliente los entregue.
+
 ### `notificaciones`
 | Campo | Tipo | Notas |
 |---|---|---|
 | clienteId | ref → clientes | |
-| tipo | string | `RECORDATORIO_7_DIAS`, `MORA_1_DIAS`, `MANUAL`, … |
+| tipo | string | `RECORDATORIO_7_DIAS`, `RECORDATORIO_3_DIAS`, `VENCIMIENTO_HOY`, `MANUAL`, … |
 | titulo / mensaje | string | |
 | fechaProgramada / fechaEnvio | timestamp | |
 | estado | string | `PENDIENTE`\|`ENVIADA`\|`ERROR`\|`CANCELADA` |
@@ -145,9 +149,13 @@
 ### `configuracion`
 | Campo | Tipo | Ejemplo |
 |---|---|---|
-| clave | string | `diasAntes`, `diasDespues`, `diasSuspension` |
-| valor | any | `[7,5,3,1]`, `[0,-1,-3]`, `5` |
+| clave | string | `diasAntes`, `diasDespues`, `diasSuspension`, `instalacionGratis` |
+| valor | any | `[7,3]`, `[0]`, `3`, `true` |
 | descripcion | string | |
+
+Valores comerciales CONFIRMADOS: `diasAntes=[7,3]` (recordatorios 7 y 3 días antes),
+`diasDespues=[0]` (el mismo día), `diasSuspension=3` (suspensión a los 3 días de mora),
+`instalacionGratis=true` (instalación $0 COP, sin cobros automáticos).
 
 ### `solicitudes_contacto`
 | Campo | Tipo | Notas |

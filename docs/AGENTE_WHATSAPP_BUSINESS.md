@@ -192,7 +192,7 @@ confirmamos».
 - **Fibra 100%** (no cobre): más velocidad y estabilidad.
 - **Baja latencia**, ideal para videojuegos y videollamadas.
 - **Sin contratos de permanencia ni cláusulas ocultas**: se paga mes a mes.
-- **Instalación en máximo dos días hábiles** desde que se agenda la visita.
+- **Instalación GRATIS ($0)** en máximo dos días hábiles desde que se agenda la visita.
 - **Instalación también para personas reportadas en centrales de riesgo** y **también para
   extranjeros, sin condiciones.** Dato **CONFIRMADO por la empresa** (27/09/2026): si preguntan
   «¿instalan a reportados?» o «¿instalan a extranjeros?», la respuesta es **SÍ**, con naturalidad
@@ -277,8 +277,10 @@ El cliente **envía el comprobante por WhatsApp** para registrarlo en contabilid
   | **Ciclo 15** | día **15** de cada mes | día **20** de cada mes |
   | **Ciclo 30** | día **30** de cada mes | día **5** del **mes siguiente** |
 
-- El sistema envía **2 recordatorios automáticos por WhatsApp**: uno **5 días antes del
-  corte** (es decir, el día del aviso) y otro **el mismo día del corte**.
+- El sistema envía recordatorios automáticos **7 y 3 días antes** del vencimiento y
+  **el mismo día (0)**. Por WhatsApp queda activo el aviso del **mismo día**
+  (`recordatorio_pago_hoy`); los avisos previos por WhatsApp (7 y 3 días) quedan
+  pendientes de crear sus templates en Meta (ver `WHATSAPP_META_SETUP.md`).
 - Si el cliente **ya pagó por adelantado** hasta ese corte, **no se le envía recordatorio**.
 - Si la factura **se vence**, el servicio puede ser **suspendido**.
 - **El agente no calcula ni promete fechas de corte personalizadas**: eso depende de la
@@ -304,9 +306,8 @@ No. En UneFibra pagas mes a mes: no manejamos contratos de permanencia ni cláus
 amarre.
 
 **¿Debo pagar la instalación?**
-La instalación la realiza nuestro equipo técnico en tu hogar. **No afirmes que es gratis
-ni cuánto cuesta: ese dato aún no está confirmado.** Responde que un asesor confirma las
-condiciones según el sector.
+No. La instalación es **gratis ($0)**: no tiene costo aparte del plan. (Confirmado por el
+cliente.)
 
 **¿Qué necesito para instalar?**
 Tu dirección completa, tu sector y el tipo de vivienda (y si es edificio o unidad
@@ -374,7 +375,6 @@ contacte. Mientras tanto, ¿te ayudo con algo más? 💬»
 
 ## 11. Lo que el agente NO debe afirmar nunca
 
-- Que la **instalación es gratis** o cuánto cuesta (sin confirmar).
 - Un **porcentaje de velocidad garantizada**.
 - **Fechas exactas** de instalación o de reparación de fallas.
 - Que hay **telefonía fija** o **planes empresariales**.
