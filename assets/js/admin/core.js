@@ -10,13 +10,18 @@
  * ============================================================ */
 
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getAuth, connectAuthEmulator } from "firebase/auth";
+import { getFirestore, connectFirestoreEmulator } from "firebase/firestore";
 
 const CFG = window.UNEFIBRAS_CONFIG;
 
 function esPlaceholder(v) {
   return !v || typeof v !== "string" || v.startsWith("[") || v.indexOf("FIREBASE_") !== -1 || v.indexOf("[TU_") !== -1;
+}
+
+// Dev: ?emulador=1 conecta Auth/Firestore a los emuladores (nunca en producción).
+function esModoEmulador() {
+  return new URLSearchParams(window.location.search).get("emulador") === "1";
 }
 
 /** Indica si Firebase está realmente configurado (sin placeholders). */
@@ -44,7 +49,17 @@ let app = null;
 let auth = null;
 let db = null;
 
-if (isConfigured()) {
+// En modo emulador se usa el proyecto demo (singleProjectMode) del emulador,
+// NUNCA el proyecto de producción.
+const usarEmulador = esModoEmulador() && CFG && CFG.emulador;
+if (usarEmulador) {
+  const devCfg = { apiKey: "clave-ficticia", projectId: "demo-unefibra", appId: "demo" };
+  app = initializeApp(devCfg);
+  auth = getAuth(app);
+  db = getFirestore(app);
+  connectAuthEmulator(auth, `http://${CFG.emulador.host}:${CFG.emulador.authPort}`);
+  connectFirestoreEmulator(db, CFG.emulador.host, CFG.emulador.firestorePort);
+} else if (isConfigured()) {
   app = initializeApp(CFG.firebase.config);
   auth = getAuth(app);
   db = getFirestore(app);

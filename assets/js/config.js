@@ -269,6 +269,19 @@ window.UNEFIBRAS_CONFIG = {
   },
 
   /* ------------------------------------------------------------
+   * Dev: emuladores de Firebase (solo pruebas locales).
+   * Se activa ÚNICAMENTE con ?emulador=1 en la URL del panel
+   * (core.js + callables.js conectan Auth/Firestore/Functions a
+   * estos puertos). Sin ese parámetro, el panel usa producción.
+   * ---------------------------------------------------------- */
+  emulador: {
+    host: "127.0.0.1",
+    authPort: 9199,
+    firestorePort: 8080,
+    functionsPort: 5001
+  },
+
+  /* ------------------------------------------------------------
    * Firebase App Check (opcional, sección 27)
    * Refuerza que las peticiones vengan de esta app y no de un script.
    *
