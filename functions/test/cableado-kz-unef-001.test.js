@@ -140,6 +140,40 @@ t('indice para el antiduplicado (clienteId + referencia + estado)', () => {
   assert.ok(tieneCampos(['clienteId', 'referencia', 'estado']), 'falta el indice de referencia');
 });
 
+/* El ORDEN importa: un indice compuesto solo sirve si los campos de igualdad
+   van ANTES que el de rango. Si alguien reordena el JSON, la consulta deja de
+   usar el indice y Firestore responde FAILED_PRECONDITION. */
+const camposDe = (pred) => {
+  const i = pagos.find(pred);
+  return i ? (i.fields || []).map((x) => x.fieldPath) : null;
+};
+
+t('el indice de pagoCubre deja el rango (periodoFin) AL FINAL', () => {
+  const f = camposDe((i) => (i.fields || []).some((x) => x.fieldPath === 'periodoFin'));
+  assert.ok(f, 'no existe indice con periodoFin');
+  assert.strictEqual(f[f.length - 1], 'periodoFin', 'periodoFin debe ser el ultimo campo: ' + f.join(','));
+  assert.deepStrictEqual(f.slice(0, 2).sort(), ['clienteId', 'estado'], 'las igualdades van antes: ' + f.join(','));
+});
+
+t('el indice del antiduplicado tiene los tres campos', () => {
+  const f = camposDe((i) => (i.fields || []).some((x) => x.fieldPath === 'referencia'));
+  assert.ok(f, 'no existe indice con referencia');
+  assert.deepStrictEqual(f.slice().sort(), ['clienteId', 'estado', 'referencia'], 'campos inesperados: ' + f.join(','));
+});
+
+t('firebase.json despliega ese mismo archivo de indices y de reglas', () => {
+  const conf = JSON.parse(leer('../firebase.json'));
+  assert.strictEqual(conf.firestore.indexes, 'firestore.indexes.json');
+  assert.strictEqual(conf.firestore.rules, 'firestore.rules');
+});
+
+t('las dos consultas nuevas tienen su indice y coinciden con lo declarado', () => {
+  assert.ok(/where\("clienteId", "==", cliente\.id\)[\s\S]{0,220}where\("estado", "==", ESTADO_PAGO\.CONFIRMADO\)[\s\S]{0,220}where\("periodoFin", ">=", hoyISO\(\)\)/.test(indice),
+    'la consulta de pagoCubre no coincide con lo esperado');
+  assert.ok(/where\("clienteId", "==", clienteId\)[\s\S]{0,220}where\("referencia", "==", referenciaLimpia\)[\s\S]{0,220}where\("estado", "in",/.test(indice),
+    'la consulta del antiduplicado no coincide con lo esperado');
+});
+
 console.log('\n=== 8. Las notificaciones registran su entrega real ===');
 
 t('existe marcarEntregaPush', () => {
