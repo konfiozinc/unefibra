@@ -65,14 +65,26 @@ service cloud.firestore {
     }
 
     // Solicitudes de contacto (formulario "Quiero Internet").
+    // KZ-UNEF-001 · Antes solo se comprobaba que existieran nombre y telefono,
+    // asi que cualquiera en Internet podia anadir campos arbitrarios (por
+    // ejemplo `estado` con HTML) y el panel los pintaba. Ahora se acepta
+    // EXACTAMENTE el conjunto de campos del formulario y `estado` solo puede
+    // nacer como NUEVA.
     match /solicitudes_contacto/{solicitudId} {
       allow create: if request.resource.data.keys().hasAll(['nombre', 'telefono'])
+                    && request.resource.data.keys().hasOnly([
+                         'nombre', 'telefono', 'whatsapp', 'email', 'barrio', 'ciudad',
+                         'direccion', 'tipoVivienda', 'edificioUnidad', 'torre', 'apartamento',
+                         'planInteres', 'observaciones', 'estado', 'createdAt', 'origen'
+                       ])
                     && request.resource.data.nombre is string
                     && request.resource.data.nombre.size() > 0
                     && request.resource.data.nombre.size() <= 120
                     && request.resource.data.telefono is string
                     && request.resource.data.telefono.size() >= 7
-                    && request.resource.data.telefono.size() <= 20;
+                    && request.resource.data.telefono.size() <= 20
+                    && (!request.resource.data.keys().hasAny(['estado'])
+                        || request.resource.data.estado == 'NUEVA');
       allow read, update: if esOperador();
       allow delete: if esSuperAdmin();
     }
@@ -90,15 +102,30 @@ service cloud.firestore {
     }
 
     // ---------------- OperaciÃƒÂ³n ----------------
+    // KZ-UNEF-001 · Los campos que mueven dinero o servicio solo los cambia el
+    // SERVIDOR (Cloud Functions), que escribe con Admin SDK y deja historial y
+    // auditoria. Antes un ADMIN podia poner al dia a un moroso o cambiar el
+    // precio desde la consola del navegador, sin rastro en ninguna parte.
+    // El panel sigue leyendo todo y sigue creando clientes: solo se bloquea la
+    // modificacion directa de los campos sensibles.
     match /clientes/{clienteId} {
       allow read: if esOperador();
-      allow create, update: if esAdmin();
+      allow create: if esAdmin();
+      allow update: if esAdmin()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+             'estadoCliente', 'estadoServicio', 'activo', 'fechaVencimiento',
+             'fechaInicioServicio', 'proximoCorte', 'precioMensual'
+           ]);
       allow delete: if false; // NUNCA se eliminan clientes fÃƒÂ­sicamente.
     }
 
     match /servicios/{servicioId} {
       allow read: if esOperador();
-      allow create, update: if esAdmin();
+      allow create: if esAdmin();
+      allow update: if esAdmin()
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny([
+             'estado', 'fechaVencimiento', 'fechaSuspension', 'clienteId'
+           ]);
       allow delete: if false;
     }
 
@@ -120,9 +147,14 @@ service cloud.firestore {
       allow update, delete: if false; // Historial inmutable.
     }
 
+    // KZ-UNEF-001 · Las notificaciones son el registro de a quien se le aviso.
+    // Su antiduplicado vive aqui (claveDedup), asi que si el navegador puede
+    // escribir, un ADMIN puede borrar el aviso de cobro de cualquier cliente o
+    // fabricar uno enviado. Ahora solo escribe el servidor; el panel usa la
+    // callable enviarNotificacion.
     match /notificaciones/{notificacionId} {
       allow read: if esOperador();
-      allow create, update: if esAdmin();
+      allow create, update: if false;
       allow delete: if false;
     }
 

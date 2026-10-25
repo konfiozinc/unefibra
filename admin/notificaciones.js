@@ -9,7 +9,7 @@ import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
 import { collection, getDocs } from "firebase/firestore";
-import { msgError } from "../assets/js/admin/ui.js";
+import { msgError, esc } from "../assets/js/admin/ui.js";
 
 let ctx = null;
 let notificaciones = [];
@@ -32,12 +32,15 @@ function badgeNotif(e) {
     CANCELADA: ["Cancelada", "tone-violet"]
   };
   const [l, t] = map[e] || [e || "—", ""];
-  return `<span class="badge-estado ${t}">${l}</span>`;
+  /* KZ-UNEF-001 · esc() en todo lo que llega de Firestore: el mensaje lo
+     escribe el operador y el nombre del cliente viene del alta, así que ambos
+     pueden traer HTML. */
+  return `<span class="badge-estado ${esc(t)}">${esc(l)}</span>`;
 }
 
 function clienteNombre(id) {
   const c = clientes.find((x) => x.id === id);
-  return c ? c.nombreCompleto : id;
+  return esc(c ? c.nombreCompleto : id);
 }
 
 function fmtTs(ts) {
@@ -47,7 +50,7 @@ function fmtTs(ts) {
 }
 
 function renderToolbar() {
-  const canSend = ctx.rol !== "OPERADOR";
+  const canSend = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
   return `
     <div class="toolbar">
       <div class="filters">${ESTADOS.map((e) => `<button class="chip ${e.key === filtro ? "is-active" : ""}" data-filtro="${e.key}">${e.label}</button>`).join("")}</div>
@@ -78,9 +81,9 @@ function renderTabla() {
     <tr>
       <td>${fmtTs(n.fechaProgramada)}</td>
       <td>${clienteNombre(n.clienteId)}</td>
-      <td>${n.tipo || "—"}</td>
-      <td class="muted">${(n.mensaje || "").slice(0, 80)}${(n.mensaje || "").length > 80 ? "…" : ""}</td>
-      <td>${n.canal || "—"}</td>
+      <td>${esc(n.tipo || "—")}</td>
+      <td class="muted">${esc((n.mensaje || "").slice(0, 80))}${(n.mensaje || "").length > 80 ? "…" : ""}</td>
+      <td>${esc(n.canal || "—")}</td>
       <td>${badgeNotif(n.estado)}</td>
     </tr>`).join("");
 
@@ -93,7 +96,7 @@ function renderTabla() {
 
 function abrirModal() {
   const root = document.getElementById("modal-root");
-  const op = clientes.map((c) => `<option value="${c.id}">${c.nombreCompleto}</option>`).join("");
+  const op = clientes.map((c) => `<option value="${esc(c.id)}">${esc(c.nombreCompleto)}</option>`).join("");
 
   root.innerHTML = `
     <div class="modal-backdrop">

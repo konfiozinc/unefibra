@@ -8,7 +8,7 @@
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { collection, getDocs } from "firebase/firestore";
-import { badgeEstado, fmtFecha, textoDias } from "../assets/js/admin/ui.js";
+import { badgeEstado, fmtFecha, textoDias, esc } from "../assets/js/admin/ui.js";
 
 let servicios = [];
 let clientesMap = {};
@@ -45,9 +45,9 @@ function renderTabla() {
   }
 
   const rows = list.map((s) => `
-    <tr data-id="${s.clienteId}">
-      <td>${clientesMap[s.clienteId] || "—"}</td>
-      <td>${planesMap[s.planId] || "—"}</td>
+    <tr data-id="${esc(s.clienteId)}">
+      <td>${esc(clientesMap[s.clienteId] || "—")}</td>
+      <td>${esc(planesMap[s.planId] || "—")}</td>
       <td>${fmtFecha(s.fechaInicio)}</td>
       <td>${fmtFecha(s.fechaVencimiento)}</td>
       <td>${badgeEstado(s.estado)}</td>
