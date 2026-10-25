@@ -195,7 +195,7 @@ function cerrarModal() {
 }
 
 function renderToolbar() {
-  const canWrite = ctx.rol !== "OPERADOR";
+  const canWrite = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
   return `
     <div class="toolbar">
       <div class="toolbar__left">
@@ -368,7 +368,7 @@ function renderTabla() {
     return;
   }
 
-  const canWrite = ctx.rol !== "OPERADOR";
+  const canWrite = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
 
   const rows = visibles.map((c) => {
     // El estado manda: si está suspendido o inactivo se ofrece "Activar"; en

@@ -138,6 +138,24 @@ export function requireAuth(activeKey) {
           resolve(null);
           return;
         }
+        /* KZ-UNEF-001 · El rol tiene que ser UNO de los tres del sistema.
+           Antes bastaba con que el usuario estuviera activo: un rol corrupto
+           ("ADMININ", vacío, null) entraba al panel y la interfaz lo trataba
+           como privilegiado, mientras las reglas y las callables lo trataban
+           como nadie. Mejor cerrar la sesión y pedir que lo corrijan. */
+        const ROLES_VALIDOS = ["SUPERADMIN", "ADMIN", "OPERADOR"];
+        if (!ROLES_VALIDOS.includes(data.rol)) {
+          console.error("Rol no reconocido en usuarios/" + user.uid + ": " + String(data.rol));
+          const shell = document.getElementById("app-shell");
+          if (shell) {
+            shell.innerHTML = '<div class="content"><p>Tu usuario tiene un rol no reconocido (' +
+              String(data.rol).replace(/[<>&"]/g, "") +
+              '). Pide a un SUPERADMIN que lo corrija antes de continuar.</p></div>';
+          }
+          await signOut(auth);
+          resolve(null);
+          return;
+        }
         renderShell(activeKey, data.rol, data.nombre || user.email);
         resolve({ uid: user.uid, rol: data.rol, nombre: data.nombre, email: user.email });
       } catch (err) {

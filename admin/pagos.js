@@ -46,7 +46,7 @@ function clienteNombre(id) {
 }
 
 function renderToolbar() {
-  const canWrite = ctx.rol !== "OPERADOR";
+  const canWrite = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
   return `
     <div class="toolbar">
       <div class="toolbar__left">
@@ -188,9 +188,19 @@ async function confirmarPago(id) {
 }
 
 async function anularPago(id) {
-  if (!confirm("¿Anular este pago?")) return;
+  /* KZ-UNEF-001 · El servidor exige un motivo (mínimo 3 caracteres) y el panel
+     no lo enviaba: TODA anulación fallaba con "Datos incompletos o inválidos",
+     así que un pago mal registrado solo se podía corregir desde la consola de
+     Firebase, fuera de la auditoría. */
+  const motivo = prompt("Motivo de la anulación (obligatorio, mínimo 3 caracteres):");
+  if (motivo === null) return;                       // el usuario canceló
+  if (motivo.trim().length < 3) {
+    alert("El motivo es obligatorio: escribe al menos 3 caracteres.");
+    return;
+  }
+  if (!confirm("¿Anular este pago? Esta acción queda registrada en la auditoría.")) return;
   try {
-    await call("anularPago")({ pagoId: id });
+    await call("anularPago")({ pagoId: id, motivo: motivo.trim() });
     await cargar();
   } catch (err) {
     console.error(err);
@@ -249,7 +259,7 @@ function bind() {
 
   try {
     await cargar();
-    if (clientePreseleccionado && ctx.rol !== "OPERADOR") abrirModal();
+    if (clientePreseleccionado && ["ADMIN", "SUPERADMIN"].includes(ctx.rol)) abrirModal();
   } catch (err) {
     console.error(err);
     document.getElementById("tabla").innerHTML = '<div class="empty">No fue posible cargar los pagos.</div>';

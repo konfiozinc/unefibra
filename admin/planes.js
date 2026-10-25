@@ -15,7 +15,7 @@ let ctx = null;
 let planes = [];
 
 function renderToolbar() {
-  const canWrite = ctx.rol !== "OPERADOR";
+  const canWrite = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
   return `
     <div class="toolbar">
       <span class="muted">El precio y la duración se usan al calcular vencimientos.</span>
@@ -27,7 +27,7 @@ function renderToolbar() {
 
 function renderTabla() {
   const cont = document.getElementById("tabla");
-  const canWrite = ctx.rol !== "OPERADOR";
+  const canWrite = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
 
   if (!planes.length) {
     cont.innerHTML = '<div class="empty">No hay planes. Crea el primero para poder dar de alta clientes.</div>';

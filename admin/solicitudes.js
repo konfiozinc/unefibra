@@ -29,7 +29,10 @@ function badge(estado) {
     ATENDIDA: ["Atendida", "tone-violet"]
   };
   const [label, tone] = map[estado] || [estado || "—", ""];
-  return `<span class="badge-estado ${tone}">${label}</span>`;
+  /* KZ-UNEF-001 · `estado` puede venir de una solicitud creada SIN SESIÓN: la
+     regla pública de alta acepta campos extra. Sin escapar, cualquiera en
+     Internet podía inyectar HTML que se ejecutaba en la sesión del operador. */
+  return `<span class="badge-estado ${esc(tone)}">${esc(label)}</span>`;
 }
 
 function fechaHora(v) {
@@ -105,8 +108,8 @@ function renderTabla() {
 
     const acciones = `
       ${wa ? `<a class="btn btn--sm btn--whatsapp" href="${waHref}" target="_blank" rel="noopener" data-act="wa">WhatsApp</a>` : ""}
-      <button class="btn btn--sm ${s.estado === "NUEVA" ? "btn--primary" : "btn--ghost"}" data-act="toggle" data-id="${s.id}" data-estado="${s.estado}">${s.estado === "NUEVA" ? "Atender" : "Reabrir"}</button>
-      ${esSuper ? `<button class="btn btn--sm btn--ghost" data-act="borrar" data-id="${s.id}">Eliminar</button>` : ""}
+      <button class="btn btn--sm ${s.estado === "NUEVA" ? "btn--primary" : "btn--ghost"}" data-act="toggle" data-id="${esc(s.id)}" data-estado="${esc(s.estado)}">${s.estado === "NUEVA" ? "Atender" : "Reabrir"}</button>
+      ${esSuper ? `<button class="btn btn--sm btn--ghost" data-act="borrar" data-id="${esc(s.id)}">Eliminar</button>` : ""}
     `;
 
     return `

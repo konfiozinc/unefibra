@@ -53,7 +53,7 @@ function badgePost(estado) {
 }
 
 function renderToolbar() {
-  const canWrite = ctx.rol !== "OPERADOR";
+  const canWrite = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
   return `
     <div class="toolbar">
       <span class="muted">El blog se publica como HTML estático generado (lo indexan los buscadores). Los cambios NO aparecen en el sitio hasta que se vuelva a ejecutar el generador: ocurre solo en cada despliegue y una vez al día. Un artículo en BORRADOR nunca se publica.</span>
@@ -65,7 +65,7 @@ function renderToolbar() {
 
 function renderTabla() {
   const cont = document.getElementById("tabla");
-  const canWrite = ctx.rol !== "OPERADOR";
+  const canWrite = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
 
   if (!posts.length) {
     cont.innerHTML = '<div class="empty">Todavía no hay artículos. Crea el primero y publícalo para que aparezca en el blog.</div>';
