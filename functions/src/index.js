@@ -71,40 +71,18 @@ const ESTADO_NOTIFICACION = {
 
 /* ------------------------------------------------------------------
  * Utilidades de fecha (consistentes con "YYYY-MM-DD")
+ * ----------------------------------------------------------------
+ * Viven en ./renovacion.js para poder probarlas sin emulador y para que
+ * el cálculo del periodo de facturación tenga UNA sola definición. Aquí
+ * solo se importan.
  * ------------------------------------------------------------------ */
-
-/** Formatea un Date como "YYYY-MM-DD" usando componentes UTC. */
-function fechaISO(d) {
-  const y = d.getUTCFullYear();
-  const m = String(d.getUTCMonth() + 1).padStart(2, "0");
-  const dia = String(d.getUTCDate()).padStart(2, "0");
-  return `${y}-${m}-${dia}`;
-}
-
-/** Desfase de Colombia (UTC-5, sin horario de verano). */
-const COLOMBIA_UTC_OFFSET_MS = -5 * 3600000;
-
-/** Hoy como "YYYY-MM-DD" en zona de Colombia. */
-function hoyISO() {
-  return fechaISO(new Date(Date.now() + COLOMBIA_UTC_OFFSET_MS));
-}
-
-/** Normaliza una fecha (string "YYYY-MM-DD" o Date) a Date en UTC a medianoche. */
-function normalizarFecha(fecha) {
-  if (!fecha) return new Date(Date.UTC(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()));
-  if (typeof fecha === "string" && /^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
-    const [y, m, d] = fecha.split("-").map(Number);
-    return new Date(Date.UTC(y, m - 1, d));
-  }
-  const d = new Date(fecha);
-  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()));
-}
-
-/** Suma días a una fecha y devuelve "YYYY-MM-DD". */
-function sumarDias(fechaInicio, dias) {
-  const base = normalizarFecha(fechaInicio);
-  return fechaISO(new Date(base.getTime() + dias * 86400000));
-}
+const {
+  fechaISO,
+  hoyISO,
+  normalizarFecha,
+  sumarDias,
+  calcularPeriodo
+} = require("./renovacion");
 
 /** Diferencia en días (entero) entre una fecha y hoy (zona Colombia). */
 function diasHasta(fecha) {
@@ -136,6 +114,10 @@ const {
   construirMensajePrevioCorte,
   construirMensajePostCorte
 } = require("./mensajes");
+/* Guardas financieras: eran un módulo con pruebas que NADIE usaba (lógica
+   duplicada dentro de este archivo). Ahora son la única definición y estas
+   callables las usan, así que sus pruebas cubren el código real. */
+const { validarMonto, puedeAnular } = require("./pagos-guardas");
 
 const { enviarAlertaError } = require("./alertas");
 const { exportarFirestore } = require("./backup");
@@ -246,6 +228,7 @@ async function enviarPush(clienteId, titulo, cuerpo) {
 
   const tokens = tokensSnap.docs.map((d) => d.data().token);
   let enviados = 0;
+  let fallidos = 0;
 
   for (let i = 0; i < tokens.length; i++) {
     const token = tokens[i];
@@ -258,13 +241,55 @@ async function enviarPush(clienteId, titulo, cuerpo) {
           error.code === "messaging/invalid-registration-token") {
         const doc = tokensSnap.docs[i];
         await doc.ref.update({ activo: false, ultimaActividad: FieldValue.serverTimestamp() });
+      } else {
+        /* KZ-UNEF-001 · Antes este caso se descartaba en silencio: ni log, ni
+           estado. Un fallo de cuota o un payload demasiado grande parecía un
+           envío correcto. */
+        console.error("Envío push falló", {
+          clienteId,
+          codigo: error && error.code ? error.code : "desconocido",
+          mensaje: error && error.message ? String(error.message).slice(0, 200) : null
+        });
+        fallidos++;
       }
     }
   }
-  return { enviados, total: tokens.length };
+  return { enviados, fallidos, total: tokens.length };
 }
 
-/** Registra una notificación y devuelve true si era la primera vez. */
+/**
+ * KZ-UNEF-001 · Cierra el documento de la notificación con el resultado REAL
+ * del envío. Antes nadie lo actualizaba: todos los avisos automáticos se
+ * quedaban en PENDIENTE para siempre y, al confirmar un pago, se marcaban como
+ * CANCELADA aunque sí se hubieran enviado. El panel mostraba "pendiente" o
+ * "cancelada" donde debía decir "enviada" o "error".
+ */
+async function marcarEntregaPush(notifRef, resultado) {
+  if (!notifRef || typeof notifRef.update !== "function") return;
+  const enviados = (resultado && resultado.enviados) || 0;
+  const total = (resultado && resultado.total) || 0;
+  try {
+    if (enviados > 0) {
+      await notifRef.update({
+        estado: ESTADO_NOTIFICACION.ENVIADA,
+        fechaEnvio: FieldValue.serverTimestamp(),
+        error: null
+      });
+    } else {
+      const motivo = (resultado && resultado.motivo) || `Sin entrega (${enviados} de ${total} tokens)`;
+      await notifRef.update({
+        estado: ESTADO_NOTIFICACION.ERROR,
+        fechaEnvio: null,
+        error: String(motivo).slice(0, 300)
+      });
+    }
+  } catch (e) {
+    // No se rompe el motor por no poder anotar el resultado del aviso.
+    console.error("No se pudo registrar el estado de la notificación", e && e.message);
+  }
+}
+
+/** Registra una notificación y devuelve su referencia (o false si ya existía). */
 async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoServicio) {
   // Clave anti-duplicados: clienteId + periodo + tipo
   const claveDedup = `${clienteId}_${periodoServicio || "sin-periodo"}_${tipo}`;
@@ -276,7 +301,7 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
 
   if (!existente.empty) return false; // ya fue enviada
 
-  await db.collection("notificaciones").add({
+  const ref = await db.collection("notificaciones").add({
     clienteId,
     tipo,
     titulo,
@@ -290,7 +315,9 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
     claveDedup,
     createdAt: FieldValue.serverTimestamp()
   });
-  return true;
+  // Se devuelve la referencia (no `true`) para que quien envía pueda anotar
+  // después el resultado real de la entrega.
+  return ref;
 }
 
 /* ============================================================
@@ -423,7 +450,14 @@ async function ejecutarMotorVencimientos() {
       };
 
       for (const n of diasAntes) {
-        if (diasAviso !== n) continue;
+        /* KZ-UNEF-001 · Ventana en vez de igualdad exacta.
+           Antes `diasAviso !== n` exigía que el cron cayera justo el día exacto:
+           si una corrida fallaba o se desplegaba a esa hora, diasAviso saltaba
+           de n+1 a n-1 y ese recordatorio NO se enviaba nunca, sin recuperación
+           y sin aviso. Ahora se envía también con retraso, pero solo mientras
+           el aviso siga teniendo sentido (0 <= diasAviso <= n) y siempre que no
+           se haya avisado ya ese día en este ciclo (guarda de abajo). */
+        if (diasAviso > n || diasAviso < 0) continue;
         // Ya se le avisó este día en este mismo ciclo: no se repite.
         if (avisarPorCorte && diasNotificados.includes(n)) continue;
 
@@ -439,10 +473,11 @@ async function ejecutarMotorVencimientos() {
 
         const nueva = await registrarNotificacion(cliente.id, tipo, titulo, cuerpo, periodoAviso);
         if (nueva) {
-          await enviarPush(
+          const entrega = await enviarPush(
             cliente.id, titulo,
             avisarPorCorte ? `Tu factura vence el ${proximoCorte}.` : `Vence en ${n} día(s).`
           );
+          await marcarEntregaPush(nueva, entrega);
           resumen.notificaciones++;
 
           if (avisarPorCorte) {
@@ -472,7 +507,8 @@ async function ejecutarMotorVencimientos() {
           `${periodoAviso}-vencido`
         );
         if (nueva) {
-          await enviarPush(cliente.id, "Tu factura está vencida", "Tu servicio será suspendido.");
+          const entrega = await enviarPush(cliente.id, "Tu factura está vencida", "Tu servicio será suspendido.");
+          await marcarEntregaPush(nueva, entrega);
           resumen.notificaciones++;
           resumen.avisosCorte++;
           await clienteRef.update({
@@ -500,7 +536,8 @@ async function ejecutarMotorVencimientos() {
           periodo
         );
         if (nueva) {
-          await enviarPush(cliente.id, "Aviso UneFibra", n === 0 ? "Hoy vence tu servicio." : "Tienes un pago pendiente.");
+          const entrega = await enviarPush(cliente.id, "Aviso UneFibra", n === 0 ? "Hoy vence tu servicio." : "Tienes un pago pendiente.");
+          await marcarEntregaPush(nueva, entrega);
           resumen.notificaciones++;
         }
       }
@@ -562,7 +599,7 @@ async function ejecutarMotorVencimientos() {
 
 /* Cron diario (10:00 Bogotá). v1: pubsub.schedule + timeZone. */
 exports.processDueDates = functions
-  .runWith({ secrets: ["SENDGRID_API_KEY"] })
+  .runWith({ secrets: ["SENDGRID_API_KEY"], timeoutSeconds: 540, memory: "512MB" })
   .pubsub
   .schedule("0 10 * * *") // 10:00 diario, hora de Bogotá (antes 08:00)
   .timeZone("America/Bogota")
@@ -602,7 +639,7 @@ exports.backupFirestore = functions
  * MÓDULO: CLIENTES (callable)
  * ============================================================ */
 exports.crearCliente = functions.https.onCall(async (data, context) => {
-  await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const usuarioAlta = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { nombreCompleto, documento, telefono, planId, precioMensual } = data || {};
   if (!nombreCompleto || !telefono) {
@@ -699,8 +736,9 @@ exports.crearCliente = functions.https.onCall(async (data, context) => {
     createdAt: FieldValue.serverTimestamp()
   });
 
-  await registrarHistorial(clienteRef.id, null, ESTADO_CLIENTE.ACTIVO, "Alta de cliente", context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid);
-  await auditar(context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid, "CREAR_CLIENTE", "clientes", clienteRef.id, null, cliente);
+  const nombreActorAlta = usuarioAlta.nombre || context.auth.uid;
+  await registrarHistorial(clienteRef.id, null, ESTADO_CLIENTE.ACTIVO, "Alta de cliente", context.auth.uid, nombreActorAlta);
+  await auditar(context.auth.uid, nombreActorAlta, "CREAR_CLIENTE", "clientes", clienteRef.id, null, cliente);
 
   return { id: clienteRef.id, fechaVencimiento, cicloCorte, proximoCorte };
 });
@@ -806,9 +844,23 @@ exports.actualizarCliente = functions.https.onCall(async (data, context) => {
       if (valor === null || valor === undefined || String(valor).trim() === "") {
         valor = null;
       } else {
-        valor = Number(String(valor).replace(/[^\d.-]/g, ""));
-        if (!Number.isFinite(valor)) {
-          throw new functions.https.HttpsError("invalid-argument", "El campo " + k + " debe ser un número.");
+        /* KZ-UNEF-001 · Se valida el TEXTO, no lo que queda después de
+           limpiarlo. Antes "abc" se convertía en "" y `Number("")` es 0 —
+           pasaba la comprobación y guardaba precioMensual: 0 en silencio, así
+           que los cobros salían sin importe. Tampoco se aceptan negativos. */
+        const texto = String(valor).trim().replace(/,/g, "");
+        if (!/^\d+$/.test(texto)) {
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            "El campo " + k + " debe ser un número entero de pesos (sin letras ni símbolos)."
+          );
+        }
+        valor = Number(texto);
+        if (!Number.isSafeInteger(valor) || valor <= 0) {
+          throw new functions.https.HttpsError(
+            "invalid-argument",
+            "El campo " + k + " debe ser mayor que cero."
+          );
         }
       }
     } else if (CAMPOS_BOOLEANOS_CLIENTE.includes(k)) {
@@ -965,7 +1017,7 @@ exports.mensajeCobro = functions.https.onCall(async (data, context) => {
  *                  (evita extensiones/cobros duplicados).
  * ============================================================ */
 exports.registrarPago = functions.https.onCall(async (data, context) => {
-  await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const usuarioPago = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { clienteId, servicioId, monto, metodoPago, referencia, comprobanteUrl } = data || {};
   // ── Validación del importe y del cliente (harness/unef-010) ──────────
@@ -976,30 +1028,57 @@ exports.registrarPago = functions.https.onCall(async (data, context) => {
     if (typeof clienteId !== "string" || clienteId.trim() === "") {
       throw new functions.https.HttpsError("invalid-argument", "clienteId es obligatorio.");
     }
-    const montoNum = Number(monto);
-    if (typeof monto === "string" || !Number.isFinite(montoNum) || montoNum <= 0) {
-      throw new functions.https.HttpsError("invalid-argument", "El monto debe ser un número finito mayor que cero.");
+    /* KZ-UNEF-001 · El monto tiene que ser un NÚMERO de verdad.
+       Antes solo se rechazaba el texto: `Number(true)` es 1 y `Number([99900])`
+       es 99900, así que un booleano o un array pasaban la validación y se
+       guardaban TAL CUAL en el libro de pagos. Ahora la comprobación está en
+       ./pagos-guardas.js y se persiste el número validado, no el original. */
+    if (typeof monto !== "number") {
+      throw new functions.https.HttpsError("invalid-argument", "El monto debe ser un número (no texto, ni booleano, ni lista).");
     }
-    if (!Number.isSafeInteger(montoNum)) {
-      throw new functions.https.HttpsError("invalid-argument", "El monto debe expresarse en pesos enteros (sin decimales).");
+    const guardaMonto = validarMonto(monto);
+    if (!guardaMonto.ok) {
+      throw new functions.https.HttpsError(guardaMonto.codigo, guardaMonto.motivo);
     }
-    if (data.fechaPago != null && !/^\d{4}-\d{2}-\d{2}$/.test(String(data.fechaPago))) {
+    const montoNum = guardaMonto.valor;
+    const referenciaLimpia = typeof referencia === "string" && referencia.trim() !== "" ? referencia.trim() : null;
+    const fechaPagoPedida = (data || {}).fechaPago;
+    if (fechaPagoPedida != null && !/^\d{4}-\d{2}-\d{2}$/.test(String(fechaPagoPedida))) {
       throw new functions.https.HttpsError("invalid-argument", "fechaPago debe tener formato AAAA-MM-DD.");
     }
     const clienteSnap = await db.collection("clientes").doc(clienteId).get();
     if (!clienteSnap.exists) {
       throw new functions.https.HttpsError("not-found", "El cliente no existe.");
     }
+    /* KZ-UNEF-001 · Un mismo comprobante no puede registrarse dos veces.
+       Sin esta guarda, un reintento del panel (o dos operadores a la vez)
+       creaba dos pagos del MISMO dinero y al confirmar los dos el servicio se
+       extendía dos veces. Se comprueba la referencia contra los pagos que
+       siguen vigentes (un anulado no bloquea volver a registrarlo). */
+    if (referenciaLimpia) {
+      const repetido = await db.collection("pagos")
+        .where("clienteId", "==", clienteId)
+        .where("referencia", "==", referenciaLimpia)
+        .where("estado", "in", [ESTADO_PAGO.PENDIENTE, ESTADO_PAGO.CONFIRMADO])
+        .limit(1)
+        .get();
+      if (!repetido.empty) {
+        throw new functions.https.HttpsError(
+          "already-exists",
+          "Ya existe un pago con esa referencia para este cliente. Revisa el registro antes de crearlo otra vez."
+        );
+      }
+    }
 
   const pago = {
     clienteId,
     servicioId: servicioId || null,
-    monto,
+    monto: montoNum,
     metodoPago: metodoPago || "Otro",
-    fechaPago: data.fechaPago || hoyISO(),
+    fechaPago: fechaPagoPedida || hoyISO(),
     periodoInicio: null,
     periodoFin: null,
-    referencia: referencia || null,
+    referencia: referenciaLimpia,
     comprobanteUrl: comprobanteUrl || null,
     estado: ESTADO_PAGO.PENDIENTE,
     registradoPor: context.auth.uid,
@@ -1007,7 +1086,7 @@ exports.registrarPago = functions.https.onCall(async (data, context) => {
   };
 
   const ref = await db.collection("pagos").add(pago);
-  await auditar(context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid, "REGISTRAR_PAGO", "pagos", ref.id, null, pago);
+  await auditar(context.auth.uid, usuarioPago.nombre || context.auth.uid, "REGISTRAR_PAGO", "pagos", ref.id, null, pago);
   return { id: ref.id, estado: ESTADO_PAGO.PENDIENTE };
 });
 
@@ -1018,6 +1097,7 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
   if (!pagoId) throw new functions.https.HttpsError("invalid-argument", "Se requiere pagoId.");
 
   const pagoRef = db.collection("pagos").doc(pagoId);
+  let estadoPrevioCliente = null;
 
   // Transacción: renovación atómica sin duplicados.
   await db.runTransaction(async (t) => {
@@ -1048,16 +1128,22 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
     const cliente = clienteSnap.data();
 
     const plan = await obtenerPlan(cliente.planId);
-    const fechaInicio = cliente.fechaVencimiento || hoyISO();
-    const periodoInicio = fechaInicio;
-    const periodoFin = sumarDias(fechaInicio, plan.duracion);
+    /* KZ-UNEF-001 · El periodo arranca en el vencimiento SOLO si no ha pasado.
+       Antes se usaba `cliente.fechaVencimiento || hoyISO()`: un cliente vencido
+       desde mayo que pagaba en octubre recibía un periodo que terminaba en
+       junio, se le marcaba ACTIVO y el motor lo volvía a suspender tres días
+       después. El cálculo vive en ./renovacion.js y tiene pruebas propias. */
+    const { periodoInicio, periodoFin } = calcularPeriodo({
+      vencimiento: cliente.fechaVencimiento,
+      duracion: plan.duracion
+    });
 
-    // Actualizar pago
+    // Actualizar pago. `fechaPago` NO se reescribe: es la fecha en que el
+    // cliente pagó, no la fecha en que un operador hizo clic en confirmar.
     t.update(pagoRef, {
       estado: ESTADO_PAGO.CONFIRMADO,
       periodoInicio,
-      periodoFin,
-      fechaPago: hoyISO()
+      periodoFin
     });
 
     // Renovar servicio del cliente
@@ -1079,13 +1165,20 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
     }
 
     // Cliente de nuevo ACTIVO
-    t.update(clienteRef, {
-      fechaInicioServicio: periodoInicio,
+    /* KZ-UNEF-001 · `fechaInicioServicio` es la fecha de ALTA del cliente y
+       ordena la numeración "#" del listado (el #1 es el más antiguo). Antes se
+       reescribía en cada pago, así que el cliente cambiaba de número y la
+       columna "Fecha de ingreso" mostraba el último ciclo facturado. Solo se
+       rellena si venía vacía. */
+    const cambiosCliente = {
       fechaVencimiento: periodoFin,
       estadoCliente: ESTADO_CLIENTE.ACTIVO,
       estadoServicio: ESTADO_SERVICIO.ACTIVO,
       updatedAt: FieldValue.serverTimestamp()
-    });
+    };
+    if (!cliente.fechaInicioServicio) cambiosCliente.fechaInicioServicio = periodoInicio;
+    estadoPrevioCliente = cliente.estadoCliente || null;
+    t.update(clienteRef, cambiosCliente);
 
     // Cancelar recordatorios pendientes del periodo anterior
     const pendientes = await db.collection("notificaciones")
@@ -1098,8 +1191,13 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
   });
 
   const pagoFinal = (await pagoRef.get()).data();
-  await registrarHistorial(pagoFinal.clienteId, pagoFinal.estado, ESTADO_CLIENTE.ACTIVO, "Pago recibido", context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid);
-  await auditar(context.auth.uid, (context.auth.token && context.auth.token.name) || context.auth.uid, "CONFIRMAR_PAGO", "pagos", pagoId, { estado: ESTADO_PAGO.PENDIENTE }, { estado: ESTADO_PAGO.CONFIRMADO });
+  const usuarioConfirmo = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const nombreActor = usuarioConfirmo.nombre || context.auth.uid;
+  // El estado ANTERIOR que se registra es el del CLIENTE, no el del pago:
+  // antes se guardaba "CONFIRMADO → ACTIVO", un estado que no existe en el
+  // modelo del cliente y que ensuciaba su historial.
+  await registrarHistorial(pagoFinal.clienteId, estadoPrevioCliente, ESTADO_CLIENTE.ACTIVO, "Pago recibido", context.auth.uid, nombreActor);
+  await auditar(context.auth.uid, nombreActor, "CONFIRMAR_PAGO", "pagos", pagoId, { estado: ESTADO_PAGO.PENDIENTE }, { estado: ESTADO_PAGO.CONFIRMADO });
 
   return { id: pagoId, estado: ESTADO_PAGO.CONFIRMADO };
 });
@@ -1111,41 +1209,41 @@ exports.anularPago = functions.https.onCall(async (data, context) => {
   if (!pagoId) throw new functions.https.HttpsError("invalid-argument", "Se requiere pagoId.");
 
   const pagoRef = db.collection("pagos").doc(pagoId);
-  const snap = await pagoRef.get();
-  if (!snap.exists) throw new functions.https.HttpsError("not-found", "El pago no existe.");
 
-  const anterior = snap.data().estado;
-  if (anterior === ESTADO_PAGO.ANULADO) {
-    throw new functions.https.HttpsError("already-exists", "El pago ya fue anulado.");
-  }
+  /* KZ-UNEF-001 · La anulación va en TRANSACCIÓN.
+     Antes se leía el estado con `pagoRef.get()` y se escribía después con
+     `update()` a ciegas: entre la lectura y la escritura, `confirmarPago`
+     podía confirmar y renovar en su propia transacción, y este `update`
+     pisaba el CONFIRMADO sin error. Resultado: dinero cobrado y servicio
+     extendido aparecían como "pago anulado".
+     Las guardas viven en ./pagos-guardas.js (probadas sin emulador) para que
+     la decisión sea la misma aquí y en las pruebas. */
+  let anterior = null;
+  await db.runTransaction(async (t) => {
+    const snap = await t.get(pagoRef);
+    if (!snap.exists) throw new functions.https.HttpsError("not-found", "El pago no existe.");
 
-  // ── Guardas de anulación (harness/unef-010) ────────────────────────────
-  // Un pago CONFIRMADO ya renovó el servicio y movió el vencimiento del
-  // cliente: anularlo aquí dejaría un período pagado sin respaldo contable y un
-  // servicio extendido sin pago. Se rechaza; ese caso exige un ajuste
-  // administrativo reversible, no borrar la evidencia del pago.
-  if (anterior === ESTADO_PAGO.CONFIRMADO) {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Un pago confirmado ya renovó el servicio: no se anula desde aquí. Requiere un ajuste administrativo."
-    );
-  }
-  // El motivo es obligatorio: una anulación sin razón no es trazable.
-  if (typeof motivo !== "string" || motivo.trim().length < 3) {
-    throw new functions.https.HttpsError(
-      "invalid-argument",
-      "Se requiere un motivo de anulación (mínimo 3 caracteres)."
-    );
-  }
+    anterior = snap.data().estado;
+    const guarda = puedeAnular(anterior, motivo);
+    if (!guarda.ok) {
+      const mensajes = {
+        "already-exists": "El pago ya fue anulado.",
+        "failed-precondition": "Un pago confirmado ya renovó el servicio: no se anula desde aquí. Requiere un ajuste administrativo.",
+        "invalid-argument": "Se requiere un motivo de anulación (mínimo 3 caracteres)."
+      };
+      throw new functions.https.HttpsError(guarda.codigo, mensajes[guarda.codigo] || "No se puede anular el pago.");
+    }
 
-  await pagoRef.update({
-    estado: ESTADO_PAGO.ANULADO,
-    motivoAnulacion: motivo.trim(),
-    anuladoPor: context.auth.uid,
-    anuladoEn: FieldValue.serverTimestamp(),
-    updatedAt: FieldValue.serverTimestamp()
+    t.update(pagoRef, {
+      estado: ESTADO_PAGO.ANULADO,
+      motivoAnulacion: motivo.trim(),
+      anuladoPor: context.auth.uid,
+      anuladoEn: FieldValue.serverTimestamp(),
+      updatedAt: FieldValue.serverTimestamp()
+    });
   });
-  await auditar(context.auth.uid, (context.auth.token && context.auth.token.name) || usuario.nombre || context.auth.uid,
+
+  await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
     "ANULAR_PAGO", "pagos", pagoId, { estado: anterior },
     { estado: ESTADO_PAGO.ANULADO, motivo: motivo.trim() });
 
@@ -1156,7 +1254,7 @@ exports.anularPago = functions.https.onCall(async (data, context) => {
  * MÓDULO: ESTADOS DE SERVICIO (callable)
  * ============================================================ */
 async function cambiarEstadoCliente(clienteId, estadoNuevo, estadoServicioNuevo, motivo, context, accion) {
-  await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
   if (!clienteId) throw new functions.https.HttpsError("invalid-argument", "Se requiere clienteId.");
 
   const clienteRef = db.collection("clientes").doc(clienteId);
@@ -1164,24 +1262,40 @@ async function cambiarEstadoCliente(clienteId, estadoNuevo, estadoServicioNuevo,
   if (!clienteSnap.exists) throw new functions.https.HttpsError("not-found", "El cliente no existe.");
   const anterior = clienteSnap.data().estadoCliente;
 
-  await clienteRef.update({
+  /* KZ-UNEF-001 · Idempotencia: si ya está en ese estado no se reescribe nada.
+     Antes, pulsar "Suspender" dos veces metía dos filas idénticas en el
+     historial y dos entradas de auditoría del mismo cambio. */
+  if (anterior === estadoNuevo && (clienteSnap.data().estadoServicio || null) === estadoServicioNuevo) {
+    return { clienteId, estado: estadoNuevo, sinCambios: true };
+  }
+
+  /* KZ-UNEF-001 · Cliente y servicio se escriben en el MISMO lote.
+     Antes eran dos escrituras sueltas: si la segunda fallaba, el cliente
+     quedaba SUSPENDIDO y el servicio ACTIVO, y el motor nunca lo corregía
+     porque su guarda mira justamente `estadoCliente === SUSPENDIDO`.
+     El historial y la auditoría van después y a propósito: si el lote falla,
+     no debe quedar constancia de un cambio que no ocurrió. */
+  const servicios = await db.collection("servicios")
+    .where("clienteId", "==", clienteId)
+    .get();
+
+  const lote = db.batch();
+  lote.update(clienteRef, {
     estadoCliente: estadoNuevo,
     estadoServicio: estadoServicioNuevo,
     activo: estadoNuevo !== ESTADO_CLIENTE.INACTIVO,
     updatedAt: FieldValue.serverTimestamp()
   });
-
-  // Actualizar el servicio asociado
-  const servicios = await db.collection("servicios")
-    .where("clienteId", "==", clienteId)
-    .limit(1)
-    .get();
-  if (!servicios.empty) {
-    await servicios.docs[0].ref.update({ estado: estadoServicioNuevo });
+  // Se actualizan TODOS los servicios del cliente, no solo el primero: tener
+  // dos dejaba uno de ellos desincronizado para siempre.
+  for (const doc of servicios.docs) {
+    lote.update(doc.ref, { estado: estadoServicioNuevo });
   }
+  await lote.commit();
 
-  await registrarHistorial(clienteId, anterior, estadoNuevo, motivo, context.auth.uid, context.auth.uid);
-  await auditar(context.auth.uid, context.auth.uid, accion, "clientes", clienteId, { estadoCliente: anterior }, { estadoCliente: estadoNuevo });
+  const nombreActor = usuario.nombre || context.auth.uid;
+  await registrarHistorial(clienteId, anterior, estadoNuevo, motivo, context.auth.uid, nombreActor);
+  await auditar(context.auth.uid, nombreActor, accion, "clientes", clienteId, { estadoCliente: anterior }, { estadoCliente: estadoNuevo });
   return { clienteId, estado: estadoNuevo };
 }
 
@@ -1201,30 +1315,44 @@ exports.reactivarServicio = functions.https.onCall((data, context) =>
  * MÓDULO: ENVÍO MANUAL DE NOTIFICACIÓN (callable)
  * ============================================================ */
 exports.enviarNotificacion = functions.https.onCall(async (data, context) => {
-  await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const usuarioNotif = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
 
   const { clienteId, titulo, mensaje } = data || {};
   if (!clienteId || !mensaje) throw new functions.https.HttpsError("invalid-argument", "clienteId y mensaje son obligatorios.");
+  /* KZ-UNEF-001 · Límites: sin tope, un mensaje enorme hace fallar el envío de
+     FCM (límite ~4 KB) y el panel mostraba "procesada" sin decir nada. */
+  if (String(mensaje).length > 2000) {
+    throw new functions.https.HttpsError("invalid-argument", "El mensaje no puede pasar de 2000 caracteres.");
+  }
+  if (titulo && String(titulo).length > 120) {
+    throw new functions.https.HttpsError("invalid-argument", "El título no puede pasar de 120 caracteres.");
+  }
 
   const resultado = await enviarPush(clienteId, titulo || "UneFibra", mensaje);
 
-  await db.collection("notificaciones").add({
+  /* KZ-UNEF-001 · ENVIADA solo si de verdad salió algo.
+     Antes se escribía ENVIADA siempre, incluso con 0 tokens: el registro decía
+     que el cliente fue avisado cuando no se envió a nadie. */
+  const enviados = (resultado && resultado.enviados) || 0;
+  const refNotif = await db.collection("notificaciones").add({
     clienteId,
     tipo: "MANUAL",
     titulo: titulo || "UneFibra",
     mensaje,
     fechaProgramada: FieldValue.serverTimestamp(),
-    fechaEnvio: FieldValue.serverTimestamp(),
-    estado: ESTADO_NOTIFICACION.ENVIADA,
+    fechaEnvio: enviados > 0 ? FieldValue.serverTimestamp() : null,
+    estado: enviados > 0 ? ESTADO_NOTIFICACION.ENVIADA : ESTADO_NOTIFICACION.ERROR,
     periodoServicio: null,
     canal: "PUSH",
-    error: null,
+    error: enviados > 0 ? null : ((resultado && resultado.motivo) || "Sin tokens activos que reciban el aviso"),
     claveDedup: `${clienteId}_manual_${Date.now()}`,
     createdAt: FieldValue.serverTimestamp()
   });
 
-  await auditar(context.auth.uid, context.auth.uid, "ENVIAR_NOTIFICACION", "clientes", clienteId, null, { mensaje });
-  return resultado;
+  await auditar(context.auth.uid, usuarioNotif.nombre || context.auth.uid,
+    "ENVIAR_NOTIFICACION", "clientes", clienteId, null,
+    { mensaje, enviados, total: (resultado && resultado.total) || 0 });
+  return { ...resultado, id: refNotif.id, estado: enviados > 0 ? ESTADO_NOTIFICACION.ENVIADA : ESTADO_NOTIFICACION.ERROR };
 });
 
 /* ============================================================
