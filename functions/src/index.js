@@ -118,6 +118,9 @@ const {
    duplicada dentro de este archivo). Ahora son la única definición y estas
    callables las usan, así que sus pruebas cubren el código real. */
 const { validarMonto, puedeAnular } = require("./pagos-guardas");
+/* Integración MikroTik: SOLO LECTURA desde aquí. La escritura existe en el
+   módulo pero está cerrada por configuración y no la llama nadie. */
+const { leerConfiguracion, informeEstado } = require("./mikrotik");
 
 const { enviarAlertaError } = require("./alertas");
 const { exportarFirestore } = require("./backup");
@@ -1310,6 +1313,41 @@ exports.desactivarServicio = functions.https.onCall((data, context) =>
 
 exports.reactivarServicio = functions.https.onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.ACTIVO, ESTADO_SERVICIO.ACTIVO, "Reactivación de cliente", context, "REACTIVAR_SERVICIO"));
+
+/* ============================================================
+ * MÓDULO: ESTADO DEL SERVICIO EN EL ROUTER (MikroTik, SOLO LECTURA)
+ * ------------------------------------------------------------
+ * Cruza los clientes de Firestore con las colas del router y devuelve el
+ * estado REAL de cada servicio, sin modificar nada.
+ *
+ * Es deliberadamente de consulta: automatizar un corte sin poder leer antes
+ * significa poder dejar sin Internet a un cliente que sí pagó. La escritura
+ * vive en ./mikrotik.js pero está cerrada (`MIKROTIK_PERMITIR_ESCRITURA`) y
+ * ninguna callable la expone.
+ *
+ * Si faltan las credenciales, responde `configurado: false` y NO se conecta.
+ * ============================================================ */
+exports.estadoMikrotik = functions.https.onCall(async (data, context) => {
+  await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+
+  const config = leerConfiguracion(process.env);
+  if (!config) {
+    return {
+      configurado: false,
+      motivo: "MikroTik no está configurado: faltan MIKROTIK_HOST, MIKROTIK_USER o MIKROTIK_PASSWORD."
+    };
+  }
+
+  const limite = 500;
+  const snap = await db.collection("clientes").limit(limite).get();
+  const clientes = snap.docs.map((d) => {
+    const v = d.data() || {};
+    return { id: d.id, nombreCompleto: v.nombreCompleto || null, ip: v.ip || v.ipCliente || null };
+  });
+
+  const informe = await informeEstado({ clientes, config });
+  return { ...informe, clientesLeidos: clientes.length, truncado: clientes.length >= limite };
+});
 
 /* ============================================================
  * MÓDULO: ENVÍO MANUAL DE NOTIFICACIÓN (callable)
