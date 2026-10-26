@@ -23,6 +23,51 @@ const REFERENCIA = "kz-unef-006";
 
 const esFechaISO = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
+/* ------------------------------------------------------------
+ * KZ-UNEF-018 · Direcciones IP
+ * ------------------------------------------------------------
+ * En la cartera real el campo `ip` está mayormente corrupto: de 358 clientes
+ * solo 35 tienen una IPv4 utilizable; 299 quedaron truncadas a dos octetos
+ * (por ejemplo "101.11", que podía ser .11, .110 o .118) porque Excel las
+ * convirtió en número, 6 son numéricas mal formadas, 4 son texto y 14 no
+ * existen.
+ *
+ * Copiar ese valor a `servicios.ip` sería peor que dejarlo vacío: crearía una
+ * dirección operativa FALSA en un documento nuevo, y cualquier automatización
+ * futura (MikroTik) la tomaría como buena. Y borrarlo sin más sería perder el
+ * único dato original que hay.
+ *
+ * Decisión: `ip` guarda SOLO una IPv4 válida. Cuando el valor no sirve, `ip`
+ * queda en null y el texto original se conserva intacto en `ipOriginal`, con
+ * `ipEstado = NO_UTILIZABLE` para que el panel y la conciliación lo vean.
+ * No se inventa ni se corrige ningún octeto.
+ * ---------------------------------------------------------- */
+
+/** ¿Es una IPv4 utilizable como dirección operativa? (sin adivinar octetos) */
+function esIPv4Utilizable(valor) {
+  if (typeof valor !== "string") return false;
+  const s = valor.trim();
+  if (!/^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(s)) return false;
+  const octetos = s.split(".").map(Number);
+  if (octetos.some((o) => o > 255)) return false;
+  /* 0.x, 127.x y 224+ no son direcciones de abonado. */
+  if (octetos[0] === 0 || octetos[0] === 127 || octetos[0] >= 224) return false;
+  return true;
+}
+
+/**
+ * Prepara el campo ip de un servicio nuevo: utilizable o conservado aparte.
+ * @returns {{ ip: string|null, ipOriginal: string|null, ipEstado: string }}
+ */
+function prepararIp(valor) {
+  if (valor === null || valor === undefined) return { ip: null, ipOriginal: null, ipEstado: "AUSENTE" };
+  const texto = String(valor).trim();
+  if (texto === "") return { ip: null, ipOriginal: null, ipEstado: "AUSENTE" };
+  if (esIPv4Utilizable(texto)) return { ip: texto, ipOriginal: null, ipEstado: "UTILIZABLE" };
+  return { ip: null, ipOriginal: texto, ipEstado: "NO_UTILIZABLE" };
+}
+
+
 /** Id determinista: reejecutar no duplica. */
 function idServicioPara(clienteId) {
   if (!clienteId || !String(clienteId).trim()) throw new Error("clienteId obligatorio");
@@ -72,6 +117,7 @@ function construirServicio(cliente, opciones = {}) {
   }
 
   const ahora = opciones.ahora instanceof Date ? opciones.ahora : new Date();
+  const ipPreparada = prepararIp(c.ip);
   return {
     id: idServicioPara(id),
     datos: {
@@ -82,7 +128,10 @@ function construirServicio(cliente, opciones = {}) {
       fechaInicio: esFechaISO(c.fechaInicioServicio) ? c.fechaInicioServicio : null,
       fechaVencimiento: c.fechaVencimiento,
       cicloCorte: c.cicloCorte || null,
-      ip: c.ip || null,
+      /* Solo una IPv4 válida es dirección operativa; el resto se conserva aparte. */
+      ip: ipPreparada.ip,
+      ipEstado: ipPreparada.ipEstado,
+      ...(ipPreparada.ipOriginal !== null ? { ipOriginal: ipPreparada.ipOriginal } : {}),
       origen: REFERENCIA,
       origenTipo: "migracion-cartera",
       creadoEn: ahora.toISOString(),
@@ -124,6 +173,8 @@ function puedeRevertirse(servicio, contexto = {}) {
 module.exports = {
   REFERENCIA,
   idServicioPara,
+  esIPv4Utilizable,
+  prepararIp,
   evaluarCandidato,
   construirServicio,
   puedeRevertirse

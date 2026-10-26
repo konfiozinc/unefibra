@@ -28,6 +28,14 @@
  * ============================================================ */
 
 const admin = require("firebase-admin");
+/* KZ-UNEF-018 · firebase-admin 14 quitó los namespaces legacy
+   (`admin.firestore()`, `admin.firestore.FieldValue`, `admin.firestore.Timestamp`).
+   Mientras index.js ya usaba la API modular, ESTE módulo no: la corrida del
+   respaldo moría en 53 ms con «TypeError: admin.firestore is not a function».
+   Se detectó el 26-oct-2026 al disparar el job real para comprobar el código
+   nuevo (KZ-UNEF-018 · FASE 1.2). Las pruebas de respaldo no lo vieron porque
+   inyectan `deps` y nunca ejercitan el cableado por defecto. */
+const { getFirestore, FieldValue, Timestamp } = require("firebase-admin/firestore");
 
 const PROJECT_ID = "une-fibra";
 const BUCKET = "unefibra-firestore-backups";
@@ -120,7 +128,7 @@ function crearExportador(deps = {}) {
   /* Cerrojo con caducidad: si el proceso muere, el siguiente puede tomarlo. */
   const lock = deps.lock || {
     async adquirir(duracionMs) {
-      const db = admin.firestore();
+      const db = getFirestore();
       const ref = db.collection(COLECCION_CERROJO).doc(DOC_CERROJO);
       return db.runTransaction(async (t) => {
         const snap = await t.get(ref);
@@ -130,14 +138,14 @@ function crearExportador(deps = {}) {
           const expira = d.expiraEn && d.expiraEn.toMillis ? d.expiraEn.toMillis() : 0;
           if (expira > ahoraMs) return { ok: false, motivo: "Ya hay un respaldo en curso." };
         }
-        t.set(ref, { inicio: admin.firestore.FieldValue.serverTimestamp(), expiraEn: admin.firestore.Timestamp.fromMillis(ahoraMs + duracionMs), estado: "EN_CURSO" });
+        t.set(ref, { inicio: FieldValue.serverTimestamp(), expiraEn: Timestamp.fromMillis(ahoraMs + duracionMs), estado: "EN_CURSO" });
         return { ok: true };
       });
     },
     async liberar(resultado) {
-      const db = admin.firestore();
+      const db = getFirestore();
       await db.collection(COLECCION_CERROJO).doc(DOC_CERROJO)
-        .set({ estado: resultado, expiraEn: admin.firestore.Timestamp.fromMillis(0) }, { merge: true });
+        .set({ estado: resultado, expiraEn: Timestamp.fromMillis(0) }, { merge: true });
     }
   };
 
