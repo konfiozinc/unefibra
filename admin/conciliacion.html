@@ -18,6 +18,21 @@
   } }
   </script>
   <link rel="icon" href="../assets/icons/favicon.png" type="image/png" />
+  <style>
+    /* KZ-UNEF-008 · Objetivos táctiles: la auditoría objetiva detectó selects de
+       19 px y casillas de 13 px. En un móvil eso no se acierta con el pulgar. */
+    #app-content select, #app-content .search input { min-height: 40px; padding: 8px 10px; }
+    #app-content td input.sel { width: 24px; height: 24px; min-width: 24px; min-height: 24px; margin: 0; accent-color: currentColor; }
+    #app-content tbody td:first-child { padding-block: 12px; }
+    #app-content .btn { min-height: 36px; }
+    #app-content .modal .btn { min-height: 40px; }
+    @media (max-width: 480px) {
+      #app-content .toolbar { gap: 10px; }
+      #app-content .toolbar > * { flex: 1 1 100%; }
+      #app-content .btn { min-height: 44px; }
+      #app-content td input.sel { width: 28px; height: 28px; }
+    }
+  </style>
 </head>
 <body>
   <div id="app-shell"></div>

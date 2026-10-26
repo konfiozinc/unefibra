@@ -259,12 +259,90 @@ function exportarCsv() {
   URL.revokeObjectURL(a.href);
 }
 
+/** Pide al SERVIDOR la situación real de cada servicio antes de hacer nada. */
+async function evaluarAntes(ids) {
+  const r = await call("evaluarServiciosConciliacion")({ servicioIds: ids });
+  return r && r.data ? r.data : null;
+}
+
+function resumenTexto(info) {
+  const c = (info && info.resumen && info.resumen.conteo) || {};
+  const linea = (k, t) => (c[k] ? `${t}: ${c[k]}\n` : "");
+  return "Resumen del servidor:\n\n"
+    + linea("AL_DIA", "Al día")
+    + linea("VENCE_HOY", "Vence hoy")
+    + linea("VENCIDO", "Vencidos")
+    + linea("SUSPENDIDO", "Cliente suspendido")
+    + linea("FECHA_INVALIDA", "Fecha inválida (bloqueado)")
+    + linea("CONTRADICTORIO", "Información contradictoria (bloqueado)")
+    + linea("BLOQUEADO_EN_FLUJO", "Sin validar (no habilitable)")
+    + `\nSe habilitarían ahora: ${info.resumen.habilitables}`
+    + `\nRequieren autorización expresa (vencidos): ${info.resumen.requierenAutorizacion}`
+    + `\nBloqueados: ${info.resumen.bloqueados}`;
+}
+
 async function lote(simular) {
   const ids = [...seleccion].map((id) => (filas.find((f) => f.id === id) || {}).servicioId).filter(Boolean);
   if (!ids.length) { alert("Selecciona clientes que ya tengan servicio para habilitar."); return; }
   if (ids.length > 50) { alert("La tanda no puede pasar de 50 servicios."); return; }
-  if (!simular && !confirm(`¿Habilitar ${ids.length} servicio(s)?\n\nSolo se habilitarán los que ya estén VALIDADOS; el resto se informa y no se toca.`)) return;
-  await accion("habilitarServiciosLote", { servicioIds: ids, simular }, simular ? "Simulación completada" : "Tanda procesada");
+
+  let info;
+  try { info = await evaluarAntes(ids); } catch (err) { alert("No se pudo evaluar la tanda: " + err.message); return; }
+  if (!info) { alert("El servidor no devolvió la evaluación."); return; }
+
+  const vencidos = (info.detalle || []).filter((d) => d.existe && d.evaluacion.situacion === "VENCIDO").map((d) => d.servicioId);
+
+  if (simular) {
+    await accion("habilitarServiciosLote", { servicioIds: ids, simular: true },
+      "SIMULACIÓN (no se escribió nada)\n\n" + resumenTexto(info));
+    return;
+  }
+
+  if (!confirm(resumenTexto(info) + "\n\n¿Continuar? Los vencidos NO se habilitarán sin autorización expresa.")) return;
+
+  let autorizar = [];
+  let justificacion = "";
+  if (vencidos.length) {
+    if (!confirm(`Hay ${vencidos.length} servicio(s) VENCIDO(S).\n\nHabilitarlos los expone al motor de cortes: el cliente podría suspenderse en la próxima corrida.\n\n¿Autorizas habilitar esos vencidos?`)) {
+      alert("Se habilitarán solo los que están al día.");
+    } else {
+      justificacion = prompt("Justificación de la autorización (mínimo 10 caracteres):") || "";
+      if (justificacion.trim().length < 10) {
+        alert("Sin justificación válida no se autoriza ningún vencido. Se habilitarán solo los que están al día.");
+        justificacion = "";
+      } else {
+        autorizar = vencidos;
+      }
+    }
+  }
+
+  await accion("habilitarServiciosLote", { servicioIds: ids, autorizarVencidos: autorizar, justificacion }, "Tanda procesada");
+}
+
+/** Habilitación individual con aviso del riesgo real (calculado en el servidor). */
+async function habilitarIndividual(servicioId) {
+  let info;
+  try { info = await evaluarAntes([servicioId]); } catch (err) { alert("No se pudo evaluar: " + err.message); return; }
+  const ev = info && info.detalle && info.detalle[0] && info.detalle[0].evaluacion;
+  if (!ev) { alert("El servidor no devolvió la evaluación del servicio."); return; }
+
+  let texto = `Situación: ${ev.etiqueta}\nVencimiento: ${ev.vencimiento || "—"}\n`;
+  if (ev.dias !== null && ev.dias !== undefined) texto += `Días: ${ev.dias}\n`;
+  if (ev.consecuencias && ev.consecuencias.length) texto += "\n" + ev.consecuencias.join("\n") + "\n";
+  texto += "\nVALIDAR NO ES HABILITAR: al habilitar, este servicio pasa a ser procesado por el motor automático.";
+
+  if (!ev.puedeHabilitar) { alert("NO SE PUEDE HABILITAR\n\n" + texto + "\n\nMotivo: " + (ev.motivos || []).join("; ")); return; }
+
+  if (ev.requiereAutorizacionVencido) {
+    if (!confirm("SERVICIO VENCIDO\n\n" + texto + "\n\n¿Autorizas exponerlo al motor de cortes?")) return;
+    const just = prompt("Justificación (mínimo 10 caracteres):") || "";
+    if (just.trim().length < 10) { alert("Sin justificación no se habilita."); return; }
+    await accion("habilitarServicio", { servicioId, autorizarVencido: true, justificacion: just.trim() }, "Servicio habilitado (con autorización de vencido)");
+    return;
+  }
+
+  if (!confirm(texto + "\n\n¿Habilitar?")) return;
+  await accion("habilitarServicio", { servicioId }, "Servicio habilitado");
 }
 
 /* ---------- carga ---------- */
@@ -331,7 +409,7 @@ function conectar() {
     const val = document.getElementById("accion-validar");
     if (val) val.addEventListener("click", () => accion("validarServicioConciliado", { servicioId: f.servicioId }, "Servicio validado (aún no habilitado)"));
     const hab2 = document.getElementById("accion-habilitar");
-    if (hab2) hab2.addEventListener("click", () => accion("habilitarServicio", { servicioId: f.servicioId }, "Servicio habilitado"));
+    if (hab2) hab2.addEventListener("click", () => habilitarIndividual(f.servicioId));
   }));
 }
 
