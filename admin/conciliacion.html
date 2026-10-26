@@ -47,6 +47,31 @@
     #app-content .btn--warning { background: #fbbf24; border-color: #fbbf24; color: #241500; }
     #app-content .btn--warning:hover:not(:disabled), #app-content .btn--warning:focus-visible:not(:disabled) { background: #fcd34d; border-color: #fcd34d; outline: 3px solid rgba(251,191,36,.25); }
     #app-content .btn--warning:disabled { background: rgba(248,113,113,.18); border-color: rgba(248,113,113,.5); color: #fecaca; }
+    /* KZ-UNEF-010 · Revisión visual de Darwin:
+       (a) en 320 px los indicadores iban uno por fila y empujaban buscador y
+           lista demasiado abajo: ahora dos por fila.
+       (b) entre 768 y 1024 px la columna de acciones quedaba cortada: se reduce
+           el relleno de celdas y se fija la última columna a la derecha. */
+    @media (max-width: 480px) {
+      #app-content .card { flex: 1 1 45%; min-width: 0; }
+      #app-content .card > div:nth-child(2) { font-size: 22px; }
+    }
+    @media (min-width: 768px) and (max-width: 1024px) {
+      #app-content table th, #app-content table td { padding: 8px 6px; font-size: 13px; }
+      #app-content table th:last-child, #app-content table td:last-child {
+        position: sticky; right: 0; background: inherit; white-space: nowrap;
+      }
+    }
+    /* El modal nunca debe esconder sus botones: cabecera y pie visibles con
+       cuerpo desplazable, en cualquier altura de pantalla. */
+    #app-content .conc-modal, #app-content .modal {
+      max-height: calc(100vh - 32px); display: flex; flex-direction: column;
+    }
+    #app-content .conc-modal > :first-child { flex: 0 0 auto; }
+    /* El cuerpo del modal se desplaza; el pie con las acciones queda siempre
+       alcanzable (en 320x640 los botones quedaban fuera de la ventana). */
+    #app-content .modal { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
+    #app-content .modal > div:last-child { position: sticky; bottom: 0; padding: 10px 0 2px; }
     @media (max-width: 480px) {
       #app-content .toolbar { gap: 10px; }
       #app-content .toolbar > * { flex: 1 1 100%; }
