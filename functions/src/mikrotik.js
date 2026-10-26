@@ -228,13 +228,163 @@ async function cambiarEstadoQueue({ config, transporte, queueId, suspender, conf
   });
 }
 
+/* ============================================================
+ * DIAGNÓSTICO DE CORRESPONDENCIAS (KZ-UNEF-005)
+ * ------------------------------------------------------------
+ * Clasifica cada cliente frente a las colas del router en las seis categorías
+ * que exige la misión. Regla de oro: SOLO una coincidencia exacta habilita
+ * cualquier acción; «probable» nunca se trata como exacta.
+ *
+ * No abre conexiones: recibe las colas ya leídas (o un doble, en las pruebas).
+ * ============================================================ */
+const DIAGNOSTICO = Object.freeze({
+  COINCIDENCIA_EXACTA: "COINCIDENCIA_EXACTA",
+  COINCIDENCIA_PROBABLE: "COINCIDENCIA_PROBABLE",
+  SIN_COINCIDENCIA: "SIN_COINCIDENCIA",
+  IP_DUPLICADA: "IP_DUPLICADA",
+  DATOS_INCOMPLETOS: "DATOS_INCOMPLETOS",
+  CONFLICTO: "CONFLICTO"
+});
+
+const SIGNIFICADO = Object.freeze({
+  COINCIDENCIA_EXACTA: "Cliente y servicio identificados sin ambigüedad",
+  COINCIDENCIA_PROBABLE: "Requiere revisión: la coincidencia no es concluyente",
+  SIN_COINCIDENCIA: "No se encontró correspondencia en el router",
+  IP_DUPLICADA: "Riesgo de asociar clientes incorrectos",
+  DATOS_INCOMPLETOS: "No se puede determinar: faltan datos de red",
+  CONFLICTO: "Prohibida cualquier acción automática"
+});
+
+/**
+ * Diagnostica la correspondencia cliente ↔ cola.
+ * @param {Array} clientes [{ id, ip, nombreCompleto }]
+ * @param {Array} colas    filas de /queue/simple/print (crudas o normalizadas)
+ */
+function diagnosticarCorrespondencias(clientes, colas) {
+  const listaClientes = Array.isArray(clientes) ? clientes : [];
+  const queues = (Array.isArray(colas) ? colas : []).map(normalizarQueue).filter(Boolean);
+  const gestionables = queues.filter((q) => !q.dinamica);
+
+  const porIp = new Map();
+  for (const q of gestionables) {
+    for (const ip of q.objetivos) {
+      if (!porIp.has(ip)) porIp.set(ip, []);
+      porIp.get(ip).push(q);
+    }
+  }
+  const porNombre = new Map();
+  for (const q of gestionables) if (q.nombre) porNombre.set(q.nombre.toLowerCase(), q);
+
+  /* La misma IP en dos clientes es un conflicto de DATOS, no una coincidencia. */
+  const ipUsos = new Map();
+  for (const c of listaClientes) {
+    const ip = normalizarIp(c.ip || c.ipCliente || c.direccionIP);
+    if (!ip) continue;
+    if (!ipUsos.has(ip)) ipUsos.set(ip, []);
+    ipUsos.get(ip).push(c.id);
+  }
+
+  const filas = [];
+  const usadas = new Set();
+
+  for (const c of listaClientes) {
+    const ip = normalizarIp(c.ip || c.ipCliente || c.direccionIP);
+    const ipBruta = c.ip !== undefined ? c.ip : (c.ipCliente !== undefined ? c.ipCliente : c.direccionIP);
+
+    if (ip && (ipUsos.get(ip) || []).length > 1) {
+      filas.push({
+        clienteId: c.id, ip, clase: DIAGNOSTICO.IP_DUPLICADA,
+        motivo: `la IP ${ip} aparece en ${ipUsos.get(ip).length} clientes`,
+        cola: null, accionPermitida: false
+      });
+      continue;
+    }
+
+    if (ip) {
+      const candidatas = porIp.get(ip) || [];
+      if (candidatas.length === 1) {
+        usadas.add(candidatas[0].id || candidatas[0].nombre);
+        filas.push({
+          clienteId: c.id, ip, clase: DIAGNOSTICO.COINCIDENCIA_EXACTA,
+          motivo: "una sola cola apunta a esa IP",
+          cola: candidatas[0], accionPermitida: true
+        });
+        continue;
+      }
+      if (candidatas.length > 1) {
+        filas.push({
+          clienteId: c.id, ip, clase: DIAGNOSTICO.CONFLICTO,
+          motivo: `${candidatas.length} colas apuntan a la misma IP`,
+          cola: null, accionPermitida: false
+        });
+        continue;
+      }
+      const objetivo = nombreQueueParaCliente(c).toLowerCase();
+      if (porNombre.has(objetivo)) {
+        const q = porNombre.get(objetivo);
+        usadas.add(q.id || q.nombre);
+        filas.push({
+          clienteId: c.id, ip, clase: DIAGNOSTICO.COINCIDENCIA_PROBABLE,
+          motivo: "la IP no coincide, pero el nombre de la cola sí",
+          cola: q, accionPermitida: false
+        });
+        continue;
+      }
+      filas.push({
+        clienteId: c.id, ip, clase: DIAGNOSTICO.SIN_COINCIDENCIA,
+        motivo: "ninguna cola apunta a esa IP", cola: null, accionPermitida: false
+      });
+      continue;
+    }
+
+    if (ipBruta !== null && ipBruta !== undefined && String(ipBruta).trim() !== "") {
+      filas.push({
+        clienteId: c.id, ip: null, clase: DIAGNOSTICO.DATOS_INCOMPLETOS,
+        motivo: `el campo ip no es una IPv4 válida ("${String(ipBruta).slice(0, 20)}")`,
+        cola: null, accionPermitida: false
+      });
+      continue;
+    }
+    const objetivo = nombreQueueParaCliente(c).toLowerCase();
+    if (porNombre.has(objetivo)) {
+      const q = porNombre.get(objetivo);
+      usadas.add(q.id || q.nombre);
+      filas.push({
+        clienteId: c.id, ip: null, clase: DIAGNOSTICO.COINCIDENCIA_PROBABLE,
+        motivo: "sin IP, pero el nombre de la cola coincide",
+        cola: q, accionPermitida: false
+      });
+      continue;
+    }
+    filas.push({
+      clienteId: c.id, ip: null, clase: DIAGNOSTICO.DATOS_INCOMPLETOS,
+      motivo: "sin IP y sin cola por nombre", cola: null, accionPermitida: false
+    });
+  }
+
+  const resumen = {};
+  for (const k of Object.values(DIAGNOSTICO)) resumen[k] = 0;
+  for (const f of filas) resumen[f.clase]++;
+  resumen.totalClientes = listaClientes.length;
+  resumen.totalColas = queues.length;
+  resumen.colasGestionables = gestionables.length;
+  resumen.accionesPermitidas = filas.filter((f) => f.accionPermitida).length;
+
+  const colasSinUso = gestionables.filter((q) => !usadas.has(q.id || q.nombre));
+
+  return { resumen, filas, colasSinUso, significado: SIGNIFICADO };
+}
+
 module.exports = {
   ESTADOS_ROUTER,
+  DIAGNOSTICO,
+  SIGNIFICADO,
   normalizarIp,
   nombreQueueParaCliente,
   normalizarQueue,
   estadoDesdeQueue,
   emparejar,
+  diagnosticarCorrespondencias,
   leerConfiguracion,
   listarQueues,
   informeEstado,
