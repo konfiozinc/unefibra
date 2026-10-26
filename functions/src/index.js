@@ -132,6 +132,28 @@ const {
   bloqueRechazado
 } = require("./conciliacion");
 const { construirServicio, puedeRevertirse } = require("./migracion");
+/* KZ-UNEF-008 · Riesgo de habilitar un servicio (vencidos). Se evalúa SIEMPRE
+   en el servidor y con la zona horaria de Colombia; el navegador solo informa. */
+const { evaluarServicio, autorizarHabilitacion, resumirTanda } = require("./habilitacion");
+
+/** Reúne servicio + cliente + pagos de un servicio y los evalúa. */
+async function evaluarServicioPorId(servicioId) {
+  const snap = await db.collection("servicios").doc(servicioId).get();
+  if (!snap.exists) return { servicioId, existe: false };
+  const servicio = { id: snap.id, ...snap.data() };
+  const clienteSnap = servicio.clienteId
+    ? await db.collection("clientes").doc(servicio.clienteId).get()
+    : null;
+  const cliente = clienteSnap && clienteSnap.exists ? { id: clienteSnap.id, ...clienteSnap.data() } : null;
+  const pagosSnap = await db.collection("pagos").where("clienteId", "==", servicio.clienteId || "-").get();
+  const pagos = pagosSnap.docs.map((d) => d.data());
+  return {
+    servicioId,
+    existe: true,
+    clienteId: servicio.clienteId || null,
+    evaluacion: evaluarServicio({ servicio, cliente, pagos })
+  };
+}
 
 const { enviarAlertaError } = require("./alertas");
 const { exportarConDetalle } = require("./backup");
@@ -1486,31 +1508,64 @@ exports.prepararServicioConciliacion = functions.https.onCall(async (data, conte
 /** 3 · HABILITAR: solo desde VALIDADA. Devuelve el servicio al motor. */
 exports.habilitarServicio = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
-  const { servicioId } = data || {};
+  const { servicioId, autorizarVencido, justificacion, advertenciaAceptada } = data || {};
   if (!servicioId) throw new functions.https.HttpsError("invalid-argument", "Se requiere servicioId.");
 
-  const ref = db.collection("servicios").doc(servicioId);
-  const snap = await ref.get();
-  if (!snap.exists) throw new functions.https.HttpsError("not-found", "El servicio no existe.");
-  const actual = snap.data() || {};
-  if (!actual.conciliacion || actual.conciliacion.estado !== "VALIDADA") {
-    throw new functions.https.HttpsError(
-      "failed-precondition",
-      "Solo se habilita un servicio ya VALIDADO. Validar y habilitar son pasos distintos."
-    );
+  /* Se reevalúa AHORA: el estado pudo cambiar desde que el panel pintó la ficha. */
+  const info = await evaluarServicioPorId(servicioId);
+  if (!info.existe) throw new functions.https.HttpsError("not-found", "El servicio no existe.");
+
+  const permiso = autorizarHabilitacion(info.evaluacion, { autorizarVencido, justificacion, advertenciaAceptada });
+  if (!permiso.permitido) {
+    throw new functions.https.HttpsError("failed-precondition", permiso.motivo);
   }
 
+  const ref = db.collection("servicios").doc(servicioId);
   const bloque = bloqueHabilitado({ por: usuario.nombre || context.auth.uid });
   await ref.update({ conciliacion: bloque, updatedAt: FieldValue.serverTimestamp() });
   await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
-    "HABILITAR_SERVICIO", "servicios", servicioId, { estado: "VALIDADA" }, { estado: "HABILITADA" });
-  return { servicioId, conciliacion: bloque.estado };
+    "HABILITAR_SERVICIO", "servicios", servicioId,
+    { estado: "VALIDADA" },
+    {
+      estado: "HABILITADA",
+      situacion: info.evaluacion.situacion,
+      vencimiento: info.evaluacion.vencimiento,
+      dias: info.evaluacion.dias,
+      autorizoVencido: info.evaluacion.requiereAutorizacionVencido && autorizarVencido === true,
+      justificacion: justificacion ? String(justificacion).slice(0, 300) : null
+    });
+  return {
+    servicioId,
+    conciliacion: bloque.estado,
+    situacion: info.evaluacion.situacion,
+    consecuencias: info.evaluacion.consecuencias
+  };
 });
 
-/** 3-bis · HABILITAR EN TANDA: con límite, reanudable y con resultado por ítem. */
+/** Consulta (solo lectura) del riesgo de una lista: alimenta el resumen del panel. */
+exports.evaluarServiciosConciliacion = functions.https.onCall(async (data, context) => {
+  await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const { servicioIds } = data || {};
+  if (!Array.isArray(servicioIds) || servicioIds.length === 0) {
+    throw new functions.https.HttpsError("invalid-argument", "Se requiere una lista de servicioIds.");
+  }
+  if (servicioIds.length > 50) {
+    throw new functions.https.HttpsError("invalid-argument", "Máximo 50 servicios por consulta.");
+  }
+
+  const detalle = [];
+  for (const id of servicioIds) {
+    if (typeof id !== "string" || !id) { detalle.push({ servicioId: String(id), existe: false }); continue; }
+    detalle.push(await evaluarServicioPorId(id));
+  }
+  const evaluaciones = detalle.filter((d) => d.existe).map((d) => d.evaluacion);
+  return { total: detalle.length, resumen: resumirTanda(evaluaciones), detalle };
+});
+
+/** 3-bis · HABILITAR EN TANDA: nunca habilita vencidos sin autorización explícita. */
 exports.habilitarServiciosLote = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
-  const { servicioIds, simular } = data || {};
+  const { servicioIds, simular, autorizarVencidos, justificacion } = data || {};
   if (!Array.isArray(servicioIds) || servicioIds.length === 0) {
     throw new functions.https.HttpsError("invalid-argument", "Se requiere una lista de servicioIds.");
   }
@@ -1518,32 +1573,56 @@ exports.habilitarServiciosLote = functions.https.onCall(async (data, context) =>
   if (servicioIds.length > LIMITE) {
     throw new functions.https.HttpsError("invalid-argument", `La tanda no puede pasar de ${LIMITE} servicios.`);
   }
+  const autorizados = Array.isArray(autorizarVencidos) ? autorizarVencidos.filter((x) => typeof x === "string") : [];
+  const justificacionLote = typeof justificacion === "string" ? justificacion.trim() : "";
 
   const resultados = [];
   for (const id of servicioIds) {
     if (typeof id !== "string" || !id) { resultados.push({ servicioId: String(id), resultado: "ID_INVALIDO" }); continue; }
+
+    /* Reevaluación inmediatamente antes de escribir. */
+    const info = await evaluarServicioPorId(id);
+    if (!info.existe) { resultados.push({ servicioId: id, resultado: "NO_EXISTE" }); continue; }
+    const ev = info.evaluacion;
+
+    if (ev.estadoConciliacion === "HABILITADA") { resultados.push({ servicioId: id, resultado: "YA_HABILITADO", situacion: ev.situacion }); continue; }
+    if (ev.situacion === "BLOQUEADO_EN_FLUJO") { resultados.push({ servicioId: id, resultado: "NO_VALIDADO", situacion: ev.situacion }); continue; }
+    if (!ev.puedeHabilitar) { resultados.push({ servicioId: id, resultado: "BLOQUEADO", situacion: ev.situacion, motivos: ev.motivos }); continue; }
+
+    const autorizadoEste = autorizados.includes(id) && justificacionLote.length >= 10;
+    const permiso = autorizarHabilitacion(ev, {
+      autorizarVencido: autorizadoEste,
+      justificacion: autorizadoEste ? justificacionLote : "",
+      advertenciaAceptada: true
+    });
+    if (!permiso.permitido) {
+      resultados.push({ servicioId: id, resultado: "REQUIERE_AUTORIZACION", situacion: ev.situacion, motivo: permiso.motivo });
+      continue;
+    }
+
+    if (simular) { resultados.push({ servicioId: id, resultado: "SIMULADO_INCLUIDO", situacion: ev.situacion }); continue; }
+
     const ref = db.collection("servicios").doc(id);
-    const snap = await ref.get();
-    if (!snap.exists) { resultados.push({ servicioId: id, resultado: "NO_EXISTE" }); continue; }
-    const estado = (snap.data().conciliacion || {}).estado;
-    if (estado === "HABILITADA") { resultados.push({ servicioId: id, resultado: "YA_HABILITADO" }); continue; }
-    if (estado !== "VALIDADA") { resultados.push({ servicioId: id, resultado: "NO_VALIDADO", estado }); continue; }
-
-    if (simular) { resultados.push({ servicioId: id, resultado: "SIMULADO_OK" }); continue; }
-
-    const bloque = bloqueHabilitado({ por: usuario.nombre || context.auth.uid });
-    await ref.update({ conciliacion: bloque, updatedAt: FieldValue.serverTimestamp() });
-    await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
-      "HABILITAR_SERVICIO_LOTE", "servicios", id, { estado: "VALIDADA" }, { estado: "HABILITADA" });
-    resultados.push({ servicioId: id, resultado: "HABILITADO" });
+    try {
+      await ref.update({ conciliacion: bloqueHabilitado({ por: usuario.nombre || context.auth.uid }), updatedAt: FieldValue.serverTimestamp() });
+      await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
+        "HABILITAR_SERVICIO_LOTE", "servicios", id, { estado: "VALIDADA" },
+        { estado: "HABILITADA", situacion: ev.situacion, autorizoVencido: autorizadoEste });
+      resultados.push({ servicioId: id, resultado: "HABILITADO", situacion: ev.situacion });
+    } catch (e) {
+      /* Fallo parcial: se identifica por registro y NO se reintenta a ciegas. */
+      resultados.push({ servicioId: id, resultado: "ERROR", motivo: String(e && e.message).slice(0, 160) });
+    }
   }
 
   const resumen = resultados.reduce((acc, r) => { acc[r.resultado] = (acc[r.resultado] || 0) + 1; return acc; }, {});
+  const evaluaciones = resultados.filter((r) => r.situacion).map((r) => ({ situacion: r.situacion }));
   if (!simular) {
     await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
-      "HABILITAR_LOTE_RESUMEN", "servicios", "-", null, { total: servicioIds.length, resumen });
+      "HABILITAR_LOTE_RESUMEN", "servicios", "-", null,
+      { total: servicioIds.length, resumen, autorizadosVencidos: autorizados.length, justificacion: justificacionLote.slice(0, 300) });
   }
-  return { simulado: !!simular, total: servicioIds.length, resumen, resultados };
+  return { simulado: !!simular, total: servicioIds.length, resumen, situaciones: resumirTanda(evaluaciones), resultados };
 });
 
 /* ============================================================

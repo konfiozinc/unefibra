@@ -126,7 +126,7 @@ const chk = (nm, cond, d) => {
 
   r = await callable('habilitarServiciosLote', { servicioIds: svcA, simular: true }, adm.tok);
   chk('La simulación se acepta', r.st === 200, `HTTP ${r.st}`);
-  chk('La simulación NO escribe', r.j.result.resumen.SIMULADO_OK === 2 && !r.j.result.resumen.HABILITADO,
+  chk('La simulación NO escribe', r.j.result.resumen.SIMULADO_INCLUIDO === 2 && !r.j.result.resumen.HABILITADO,
     JSON.stringify(r.j.result.resumen));
   const trasSimular = (await leer('servicios/' + svcA[0])).j;
   chk('Tras simular sigue VALIDADA',

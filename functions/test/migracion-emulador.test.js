@@ -213,7 +213,8 @@ const servicioMigrado = (clienteId, vence, extra = {}) => ({
     campo(sinIp, 'estadoCliente') === 'ACTIVO', campo(sinIp, 'estadoCliente'));
 
   /* Habilitar es un paso APARTE: solo entonces el motor lo procesa. */
-  const rHab = await callable('habilitarServicio', { servicioId: 'svc-c_sin_ip' }, adm.tok);
+  /* El servicio está vencido: habilitarlo exige autorización explícita (KZ-UNEF-008). */
+  const rHab = await callable('habilitarServicio', { servicioId: 'svc-c_sin_ip', autorizarVencido: true, justificacion: 'prueba de certificacion: cliente vencido validado a mano' }, adm.tok);
   chk('ADMIN habilita el servicio validado', rHab.st === 200, `HTTP ${rHab.st}`);
   const rNoValidado = await callable('habilitarServicio', { servicioId: 'svc-c_vencido' }, adm.tok);
   chk('No se puede habilitar algo que solo está PENDIENTE', rNoValidado.st === 400, `HTTP ${rNoValidado.st}`);
