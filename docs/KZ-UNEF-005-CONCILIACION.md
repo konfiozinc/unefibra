@@ -55,7 +55,7 @@ publicación de KZ-UNEF-004: es el estado de la cartera.
 | Patrón del valor | Clientes | Ejemplo |
 |---|---|---|
 | Truncada a 2 octetos (residuo) | **301** | `101.11` |
-| IPv4 válida (4 octetos) | **35** | `192.168.200.10` |
+| IPv4 válida (4 octetos) | **35** | `10.20.30.40` (ejemplo sintético) |
 | Campo ausente | 14 | — |
 | Texto no numérico | 8 | `50,2` |
 

@@ -1,0 +1,13 @@
+
+── RESULTADO ──
+  migrables        : 333
+  omitidos (ya tienen servicio) : 5
+  requieren revisión            : 20
+  errores de construcción       : 0
+  todos nacen en estado         : PENDIENTE_VALIDACION (sin automatismos)
+
+  manifiesto guardado en C:\KZ-EVIDENCIA\kz-unef-006\manifiesto-kz-unef-006.json
+
+  NADA SE HA ESCRITO. Simulación.
+  Si se autorizara, crearía 333 servicios con id "svc-<clienteId>",
+  todos en conciliación pendiente y con origen "kz-unef-006".
