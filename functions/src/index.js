@@ -123,7 +123,7 @@ const { validarMonto, puedeAnular } = require("./pagos-guardas");
 const { leerConfiguracion, informeEstado } = require("./mikrotik");
 
 const { enviarAlertaError } = require("./alertas");
-const { exportarFirestore } = require("./backup");
+const { exportarConDetalle } = require("./backup");
 
 /* ------------------------------------------------------------------
  * Contexto de los mensajes de cobro
@@ -623,19 +623,33 @@ exports.backupFirestore = functions
   .schedule("0 3 * * *") // 03:00 diario, hora de Bogotá
   .timeZone("America/Bogota")
   .onRun(async () => {
-    try {
-      const destino = await exportarFirestore();
-      console.log("Backup de Firestore completado:", destino);
-      return { destino };
-    } catch (err) {
-      console.error("backupFirestore falló:", err);
+    /* KZ-UNEF-005 · El respaldo ahora distingue «iniciada» de «completada»:
+       espera la operación, comprueba que los archivos existan en el bucket,
+       reintenta los errores transitorios y usa un cerrojo para no solaparse.
+       El 25-oct el 503 de Firestore dejó el día sin respaldo y nadie se enteró. */
+    const resultado = await exportarConDetalle({ timeoutOperacionMs: 480000 });
+    console.log("Backup de Firestore:", resultado.estado, {
+      destino: resultado.outputUriPrefix || null,
+      objetos: resultado.objetos || 0,
+      intentos: resultado.intentos.length,
+      motivo: resultado.motivo || null
+    });
+
+    if (resultado.requiereAlerta) {
+      const err = new Error(`Respaldo no completado (${resultado.estado}): ${resultado.motivo}`);
+      err.intentos = resultado.intentos;
       try {
         await enviarAlertaError("backupFirestore (exportación diaria)", err);
+        console.log("Alerta de respaldo enviada.");
       } catch (emailErr) {
+        /* Si el correo falla, el fallo del respaldo NO se enmascara: queda en
+           los logs con el estado real y la función termina en error. */
         console.error("No se pudo enviar la alerta por email:", emailErr);
       }
       throw err;
     }
+
+    return resultado;
   });
 
 /* ============================================================
