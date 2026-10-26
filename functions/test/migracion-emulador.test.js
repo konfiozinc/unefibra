@@ -209,8 +209,20 @@ const servicioMigrado = (clienteId, vence, extra = {}) => ({
   const rMotor2 = await callable('ejecutarMotor', {}, sup.tok);
   chk('El motor vuelve a correr', rMotor2.st === 200, `HTTP ${rMotor2.st}`);
   const sinIp = (await leer('clientes/c_sin_ip')).j;
-  chk('Ya validado, el motor SÍ lo procesa (lo suspende por mora)',
-    campo(sinIp, 'estadoCliente') === 'SUSPENDIDO', campo(sinIp, 'estadoCliente'));
+  chk('VALIDADA todavía NO lo procesa (revisado ≠ habilitado)',
+    campo(sinIp, 'estadoCliente') === 'ACTIVO', campo(sinIp, 'estadoCliente'));
+
+  /* Habilitar es un paso APARTE: solo entonces el motor lo procesa. */
+  const rHab = await callable('habilitarServicio', { servicioId: 'svc-c_sin_ip' }, adm.tok);
+  chk('ADMIN habilita el servicio validado', rHab.st === 200, `HTTP ${rHab.st}`);
+  const rNoValidado = await callable('habilitarServicio', { servicioId: 'svc-c_vencido' }, adm.tok);
+  chk('No se puede habilitar algo que solo está PENDIENTE', rNoValidado.st === 400, `HTTP ${rNoValidado.st}`);
+
+  const rMotor3 = await callable('ejecutarMotor', {}, sup.tok);
+  chk('El motor corre de nuevo', rMotor3.st === 200, `HTTP ${rMotor3.st}`);
+  const sinIp2 = (await leer('clientes/c_sin_ip')).j;
+  chk('Ya HABILITADO, el motor SÍ lo suspende por mora',
+    campo(sinIp2, 'estadoCliente') === 'SUSPENDIDO', campo(sinIp2, 'estadoCliente'));
   const vencido2 = (await leer('clientes/c_vencido')).j;
   chk('Los que siguen pendientes NO se tocan', campo(vencido2, 'estadoCliente') === 'ACTIVO', campo(vencido2, 'estadoCliente'));
 

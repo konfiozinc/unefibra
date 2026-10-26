@@ -33,9 +33,21 @@
 
 const ESTADO_CONCILIACION = Object.freeze({
   PENDIENTE: "PENDIENTE_VALIDACION",
+  /* Revisado por una persona, pero TODAVÍA NO sujeto al motor de cobros ni de
+     cortes. KZ-UNEF-007 exige separar «validar» de «habilitar». */
   VALIDADA: "VALIDADA",
+  /* Habilitado: el servicio vuelve a la operación normal. */
+  HABILITADA: "HABILITADA",
   RECHAZADA: "RECHAZADA"
 });
+
+/* Estados que bloquean las automatizaciones. Solo la ausencia del bloque o el
+   estado HABILITADA dejan pasar el servicio al motor. */
+const ESTADOS_BLOQUEANTES = Object.freeze([
+  ESTADO_CONCILIACION.PENDIENTE,
+  ESTADO_CONCILIACION.VALIDADA,
+  ESTADO_CONCILIACION.RECHAZADA
+]);
 
 const REFERENCIA_POR_DEFECTO = "kz-unef-006";
 
@@ -49,12 +61,20 @@ const ACCIONES = Object.freeze({
   CAMBIAR_ESTADO: "CAMBIAR_ESTADO"
 });
 
-/** ¿El documento está en conciliación pendiente? */
+/** ¿El documento está bajo algún estado bloqueante? */
 function enConciliacionPendiente(doc) {
   if (!doc || typeof doc !== "object") return false;
   const c = doc.conciliacion;
   if (!c || typeof c !== "object") return false;
-  return c.estado === ESTADO_CONCILIACION.PENDIENTE;
+  return ESTADOS_BLOQUEANTES.includes(c.estado);
+}
+
+/** ¿Está habilitado para la operación normal? (sin bloque o HABILITADA) */
+function estaHabilitado(doc) {
+  if (!doc || typeof doc !== "object") return true;
+  const c = doc.conciliacion;
+  if (!c || typeof c !== "object") return true;
+  return c.estado === ESTADO_CONCILIACION.HABILITADA;
 }
 
 /**
@@ -66,9 +86,12 @@ function puedeAutomatizar(servicio, accion) {
   if (!enConciliacionPendiente(servicio)) return { permitido: true, motivo: null };
   const c = servicio.conciliacion || {};
   const detalle = c.referencia ? ` (${c.referencia})` : "";
+  const pista = c.estado === ESTADO_CONCILIACION.VALIDADA
+    ? "está revisado pero NO habilitado: falta la habilitación explícita"
+    : `está en conciliación ${c.estado}`;
   return {
     permitido: false,
-    motivo: `Servicio en conciliación PENDIENTE_VALIDACION${detalle}: ${accion} bloqueada hasta que un administrador valide los datos heredados.`
+    motivo: `Servicio ${pista}${detalle}: ${accion} bloqueada hasta que un administrador lo habilite.`
   };
 }
 
@@ -105,6 +128,16 @@ function bloqueValidado({ por, ahora } = {}) {
   };
 }
 
+/** Bloque al habilitar: es la acción que devuelve el servicio al motor. */
+function bloqueHabilitado({ por, ahora } = {}) {
+  return {
+    estado: ESTADO_CONCILIACION.HABILITADA,
+    desde: (ahora instanceof Date ? ahora : new Date()).toISOString(),
+    referencia: REFERENCIA_POR_DEFECTO,
+    habilitadoPor: por || null
+  };
+}
+
 /** Bloque al rechazar (exige motivo: queda como evidencia). */
 function bloqueRechazado({ por, motivo, ahora } = {}) {
   if (!motivo || String(motivo).trim().length < 5) {
@@ -137,7 +170,10 @@ module.exports = {
   ESTADO_CONCILIACION,
   ACCIONES,
   REFERENCIA_POR_DEFECTO,
+  ESTADOS_BLOQUEANTES,
   enConciliacionPendiente,
+  estaHabilitado,
+  bloqueHabilitado,
   puedeAutomatizar,
   guardias,
   bloqueConciliacion,

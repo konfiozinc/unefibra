@@ -19,7 +19,8 @@ const t = (n, fn) => {
 };
 
 const PENDIENTE = { conciliacion: { estado: 'PENDIENTE_VALIDACION', referencia: 'kz-unef-006' } };
-const VALIDADO = { conciliacion: { estado: 'VALIDADA', referencia: 'kz-unef-006' } };
+const VALIDADA = { conciliacion: { estado: 'VALIDADA', referencia: 'kz-unef-006' } };
+const HABILITADO = { conciliacion: { estado: 'HABILITADA', referencia: 'kz-unef-006' } };
 const SIN_BLOQUE = { estado: 'ACTIVO' };
 
 console.log('=== 1. Servicio en conciliación: TODO bloqueado ===');
@@ -40,8 +41,12 @@ for (const [fn, accion] of ACCIONES_A_PROBAR) {
     assert.match(r.motivo, /conciliación|conciliacion/i);
   });
 
-  t(`${accion} permitida si el servicio está validado`, () => {
-    assert.strictEqual(c.guardias[fn](VALIDADO).permitido, true);
+  t(`${accion} sigue bloqueada si solo está VALIDADA (revisado ≠ habilitado)`, () => {
+    assert.strictEqual(c.guardias[fn](VALIDADA).permitido, false);
+  });
+
+  t(`${accion} permitida si el servicio está HABILITADO`, () => {
+    assert.strictEqual(c.guardias[fn](HABILITADO).permitido, true);
   });
 
   t(`${accion} permitida si el servicio no tiene bloque de conciliación`, () => {
@@ -52,7 +57,12 @@ for (const [fn, accion] of ACCIONES_A_PROBAR) {
 t('un servicio sin bloque se comporta como siempre (no rompe lo existente)', () => {
   assert.strictEqual(c.enConciliacionPendiente(SIN_BLOQUE), false);
   assert.strictEqual(c.enConciliacionPendiente(null), false);
-  assert.strictEqual(c.enConciliacionPendiente({ conciliacion: { estado: 'VALIDADA' } }), false);
+  // VALIDADA bloquea, HABILITADA no.
+  assert.strictEqual(c.enConciliacionPendiente(VALIDADA), true);
+  assert.strictEqual(c.enConciliacionPendiente(HABILITADO), false);
+  assert.strictEqual(c.estaHabilitado(HABILITADO), true);
+  assert.strictEqual(c.estaHabilitado(SIN_BLOQUE), true);
+  assert.strictEqual(c.estaHabilitado(VALIDADA), false);
 });
 
 t('el guardia NO depende de credenciales de MikroTik', () => {
@@ -93,9 +103,9 @@ t('rechazar exige motivo', () => {
 });
 
 t('separarPorConciliacion divide sin perder elementos', () => {
-  const r = c.separarPorConciliacion([PENDIENTE, VALIDADO, SIN_BLOQUE]);
-  assert.strictEqual(r.enConciliacion.length, 1);
-  assert.strictEqual(r.normales.length, 2);
+  const r = c.separarPorConciliacion([PENDIENTE, VALIDADA, HABILITADO, SIN_BLOQUE]);
+  assert.strictEqual(r.enConciliacion.length, 2);   // pendiente + validada
+  assert.strictEqual(r.normales.length, 2);         // habilitado + sin bloque
 });
 
 console.log('\n=== 3. Reglas de la migración ===');
