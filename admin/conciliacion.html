@@ -26,11 +26,34 @@
     #app-content tbody td:first-child { padding-block: 12px; }
     #app-content .btn { min-height: 36px; }
     #app-content .modal .btn { min-height: 40px; }
+    #app-content .badge-estado.tone-cyan { background: rgba(0,176,240,.16); color: #67e8f9; }
+    #app-content .badge-estado.tone-blue { background: rgba(96,165,250,.18); color: #93c5fd; }
+    #app-content .badge-estado.tone-violet { background: rgba(167,139,250,.18); color: #c4b5fd; }
+    #app-content .conc-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+    #app-content .conc-table-wrap:focus-visible { outline: 3px solid var(--cyan); outline-offset: 3px; }
+    #app-content .conc-table-hint { display: none; margin: 0 0 8px; color: var(--text-muted); font-size: 13px; }
+    #app-content .conc-modal { position: relative; }
+    #app-content .conc-modal-close {
+      position: sticky; top: 0; float: right; z-index: 2;
+      width: 44px; height: 44px; margin: -14px -14px 0 12px;
+      border: 1px solid var(--line); border-radius: 12px;
+      background: var(--bg-soft); color: var(--text); font-size: 26px; line-height: 1;
+    }
+    #app-content .conc-modal-close:hover, #app-content .conc-modal-close:focus-visible { border-color: var(--cyan); color: var(--cyan); outline: none; }
+    #app-content .conc-risk { display: grid; gap: 4px; margin: 14px 0; padding: 12px 14px; border-radius: 10px; }
+    #app-content .conc-risk span { font-size: 13px; }
+    #app-content .conc-risk--expired { border: 1px solid rgba(251,191,36,.55); background: rgba(251,191,36,.13); color: #fde68a; }
+    #app-content .conc-risk--blocked { border: 1px solid rgba(248,113,113,.6); background: rgba(248,113,113,.14); color: #fecaca; }
+    #app-content .btn--warning { background: #fbbf24; border-color: #fbbf24; color: #241500; }
+    #app-content .btn--warning:hover:not(:disabled), #app-content .btn--warning:focus-visible:not(:disabled) { background: #fcd34d; border-color: #fcd34d; outline: 3px solid rgba(251,191,36,.25); }
+    #app-content .btn--warning:disabled { background: rgba(248,113,113,.18); border-color: rgba(248,113,113,.5); color: #fecaca; }
     @media (max-width: 480px) {
       #app-content .toolbar { gap: 10px; }
       #app-content .toolbar > * { flex: 1 1 100%; }
       #app-content .btn { min-height: 44px; }
       #app-content td input.sel { width: 28px; height: 28px; }
+      #app-content .conc-table-hint { display: block; }
+      #app-content .conc-modal { padding-top: 18px; }
     }
   </style>
 </head>

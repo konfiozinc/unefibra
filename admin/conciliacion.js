@@ -41,6 +41,10 @@ const puedeGestionar = () => ctx && ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
 
 const esFecha = (v) => typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v);
 
+function fechaOperacion() {
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "America/Bogota" }).format(new Date());
+}
+
 function ipValida(v) {
   if (v === null || v === undefined || String(v).trim() === "") return "AUSENTE";
   const t = String(v).trim().replace(/\/\d+$/, "");
@@ -64,12 +68,18 @@ function clasificar(c) {
   const suyos = porCliente.get(c.id) || [];
   if (suyos.length > 1) return { clase: "AMBIGUO", etiqueta: "Ambiguo", detalle: `${suyos.length} servicios` };
   if (suyos.length === 1) {
-    const estado = (suyos[0].conciliacion || {}).estado || null;
-    if (estado === "HABILITADA") return { clase: "HABILITADO", etiqueta: "Habilitado", servicioId: suyos[0].id };
-    if (estado === "VALIDADA") return { clase: "VALIDADO", etiqueta: "Validado (sin habilitar)", servicioId: suyos[0].id };
-    if (estado === "RECHAZADA") return { clase: "RECHAZADO", etiqueta: "Rechazado", servicioId: suyos[0].id };
-    if (estado === "PENDIENTE_VALIDACION") return { clase: "PENDIENTE", etiqueta: "Conciliación pendiente", servicioId: suyos[0].id };
-    return { clase: "CON_SERVICIO", etiqueta: "Con servicio", servicioId: suyos[0].id };
+    const servicio = suyos[0];
+    const estado = (servicio.conciliacion || {}).estado || null;
+    const vencimiento = servicio.fechaVencimiento || c.fechaVencimiento;
+    const avisos = [];
+    if (c.estadoCliente === "SUSPENDIDO") avisos.push("cliente suspendido: habilitación bloqueada");
+    if (esFecha(vencimiento) && vencimiento < fechaOperacion()) avisos.push("servicio vencido: requiere autorización");
+    const detalle = avisos.join(" · ");
+    if (estado === "HABILITADA") return { clase: "HABILITADO", etiqueta: "Habilitado", servicioId: servicio.id, detalle };
+    if (estado === "VALIDADA") return { clase: "VALIDADO", etiqueta: "Validado (sin habilitar)", servicioId: servicio.id, detalle };
+    if (estado === "RECHAZADA") return { clase: "RECHAZADO", etiqueta: "Rechazado", servicioId: servicio.id, detalle };
+    if (estado === "PENDIENTE_VALIDACION") return { clase: "PENDIENTE", etiqueta: "Conciliación pendiente", servicioId: servicio.id, detalle };
+    return { clase: "CON_SERVICIO", etiqueta: "Con servicio", servicioId: servicio.id, detalle };
   }
   const faltan = motivosIncompleto(c);
   if (faltan.length) return { clase: "INCOMPLETO", etiqueta: "Revisión manual", detalle: faltan.join(", ") };
@@ -103,7 +113,7 @@ function barra() {
     <div class="toolbar" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px">
       <div class="search"><input id="buscar" type="search" placeholder="Buscar por nombre, documento o id…" value="${esc(busqueda)}" aria-label="Buscar cliente" /></div>
       <select id="vista" aria-label="Filtrar por estado">
-        ${[["todos", "Todos"], ["pendientes", "En conciliación"], ["validados", "Validados"], ["habilitados", "Habilitados"], ["incompletos", "Revisión manual"], ["candidatos", "Candidatos"]]
+        ${[["todos", "Todos"], ["pendientes", "En conciliación"], ["validados", "Validados"], ["habilitados", "Habilitados"], ["rechazados", "Rechazados"], ["incompletos", "Revisión manual"], ["candidatos", "Candidatos"]]
           .map(([k, t]) => `<option value="${k}"${vista === k ? " selected" : ""}>${t}</option>`).join("")}
       </select>
       <select id="orden" aria-label="Ordenar">
@@ -117,7 +127,7 @@ function barra() {
 
 function etiquetaClase(f) {
   const tonos = {
-    CANDIDATO: "tone-blue", INCOMPLETO: "tone-amber", PENDIENTE: "tone-violet",
+    CANDIDATO: "tone-cyan", INCOMPLETO: "tone-amber", PENDIENTE: "tone-violet",
     VALIDADO: "tone-blue", HABILITADO: "tone-green", RECHAZADO: "tone-red",
     AMBIGUO: "tone-red", CON_SERVICIO: "tone-green"
   };
@@ -145,7 +155,8 @@ function tabla() {
 
   return `
     ${filasHtml ? `
-    <div style="overflow-x:auto">
+    <p class="conc-table-hint">Desliza la tabla horizontalmente para consultar vencimiento, precio y abrir el detalle.</p>
+    <div class="conc-table-wrap" tabindex="0" aria-label="Tabla de conciliación; desplazamiento horizontal disponible">
       <table>
         <thead><tr>
           ${puedeGestionar() ? "<th></th>" : ""}
@@ -169,6 +180,7 @@ function listaFiltrada() {
     if (vista === "pendientes") return f.clase === "PENDIENTE";
     if (vista === "validados") return f.clase === "VALIDADO";
     if (vista === "habilitados") return f.clase === "HABILITADO";
+    if (vista === "rechazados") return f.clase === "RECHAZADO";
     if (vista === "incompletos") return f.clase === "INCOMPLETO";
     if (vista === "candidatos") return f.clase === "CANDIDATO";
     return true;
@@ -185,6 +197,7 @@ function listaFiltrada() {
 /** Ficha con la clasificación de cada dato: confirmado / heredado / faltante / inconsistente. */
 function fichas(f) {
   const c = clientes.find((x) => x.id === f.id) || {};
+  const servicio = (porCliente.get(f.id) || [{}])[0];
   const marca = (estado, texto) => {
     const tonos = { confirmada: "#10b981", heredada: "#f59e0b", faltante: "#ef4444", inconsistente: "#a855f7" };
     return `<span style="color:${tonos[estado]};font-size:12px;font-weight:600">${esc(texto)}</span>`;
@@ -202,12 +215,24 @@ function fichas(f) {
   const planEstado = c.planId ? "heredada" : "faltante";
   const ipClase = ipValida(c.ip);
   const estadoClienteOk = VALIDOS_CLIENTE.includes(c.estadoCliente);
+  const fechaServicio = servicio.fechaVencimiento || venc;
+  const estaVencido = esFecha(fechaServicio) && fechaServicio < fechaOperacion();
+  const estaSuspendido = c.estadoCliente === "SUSPENDIDO";
+  const avisoRiesgo = f.clase === "VALIDADO" && (estaVencido || estaSuspendido) ? `
+    <div class="conc-risk ${estaSuspendido ? "conc-risk--blocked" : "conc-risk--expired"}" role="alert">
+      <strong>${estaSuspendido ? "Habilitación bloqueada: cliente suspendido" : "Servicio vencido: requiere autorización expresa"}</strong>
+      <span>${estaSuspendido
+        ? "La validación no elimina la suspensión administrativa. Este servicio no puede habilitarse desde esta ficha."
+        : "Habilitarlo lo devuelve al motor automático y puede provocar una suspensión en la próxima corrida."}</span>
+    </div>` : "";
 
   return `
     <div class="modal-backdrop" id="detalle">
-      <div class="modal" role="dialog" aria-modal="true" aria-label="Detalle del cliente" style="max-width:640px">
+      <div class="modal conc-modal" role="dialog" aria-modal="true" aria-label="Detalle del cliente" style="max-width:640px">
+        <button class="conc-modal-close" id="cerrar-detalle-x" type="button" aria-label="Cerrar detalle">×</button>
         <h2 style="margin-top:0">${esc(f.nombre)}</h2>
         <p class="muted" style="margin-top:-8px">${esc(f.etiqueta)}${f.detalle ? " · " + esc(f.detalle) : ""}</p>
+        ${avisoRiesgo}
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 18px">
           ${dato("Cliente (solo lectura)", f.nombre, "confirmada")}
           ${dato("Plan", c.planId || null, planEstado, "heredado de la importación")}
@@ -218,14 +243,14 @@ function fichas(f) {
           ${dato("Dirección IP", c.ip || null, ipClase === "VALIDA" ? "heredada" : "faltante",
             ipClase === "VALIDA" ? "formato correcto" : ipClase === "MALFORMADA" ? "malformada: no se usa para MikroTik" : "ausente")}
           ${dato("Estado administrativo", c.estadoCliente || null, estadoClienteOk ? "heredada" : "inconsistente")}
-          ${dato("Estado del servicio", (porCliente.get(f.id) || [{}])[0].estado || null, "confirmada", "campo distinto del cliente")}
+          ${dato("Estado del servicio", servicio.estado || null, "confirmada", "campo distinto del cliente")}
           ${dato("Origen del registro", c.importado === false ? "alta administrativa" : "importación", "confirmada")}
         </div>
         <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
           <button class="btn btn--ghost" id="cerrar-detalle">Cerrar</button>
           ${puedeGestionar() && f.clase === "CANDIDATO" ? '<button class="btn btn--primary" id="accion-preparar">Preparar servicio</button>' : ""}
           ${puedeGestionar() && f.clase === "PENDIENTE" ? '<button class="btn btn--primary" id="accion-validar">Validar</button>' : ""}
-          ${puedeGestionar() && f.clase === "VALIDADO" ? '<button class="btn btn--primary" id="accion-habilitar">Habilitar</button>' : ""}
+          ${puedeGestionar() && f.clase === "VALIDADO" ? `<button class="btn btn--warning" id="accion-habilitar"${estaSuspendido ? " disabled" : ""}>${estaSuspendido ? "Habilitación bloqueada" : estaVencido ? "Habilitar vencido" : "Habilitar"}</button>` : ""}
         </div>
       </div>
     </div>`;
@@ -403,7 +428,15 @@ function conectar() {
     const f = filas.find((x) => x.id === b.dataset.ver);
     const root = document.getElementById("detalle-root");
     root.innerHTML = fichas(f);
-    document.getElementById("cerrar-detalle").addEventListener("click", () => (root.innerHTML = ""));
+    const cerrar = () => {
+      root.innerHTML = "";
+      document.removeEventListener("keydown", cerrarConEscape);
+    };
+    const cerrarConEscape = (e) => { if (e.key === "Escape") cerrar(); };
+    document.getElementById("cerrar-detalle").addEventListener("click", cerrar);
+    document.getElementById("cerrar-detalle-x").addEventListener("click", cerrar);
+    document.getElementById("detalle").addEventListener("click", (e) => { if (e.target.id === "detalle") cerrar(); });
+    document.addEventListener("keydown", cerrarConEscape);
     const prep = document.getElementById("accion-preparar");
     if (prep) prep.addEventListener("click", () => accion("prepararServicioConciliacion", { clienteId: f.id }, "Servicio preparado en conciliación"));
     const val = document.getElementById("accion-validar");
@@ -422,6 +455,7 @@ function conectar() {
     await cargar();
   } catch (err) {
     console.error(err);
-    content.innerHTML = '<div class="empty">No fue posible cargar la conciliación.</div>';
+    content.innerHTML = '<div class="empty"><p>No fue posible cargar la conciliación.</p><button class="btn btn--ghost" id="reintentar-carga" type="button">Reintentar</button></div>';
+    document.getElementById("reintentar-carga").addEventListener("click", cargar);
   }
 })();
