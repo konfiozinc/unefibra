@@ -17,6 +17,14 @@
  *   node tools/migrar-servicios.js --revertir            # simula la vuelta atrás
  *   node tools/migrar-servicios.js --revertir --confirmo-revertir
  *
+ * KZ-UNEF-018 ·
+ *   --excluir <archivo.json>  lista de clienteId con identidad contractual
+ *                             ambigua (mismo nombre ⇒ posible duplicado). Esos
+ *                             clientes NO reciben servicio: quedan para revisión
+ *                             humana. Se informan aparte en el manifiesto.
+ *   --informe <archivo.json>  informe por cliente (acción, estado inicial, estado
+ *                             tras migrar y motivo) para la evidencia de la misión.
+ *
  * Idempotente: el id del documento es `svc-<clienteId>`. Reejecutar no duplica
  * y, si se interrumpe, se reanuda solo volviendo a lanzarlo.
  * ============================================================ */
@@ -99,6 +107,18 @@ async function listar(token, coleccion, campos) {
   const revertir = args.includes("--revertir");
   const limite = args.includes("--limite") ? Number(args[args.indexOf("--limite") + 1]) : Infinity;
   const jsonOut = args.includes("--json") ? args[args.indexOf("--json") + 1] : null;
+  const informeOut = args.includes("--informe") ? args[args.indexOf("--informe") + 1] : null;
+  const rutaExcluir = args.includes("--excluir") ? args[args.indexOf("--excluir") + 1] : null;
+
+  /* KZ-UNEF-018 · Clientes con identidad contractual ambigua: no se les crea
+     servicio. El archivo es una lista JSON de clienteId. */
+  let excluidos = new Set();
+  if (rutaExcluir) {
+    const crudo = JSON.parse(fs.readFileSync(rutaExcluir, "utf8"));
+    const ids = Array.isArray(crudo) ? crudo : (crudo.ids || []);
+    excluidos = new Set(ids.map(String));
+    console.log(` exclusión de identidad ambigua: ${excluidos.size} cliente(s) de ${rutaExcluir}`);
+  }
 
   console.log("==============================================================");
   console.log(" MIGRACIÓN DE SERVICIOS — UNEFibra · KZ-UNEF-006");
@@ -160,24 +180,49 @@ async function listar(token, coleccion, campos) {
     const deMigracion = servicios.filter((s) => s.origen === REFERENCIA);
     const pendientes = deMigracion.filter((s) => s.conciliacion && s.conciliacion.estado === "PENDIENTE_VALIDACION");
     const validados = deMigracion.filter((s) => s.conciliacion && s.conciliacion.estado === "VALIDADA");
+    const habilitados = deMigracion.filter((s) => s.conciliacion && s.conciliacion.estado === "HABILITADA");
+    const sinBloque = deMigracion.filter((s) => !s.conciliacion || !s.conciliacion.estado);
+    const porEstado = deMigracion.reduce((a, s) => { a[s.estado || "(ausente)"] = (a[s.estado || "(ausente)"] || 0) + 1; return a; }, {});
     log(`\n── VERIFICACIÓN ──`);
     log(`  clientes: ${clientes.length} · servicios: ${servicios.length}`);
     log(`  clientes sin servicio: ${sinServicio.length}`);
     log(`  servicios creados por la migración: ${deMigracion.length}`);
     log(`    · pendientes de validación: ${pendientes.length}`);
     log(`    · ya validados: ${validados.length}`);
+    log(`    · HABILITADOS (no debe haber ninguno por esta misión): ${habilitados.length}`);
+    log(`    · sin bloque de conciliación (no debe haber ninguno): ${sinBloque.length}`);
+    log(`  estado de servicio de los migrados: ${JSON.stringify(porEstado)}`);
+    const orig = servicios.filter((s) => s.origen !== REFERENCIA);
+    log(`  servicios originales intactos: ${orig.length}`);
+    if (informeOut) {
+      fs.writeFileSync(informeOut, JSON.stringify({
+        generado: new Date().toISOString(), modo: "VERIFICAR",
+        clientes: clientes.length, servicios: servicios.length, sinServicio: sinServicio.length,
+        migrados: deMigracion.length, pendientes: pendientes.length, validados: validados.length,
+        habilitados: habilitados.length, sinBloque: sinBloque.length, porEstado, originales: orig.length
+      }, null, 2), "utf8");
+      log(`  informe guardado en ${informeOut}`);
+    }
     fs.writeFileSync(LOG_LOCAL, L.join("\n") + "\n", "utf8");
     process.exit(0);
   }
 
   /* ── Simulación / aplicación ───────────────────────────────────────── */
-  const manifiesto = { generado: new Date().toISOString(), referencia: REFERENCIA, migrables: [], omitidos: [], revision: [], errores: [] };
+  const manifiesto = { generado: new Date().toISOString(), referencia: REFERENCIA, migrables: [], omitidos: [], revision: [], identidadAmbigua: [], errores: [] };
+  const informeFilas = [];
 
   for (const c of clientes) {
     const evaluacion = evaluarCandidato(c, { serviciosExistentes: porCliente.get(c.id) || 0 });
     if (!evaluacion.apto) {
       const destino = evaluacion.clase === "OMITIDO_YA_TIENE_SERVICIO" ? manifiesto.omitidos : manifiesto.revision;
       destino.push({ clienteId: c.id, motivos: evaluacion.motivos });
+      informeFilas.push({ clienteId: c.id, accion: destino === manifiesto.omitidos ? "OMITIR_YA_TIENE_SERVICIO" : "REVISION_HUMANA", estadoInicial: null, estadoTrasMigrar: null, motivo: evaluacion.motivos.join(", ") });
+      continue;
+    }
+    /* KZ-UNEF-018 · Identidad contractual ambigua: mismo nombre ⇒ no se crea nada. */
+    if (excluidos.has(c.id)) {
+      manifiesto.identidadAmbigua.push({ clienteId: c.id, motivos: ["identidad duplicada: mismo nombre que otro registro"] });
+      informeFilas.push({ clienteId: c.id, accion: "EXCLUIDO_IDENTIDAD_AMBIGUA", estadoInicial: null, estadoTrasMigrar: null, motivo: "identidad duplicada: mismo nombre que otro registro" });
       continue;
     }
     let doc;
@@ -185,16 +230,27 @@ async function listar(token, coleccion, campos) {
       doc = construirServicio(c, { serviciosExistentes: 0 });
     } catch (e) {
       manifiesto.errores.push({ clienteId: c.id, motivo: e.message });
+      informeFilas.push({ clienteId: c.id, accion: "ERROR_CONSTRUCCION", estadoInicial: null, estadoTrasMigrar: null, motivo: e.message });
       continue;
     }
-    manifiesto.migrables.push({ clienteId: c.id, servicioId: doc.id, planId: doc.datos.planId, estado: doc.datos.estado, vencimiento: doc.datos.fechaVencimiento, conciliacion: doc.datos.conciliacion.estado });
+    manifiesto.migrables.push({ clienteId: c.id, servicioId: doc.id, planId: doc.datos.planId, estado: doc.datos.estado, vencimiento: doc.datos.fechaVencimiento, conciliacion: doc.datos.conciliacion.estado, ipEstado: doc.datos.ipEstado, ipConservadaAparte: doc.datos.ipOriginal !== undefined });
+    informeFilas.push({
+      clienteId: c.id, accion: "CREAR_SERVICIO_PENDIENTE_VALIDACION", servicioId: doc.id,
+      estadoInicial: null, estadoTrasMigrar: doc.datos.estado,
+      conciliacion: doc.datos.conciliacion.estado, ipEstado: doc.datos.ipEstado,
+      planId: doc.datos.planId, precioMensual: doc.datos.precioMensual,
+      vencimiento: doc.datos.fechaVencimiento, cicloCorte: doc.datos.cicloCorte, motivo: null
+    });
   }
 
   log(`\n── RESULTADO ──`);
   log(`  migrables        : ${manifiesto.migrables.length}`);
   log(`  omitidos (ya tienen servicio) : ${manifiesto.omitidos.length}`);
   log(`  requieren revisión            : ${manifiesto.revision.length}`);
+  log(`  excluidos por identidad ambigua : ${manifiesto.identidadAmbigua.length}`);
   log(`  errores de construcción       : ${manifiesto.errores.length}`);
+  const ipCuenta = manifiesto.migrables.reduce((a, m) => { a[m.ipEstado] = (a[m.ipEstado] || 0) + 1; return a; }, {});
+  log(`  IP de los migrables           : ${JSON.stringify(ipCuenta)}`);
   log(`  todos nacen en estado         : PENDIENTE_VALIDACION (sin automatismos)`);
 
   if (jsonOut) {
@@ -205,21 +261,39 @@ async function listar(token, coleccion, campos) {
   if (aplicar) {
     log("\n── APLICANDO ──");
     let creados = 0, yaExistian = 0, fallos = 0;
+    const creadosIds = [];
     for (const m of manifiesto.migrables.slice(0, limite)) {
       const c = clientes.find((x) => x.id === m.clienteId);
       const doc = construirServicio(c, { serviciosExistentes: 0 });
       const r = await fetch(`${BASE}/servicios?documentId=${encodeURIComponent(doc.id)}`, {
         method: "POST", headers: H, body: JSON.stringify({ fields: aCampos(doc.datos) })
       });
-      if (r.ok) { creados++; log(`  + ${doc.id}`); }
+      if (r.ok) { creados++; creadosIds.push(doc.id); log(`  + ${doc.id}`); }
       else if (r.status === 409) yaExistian++;
       else { fallos++; log(`  ! ${doc.id} → HTTP ${r.status}`); }
     }
     log(`  creados=${creados} · ya existían=${yaExistian} · fallos=${fallos}`);
+    manifiesto.aplicacion = { intentados: Math.min(manifiesto.migrables.length, limite), creados, yaExistian, fallos, creadosIds };
   } else {
     log("\n  NADA SE HA ESCRITO. Simulación.");
     log(`  Si se autorizara, crearía ${manifiesto.migrables.length} servicios con id "svc-<clienteId>",`);
     log(`  todos en conciliación pendiente y con origen "${REFERENCIA}".`);
+  }
+
+  if (informeOut) {
+    fs.writeFileSync(informeOut, JSON.stringify({
+      generado: new Date().toISOString(), modo: aplicar ? "APLICAR" : "SIMULACION", limite: limite === Infinity ? null : limite,
+      resumen: {
+        clientes: clientes.length, serviciosPrevios: servicios.length,
+        migrables: manifiesto.migrables.length, omitidos: manifiesto.omitidos.length,
+        revision: manifiesto.revision.length, identidadAmbigua: manifiesto.identidadAmbigua.length,
+        errores: manifiesto.errores.length,
+        ip: manifiesto.migrables.reduce((a, m) => { a[m.ipEstado] = (a[m.ipEstado] || 0) + 1; return a; }, {})
+      },
+      aplicacion: manifiesto.aplicacion || null,
+      filas: informeFilas
+    }, null, 2), "utf8");
+    log(`\n  informe por cliente guardado en ${informeOut}`);
   }
 
   fs.writeFileSync(LOG_LOCAL, L.join("\n") + "\n", "utf8");
