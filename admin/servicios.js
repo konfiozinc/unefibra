@@ -65,8 +65,22 @@ function renderTabla() {
   });
 }
 
-(async function main() {
-  const ctx = await requireAuth("servicios");
+/** Aviso de cartera sin servicio (KZ-UNEF-005). */
+function avisarSinServicio(cantidad) {
+  const cont = document.getElementById("tabla");
+  if (!cont || !cont.parentNode || !cantidad) return;
+  const aviso = document.createElement("div");
+  aviso.className = "empty";
+  aviso.setAttribute("role", "status");
+  aviso.style.borderColor = "#b45309";
+  aviso.textContent =
+    "Atención: " + cantidad + " cliente(s) no tienen servicio asociado. " +
+    "No aparecen en esta lista y el motor de vencimientos no los alcanza: " +
+    "revísalos con la conciliación antes de cobrar o suspender nada.";
+  cont.parentNode.insertBefore(aviso, cont);
+}
+
+(async function main() {  const ctx = await requireAuth("servicios");
   if (!ctx) return;
 
   const content = document.getElementById("app-content");
@@ -92,7 +106,16 @@ function renderTabla() {
     planesMap = {};
     planSnap.docs.forEach((d) => (planesMap[d.id] = d.data().nombre || d.id));
 
+    /* KZ-UNEF-005 · Un cliente sin documento de servicio no aparece en esta
+       pantalla y parece no existir. El motor de vencimientos también itera
+       sobre `servicios`, así que a ese cliente no le llega ni el recordatorio
+       ni la suspensión. Se avisa con el número real en vez de mostrar una
+       lista incompleta como si fuera toda la cartera. */
+    const idsConServicio = new Set(servicios.map((s) => s.clienteId).filter(Boolean));
+    const sinServicio = cliSnap.docs.filter((d) => !idsConServicio.has(d.id)).length;
+
     renderTabla();
+    avisarSinServicio(sinServicio);
   } catch (err) {
     console.error(err);
     document.getElementById("tabla").innerHTML = '<div class="empty">No fue posible cargar los servicios.</div>';
