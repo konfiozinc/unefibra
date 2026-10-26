@@ -1,0 +1,47 @@
+
+── INVENTARIO REAL ──────────────────────────────────────────
+  clientes   : 358
+  servicios  : 5
+  pagos      : 0
+  clientes con algún servicio : 5
+  clientes SIN servicio       : 353
+
+── QUÉ DATO TIENE CADA CLIENTE ──────────────────────────────
+  con plan + precio + vencimiento : 338
+  con datos parciales             : 20
+  sin datos de servicio           : 0
+  con IP válida                   : 35
+  sin IP o IP inválida            : 323
+
+── CLASIFICACIÓN PARA LA REGULARIZACIÓN ─────────────────────
+  CON_SERVICIO_OK          5
+  CON_SERVICIO_INCOHERENTE 0
+  CANDIDATO_AUTOMATICO     333
+  REQUIERE_REVISION        20
+  INCOMPLETO               0
+  HISTORICO                0
+  AMBIGUO                  0
+
+── PROBLEMAS DETECTADOS ─────────────────────────────────────
+  servicios huérfanos (clienteId inexistente o vacío) : 0
+  clientes con más de un servicio                     : 0
+  IP duplicada entre clientes                         : 0
+  clientes con estado fuera del modelo                : 1
+  servicios con estado fuera del modelo               : 0
+  pagos con estado fuera del modelo                   : 0
+  vencimiento anterior al inicio de servicio          : 0
+  precioMensual inválido (0, negativo o no numérico)  : 0
+
+  Estados de cliente fuera del modelo (detalle):
+    - kELI0y5UyRI5QF5Xe7bQ → "POR_VENCER"
+
+── PLAN DE REGULARIZACIÓN (simulación) ──────────────────────
+  a crear automáticamente 333 servicios,
+  20 a revisar a mano,
+  0 registros incompletos (no se tocan),
+  0 históricos (no se tocan),
+  0 ambiguos (prohibido automatizar).
+
+  NADA SE HA ESCRITO. Este informe es una simulación.
+  Si se autorizara, crearía 333 documentos
+  en "servicios" con id "svc-<clienteId>" y marca "backfill-kz-unef-005".
