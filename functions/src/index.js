@@ -121,6 +121,15 @@ const { validarMonto, puedeAnular } = require("./pagos-guardas");
 /* Integración MikroTik: SOLO LECTURA desde aquí. La escritura existe en el
    módulo pero está cerrada por configuración y no la llama nadie. */
 const { leerConfiguracion, informeEstado } = require("./mikrotik");
+/* KZ-UNEF-006 · Guardia de conciliación: bloquea suspensión, avisos, renovación,
+   reconexión, MikroTik y cambios de estado mientras los datos heredados de la
+   importación no estén validados por una persona. */
+const {
+  enConciliacionPendiente,
+  guardias,
+  bloqueValidado,
+  bloqueRechazado
+} = require("./conciliacion");
 
 const { enviarAlertaError } = require("./alertas");
 const { exportarConDetalle } = require("./backup");
@@ -391,6 +400,15 @@ async function ejecutarMotorVencimientos() {
 
     for (const doc of servicios.docs) {
       const servicio = { id: doc.id, ...doc.data() };
+      /* KZ-UNEF-006 · Un servicio en conciliación NO entra al motor: sus datos
+         (fechas, precio, plan) vienen de una importación que nadie ha validado.
+         Se omite ANTES de cualquier lectura o escritura, así que no genera
+         avisos, ni cambios de estado, ni suspensiones, ni toca el vencimiento.
+         No depende de MikroTik: el guardia vive aquí. */
+      if (enConciliacionPendiente(servicio)) {
+        resumen.enConciliacion = (resumen.enConciliacion || 0) + 1;
+        continue;
+      }
       const clienteRef = db.collection("clientes").doc(servicio.clienteId);
       const clienteSnap = await clienteRef.get();
 
@@ -1171,6 +1189,16 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
       .get();
 
     if (!servicios.empty) {
+      /* KZ-UNEF-006 · Si el servicio está en conciliación, un pago NO renueva:
+         no se toca la fecha de vencimiento heredada ni se reactiva el servicio
+         hasta que un administrador valide los datos. El lanzamiento revierte la
+         transacción completa (pago incluido), así que no queda estado a medias. */
+      const guardaRenovacion = guardias.puedeRenovar({
+        conciliacion: servicios.docs[0].data().conciliacion
+      });
+      if (!guardaRenovacion.permitido) {
+        throw new functions.https.HttpsError("failed-precondition", guardaRenovacion.motivo);
+      }
       t.update(servicios.docs[0].ref, {
         fechaInicio: periodoInicio,
         fechaVencimiento: periodoFin,
@@ -1296,6 +1324,16 @@ async function cambiarEstadoCliente(clienteId, estadoNuevo, estadoServicioNuevo,
     .where("clienteId", "==", clienteId)
     .get();
 
+  /* KZ-UNEF-006 · Un servicio en conciliación no cambia de estado administrativo
+     (ni se suspende ni se reactiva) hasta que se valide. Se comprueba sobre el
+     dato guardado, así que funciona igual aunque existan credenciales MikroTik. */
+  for (const s of servicios.docs) {
+    const guarda = guardias.puedeCambiarEstado(s.data());
+    if (!guarda.permitido) {
+      throw new functions.https.HttpsError("failed-precondition", guarda.motivo);
+    }
+  }
+
   const lote = db.batch();
   lote.update(clienteRef, {
     estadoCliente: estadoNuevo,
@@ -1327,6 +1365,61 @@ exports.desactivarServicio = functions.https.onCall((data, context) =>
 
 exports.reactivarServicio = functions.https.onCall((data, context) =>
   cambiarEstadoCliente(data.clienteId, ESTADO_CLIENTE.ACTIVO, ESTADO_SERVICIO.ACTIVO, "Reactivación de cliente", context, "REACTIVAR_SERVICIO"));
+
+/* ============================================================
+ * MÓDULO: CONCILIACIÓN DE SERVICIOS (KZ-UNEF-006)
+ * ------------------------------------------------------------
+ * Los servicios creados por la migración nacen en PENDIENTE_VALIDACION y quedan
+ * fuera de toda automatización. Estas dos callables son la única forma de
+ * sacarlos de ese estado, y lo hacen una persona con rol administrativo.
+ *
+ * Validar devuelve el servicio a la operación normal (reversible: se puede
+ * volver a marcar como pendiente). Rechazar exige motivo y deja constancia.
+ * ============================================================ */
+exports.validarServicioConciliado = functions.https.onCall(async (data, context) => {
+  const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const { servicioId, motivo } = data || {};
+  if (!servicioId) throw new functions.https.HttpsError("invalid-argument", "Se requiere servicioId.");
+
+  const ref = db.collection("servicios").doc(servicioId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new functions.https.HttpsError("not-found", "El servicio no existe.");
+  if (!enConciliacionPendiente(snap.data())) {
+    throw new functions.https.HttpsError("failed-precondition", "El servicio no está pendiente de validación.");
+  }
+
+  const bloque = bloqueValidado({ por: usuario.nombre || context.auth.uid });
+  await ref.update({ conciliacion: bloque, updatedAt: FieldValue.serverTimestamp() });
+  await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
+    "VALIDAR_CONCILIACION", "servicios", servicioId, { estado: "PENDIENTE_VALIDACION" },
+    { estado: "VALIDADA", motivo: motivo ? String(motivo).slice(0, 200) : null });
+  return { servicioId, conciliacion: bloque.estado };
+});
+
+exports.rechazarServicioConciliado = functions.https.onCall(async (data, context) => {
+  const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const { servicioId, motivo } = data || {};
+  if (!servicioId) throw new functions.https.HttpsError("invalid-argument", "Se requiere servicioId.");
+
+  const ref = db.collection("servicios").doc(servicioId);
+  const snap = await ref.get();
+  if (!snap.exists) throw new functions.https.HttpsError("not-found", "El servicio no existe.");
+  if (!enConciliacionPendiente(snap.data())) {
+    throw new functions.https.HttpsError("failed-precondition", "El servicio no está pendiente de validación.");
+  }
+
+  let bloque;
+  try {
+    bloque = bloqueRechazado({ por: usuario.nombre || context.auth.uid, motivo });
+  } catch (e) {
+    throw new functions.https.HttpsError("invalid-argument", e.message);
+  }
+  await ref.update({ conciliacion: bloque, updatedAt: FieldValue.serverTimestamp() });
+  await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
+    "RECHAZAR_CONCILIACION", "servicios", servicioId, { estado: "PENDIENTE_VALIDACION" },
+    { estado: "RECHAZADA", motivo: bloque.motivo });
+  return { servicioId, conciliacion: bloque.estado };
+});
 
 /* ============================================================
  * MÓDULO: ESTADO DEL SERVICIO EN EL ROUTER (MikroTik, SOLO LECTURA)
