@@ -228,30 +228,36 @@ function fichas(f) {
 
   return `
     <div class="modal-backdrop" id="detalle">
-      <div class="modal conc-modal" role="dialog" aria-modal="true" aria-label="Detalle del cliente" style="max-width:640px">
-        <button class="conc-modal-close" id="cerrar-detalle-x" type="button" aria-label="Cerrar detalle">×</button>
-        <h2 style="margin-top:0">${esc(f.nombre)}</h2>
-        <p class="muted" style="margin-top:-8px">${esc(f.etiqueta)}${f.detalle ? " · " + esc(f.detalle) : ""}</p>
-        ${avisoRiesgo}
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px 18px">
-          ${dato("Cliente (solo lectura)", f.nombre, "confirmada")}
-          ${dato("Plan", c.planId || null, planEstado, "heredado de la importación")}
-          ${dato("Precio mensual", c.precioMensual ? fmtMoney(c.precioMensual) : null, precioEstado)}
-          ${dato("Ciclo de corte", c.cicloCorte || null, c.cicloCorte ? "heredada" : "faltante")}
-          ${dato("Fecha de vencimiento", venc || null, estadoVenc)}
-          ${dato("Fecha de instalación", c.fechaInicioServicio || null, c.fechaInicioServicio ? "heredada" : "faltante")}
-          ${dato("Dirección IP", c.ip || null, ipClase === "VALIDA" ? "heredada" : "faltante",
-            ipClase === "VALIDA" ? "formato correcto" : ipClase === "MALFORMADA" ? "malformada: no se usa para MikroTik" : "ausente")}
-          ${dato("Estado administrativo", c.estadoCliente || null, estadoClienteOk ? "heredada" : "inconsistente")}
-          ${dato("Estado del servicio", servicio.estado || null, "confirmada", "campo distinto del cliente")}
-          ${dato("Origen del registro", c.importado === false ? "alta administrativa" : "importación", "confirmada")}
+      <div class="modal conc-modal" role="dialog" aria-modal="true" aria-labelledby="conc-titulo" style="max-width:640px">
+        <header class="conc-modal-header">
+          <div class="conc-modal-titulo">
+            <h2 id="conc-titulo">${esc(f.nombre)}</h2>
+            <p class="muted">${esc(f.etiqueta)}${f.detalle ? " · " + esc(f.detalle) : ""}</p>
+          </div>
+          <button class="conc-modal-close" id="cerrar-detalle-x" type="button" aria-label="Cerrar detalle">×</button>
+        </header>
+        <div class="conc-modal-body">
+          ${avisoRiesgo}
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px 18px">
+            ${dato("Cliente (solo lectura)", f.nombre, "confirmada")}
+            ${dato("Plan", c.planId || null, planEstado, "heredado de la importación")}
+            ${dato("Precio mensual", c.precioMensual ? fmtMoney(c.precioMensual) : null, precioEstado)}
+            ${dato("Ciclo de corte", c.cicloCorte || null, c.cicloCorte ? "heredada" : "faltante")}
+            ${dato("Fecha de vencimiento", venc || null, estadoVenc)}
+            ${dato("Fecha de instalación", c.fechaInicioServicio || null, c.fechaInicioServicio ? "heredada" : "faltante")}
+            ${dato("Dirección IP", c.ip || null, ipClase === "VALIDA" ? "heredada" : "faltante",
+              ipClase === "VALIDA" ? "formato correcto" : ipClase === "MALFORMADA" ? "malformada: no se usa para MikroTik" : "ausente")}
+            ${dato("Estado administrativo", c.estadoCliente || null, estadoClienteOk ? "heredada" : "inconsistente")}
+            ${dato("Estado del servicio", servicio.estado || null, "confirmada", "campo distinto del cliente")}
+            ${dato("Origen del registro", c.importado === false ? "alta administrativa" : "importación", "confirmada")}
+          </div>
         </div>
-        <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:16px;flex-wrap:wrap">
+        <footer class="conc-modal-footer">
           <button class="btn btn--ghost" id="cerrar-detalle">Cerrar</button>
           ${puedeGestionar() && f.clase === "CANDIDATO" ? '<button class="btn btn--primary" id="accion-preparar">Preparar servicio</button>' : ""}
           ${puedeGestionar() && f.clase === "PENDIENTE" ? '<button class="btn btn--primary" id="accion-validar">Validar</button>' : ""}
           ${puedeGestionar() && f.clase === "VALIDADO" ? `<button class="btn btn--warning" id="accion-habilitar"${estaSuspendido ? " disabled" : ""}>${estaSuspendido ? "Habilitación bloqueada" : estaVencido ? "Habilitar vencido" : "Habilitar"}</button>` : ""}
-        </div>
+        </footer>
       </div>
     </div>`;
 }
@@ -433,7 +439,14 @@ function conectar() {
       document.removeEventListener("keydown", cerrarConEscape);
     };
     const cerrarConEscape = (e) => { if (e.key === "Escape") cerrar(); };
-    document.getElementById("cerrar-detalle").addEventListener("click", cerrar);
+    const cerrarDetalle = cerrar;
+        document.getElementById("cerrar-detalle").addEventListener("click", cerrarDetalle);
+        document.getElementById("cerrar-detalle-x").addEventListener("click", cerrarDetalle);
+        const aspaDetalle = document.getElementById("cerrar-detalle-x");
+        if (aspaDetalle) aspaDetalle.focus();
+        document.addEventListener("keydown", function escapaDetalle(e) {
+          if (e.key === "Escape") { cerrarDetalle(); document.removeEventListener("keydown", escapaDetalle); }
+        }, { once: false });
     document.getElementById("cerrar-detalle-x").addEventListener("click", cerrar);
     document.getElementById("detalle").addEventListener("click", (e) => { if (e.target.id === "detalle") cerrar(); });
     document.addEventListener("keydown", cerrarConEscape);
