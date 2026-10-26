@@ -137,7 +137,7 @@ async function listar(token, coleccion, campos) {
     "planId", "precioMensual", "fechaInicioServicio", "fechaVencimiento",
     "cicloCorte", "estadoCliente", "ip"
   ]);
-  const servicios = await listar(token, "servicios", ["clienteId", "origen", "conciliacion", "fechaVencimiento", "precioMensual", "creadoEn"]);
+  const servicios = await listar(token, "servicios", ["clienteId", "origen", "conciliacion", "fechaVencimiento", "precioMensual", "creadoEn", "estado", "ip", "ipEstado", "ipOriginal", "planId", "cicloCorte"]);
 
   const porCliente = new Map();
   for (const s of servicios) {
