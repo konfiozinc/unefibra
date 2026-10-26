@@ -53,13 +53,13 @@
        (b) entre 768 y 1024 px la columna de acciones quedaba cortada: se reduce
            el relleno de celdas y se fija la última columna a la derecha. */
     @media (max-width: 480px) {
-      #app-content .card { flex: 1 1 45%; min-width: 0; }
+      #app-content .card { flex: 1 1 46% !important; min-width: 0 !important; }
       #app-content .card > div:nth-child(2) { font-size: 22px; }
     }
     @media (min-width: 768px) and (max-width: 1024px) {
       #app-content table th, #app-content table td { padding: 8px 6px; font-size: 13px; }
       #app-content table th:last-child, #app-content table td:last-child {
-        position: sticky; right: 0; background: inherit; white-space: nowrap;
+        white-space: nowrap;
       }
     }
     /* El modal nunca debe esconder sus botones: cabecera y pie visibles con
@@ -67,7 +67,7 @@
     #app-content .conc-modal, #app-content .modal {
       max-height: calc(100vh - 32px); display: flex; flex-direction: column;
     }
-    #app-content .conc-modal > :first-child { flex: 0 0 auto; }
+    #app-content .conc-modal > :first-child { flex: 0 0 auto; position: sticky; top: 0; z-index: 3; }
     /* El cuerpo del modal se desplaza; el pie con las acciones queda siempre
        alcanzable (en 320x640 los botones quedaban fuera de la ventana). */
     #app-content .modal { overflow-y: auto; overscroll-behavior: contain; -webkit-overflow-scrolling: touch; }
