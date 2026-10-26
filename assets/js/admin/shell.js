@@ -19,6 +19,7 @@ const NAV = [
   { key: "corte15", label: "Lista Corte 15", href: "lista-corte-15.html", min: "OPERADOR" },
   { key: "corte30", label: "Lista Corte 30", href: "lista-corte-30.html", min: "OPERADOR" },
   { key: "servicios", label: "Servicios", href: "servicios.html", min: "OPERADOR" },
+  { key: "conciliacion", label: "Conciliación de servicios", href: "conciliacion.html", min: "ADMIN" },
   { key: "pagos", label: "Pagos", href: "pagos.html", min: "OPERADOR" },
   { key: "planes", label: "Planes", href: "planes.html", min: "ADMIN" },
   { key: "blog", label: "Blog", href: "blog.html", min: "ADMIN" },
