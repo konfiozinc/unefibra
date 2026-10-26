@@ -433,10 +433,13 @@ function conectar() {
   document.querySelectorAll("[data-ver]").forEach((b) => b.addEventListener("click", () => {
     const f = filas.find((x) => x.id === b.dataset.ver);
     const root = document.getElementById("detalle-root");
+    const disparador = b;
     root.innerHTML = fichas(f);
     const cerrar = () => {
       root.innerHTML = "";
       document.removeEventListener("keydown", cerrarConEscape);
+      /* Al cerrar, el foco vuelve al boton que abrio el dialogo. */
+      if (disparador && typeof disparador.focus === "function") disparador.focus();
     };
     const cerrarConEscape = (e) => { if (e.key === "Escape") cerrar(); };
     const cerrarDetalle = cerrar;
@@ -444,9 +447,6 @@ function conectar() {
         document.getElementById("cerrar-detalle-x").addEventListener("click", cerrarDetalle);
         const aspaDetalle = document.getElementById("cerrar-detalle-x");
         if (aspaDetalle) aspaDetalle.focus();
-        document.addEventListener("keydown", function escapaDetalle(e) {
-          if (e.key === "Escape") { cerrarDetalle(); document.removeEventListener("keydown", escapaDetalle); }
-        }, { once: false });
     document.getElementById("cerrar-detalle-x").addEventListener("click", cerrar);
     document.getElementById("detalle").addEventListener("click", (e) => { if (e.target.id === "detalle") cerrar(); });
     document.addEventListener("keydown", cerrarConEscape);
