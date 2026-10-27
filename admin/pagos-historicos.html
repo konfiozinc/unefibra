@@ -136,6 +136,8 @@
   } }
   </script>
 <script type="module">
+/* core.js inicializa la app de Firebase; callables.js hace getFunctions(app) al cargarse, asi que debe ir primero. */
+import "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
 
