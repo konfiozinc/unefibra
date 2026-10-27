@@ -50,15 +50,33 @@ for (const { patron, nombre } of PROHIBIDOS) {
   chk(`ningún módulo usa ${nombre}` + (culpables.length ? " → " + culpables.join(", ") : ""), culpables.length === 0);
 }
 
-/* 2 · Quien toca Firestore importa de la ruta modular. */
+/* 2 · Quien toca Firestore lo obtiene de forma válida: o importa la ruta
+   modular (getFirestore) o lo recibe INYECTADO desde index.js. Lo que nunca se
+   admite es el namespace legacy, que es el defecto que esta prueba vigila. */
 console.log("\n=== 2. Importaciones modulares ===");
+/* Módulos que reciben `db` por inyección desde index.js: no deben importar
+   firebase-admin/firestore, y esa exigencia es justo lo que se comprueba. */
+const POR_INYECCION = ["pagosHistoricos.js"];
 const tocanFirestore = archivos.filter((f) => /getFirestore|\.collection\(|runTransaction|FieldValue/.test(fuentes[f]));
 chk("hay módulos que tocan Firestore", tocanFirestore.length > 0, tocanFirestore.join(", "));
 for (const f of tocanFirestore) {
   const t = fuentes[f];
   const importaModular = /require\(\s*["']firebase-admin\/firestore["']\s*\)/.test(t);
   const usaNamespace = /admin\.firestore/.test(t);
-  chk(`${f} usa firebase-admin/firestore`, importaModular && !usaNamespace);
+  const porInyeccion = POR_INYECCION.includes(f);
+  const recibeDb = /crearCallables|\(\{[^}]*\bdb\b[^}]*\}\)|deps\.db|opciones\.db/.test(t);
+
+  /* Nadie usa el namespace eliminado, ni importando ni inyectado. */
+  chk(`${f} no usa el namespace legacy admin.firestore`, !usaNamespace);
+
+  if (porInyeccion) {
+    /* Debe recibir la instancia, no crearla: si importara, sería doble fuente. */
+    chk(`${f} recibe Firestore por inyección`, recibeDb);
+    chk(`${f} no importa firebase-admin/firestore (lo recibe)`, !importaModular);
+    chk(`${f} está registrado en index.js`, fuentes["index.js"].includes("pagosHistoricos"));
+  } else {
+    chk(`${f} importa firebase-admin/firestore`, importaModular);
+  }
 }
 
 /* 3 · La API modular que se usa EXISTE con la versión instalada. */
