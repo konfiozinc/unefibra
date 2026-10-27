@@ -1910,3 +1910,14 @@ exports.borrarDemo = functions.https.onCall(async (data, context) => {
   await auditar(context.auth.uid, context.auth.uid, "BORRAR_DEMO", "sistema", "demo", null, { eliminados });
   return { eliminados };
 });
+
+/* ============================================================
+ * KZ-UNEF-023 · Modulo administrativo de pagos historicos
+ * Deshabilitado en produccion: PAGOS_HISTORICOS_HABILITADO no existe alli.
+ * ============================================================ */
+const pagosHistoricos = require("./pagosHistoricos").crearCallables({
+  functions, db, verificarRol, auditar, FieldValue
+});
+exports.listarPropuestasPagos = pagosHistoricos.listarPropuestasPagos;
+exports.decidirPropuestasPagos = pagosHistoricos.decidirPropuestasPagos;
+exports.corregirVencimientoContractual = pagosHistoricos.corregirVencimientoContractual;
