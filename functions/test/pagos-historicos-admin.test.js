@@ -167,7 +167,7 @@ const propuesta = (id, clase, estado, extra = {}) => ({
 
   console.log('\n=== 14. Servicios protegidos intactos ===');
   const svc = (await leer('servicios/svc-cli-x')).j;
-  chk('el servicio sigue en PENDIENTE_VALIDACION', JSON.stringify((svc.j && svc.j.fields && svc.j.fields.conciliacion) || {}).includes('PENDIENTE_VALIDACION'));
+  chk('el servicio sigue en PENDIENTE_VALIDACION', JSON.stringify((svc && svc.fields && svc.fields.conciliacion) || {}).includes('PENDIENTE_VALIDACION'));
   chk('el servicio no cambió de estado', campo(svc, 'estado') === 'ACTIVO', campo(svc, 'estado'));
   chk('ninguna decisión creó pagos', (await listar('pagos')).length === 0);
   chk('ninguna operación creó notificaciones', (await listar('notificaciones')).length === 0);
