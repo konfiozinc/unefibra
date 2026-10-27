@@ -157,6 +157,7 @@ function crearCallables({ functions, db, verificarRol, auditar, FieldValue, env 
     const ref = db.collection('clientes').doc(clienteId);
     const servicioSnap = await db.collection('servicios').where('clienteId', '==', clienteId).limit(1).get();
 
+    let cicloUsado = null;
     const resultado = await db.runTransaction(async (t) => {
       const snap = await t.get(ref);
       if (!snap.exists) return { resultado: 'CLIENTE_NO_EXISTE' };
@@ -165,6 +166,7 @@ function crearCallables({ functions, db, verificarRol, auditar, FieldValue, env 
       /* Ciclo: solo 15 o 30. Si no es válido, no se toca nada. */
       const ciclo = normalizarCiclo(c.cicloCorte);
       if (ciclo === null) return { resultado: 'CICLO_INVALIDO', detalle: String(c.cicloCorte) };
+      cicloUsado = ciclo;
 
       /* Concurrencia: si la fecha cambió desde que el panel la leyó, se rechaza. */
       if (fechaAnteriorEsperada && c.fechaVencimiento !== fechaAnteriorEsperada) {
@@ -200,7 +202,7 @@ function crearCallables({ functions, db, verificarRol, auditar, FieldValue, env 
     }
     return {
       clienteId, anterior: resultado.anterior, nuevo: resultado.nuevo,
-      ciclo, periodoUtilizado, serviciosTocados: 0, conciliacionModificada: false
+      ciclo: cicloUsado, periodoUtilizado, serviciosTocados: 0, conciliacionModificada: false
     };
   }
 
