@@ -34,7 +34,8 @@ function simulador(opciones = {}) {
   const colecciones = opciones.colecciones || ['clientes', 'servicios', 'pagos', 'notificaciones', 'auditoria',
     'configuracion', 'historial_estados', 'planes', 'metodos_pago', 'tokens_notificacion', '_adminRegistros', 'posts'];
   const msPorLote = opciones.msPorLote === undefined ? 30000 : opciones.msPorLote;
-  const prefijosExportados = new Set();
+  /* `previos`: prefijos que YA están en el bucket (exportaciones de una invocación anterior). */
+  const prefijosExportados = new Set(opciones.previos || []);
   const peticiones = [];
   let reloj = Date.parse('2026-10-29T08:00:00Z');
   let operacion = 0;
@@ -60,7 +61,18 @@ function simulador(opciones = {}) {
         reloj += msPorLote;                     // el lote tarda lo que se simule
         return { status: 200, ok: true, text: async () => JSON.stringify({ name: 'projects/p/operations/' + operacion }) };
       }
+      /* Lista de operaciones: dice cuáles siguen escribiendo en el bucket. */
+      if (/\/operations\?/.test(url)) {
+        const vivas = opciones.enCurso || [];
+        const operaciones = vivas.map((p, i) => ({
+          name: 'projects/p/operations/en-curso-' + i,
+          done: false,
+          metadata: { outputUriPrefix: 'gs://unefibra-firestore-backups/' + p.replace(/\/+$/, '') }
+        }));
+        return { status: 200, ok: true, text: async () => JSON.stringify({ operations: operaciones }) };
+      }
       if (/operations\//.test(url)) {
+        if (opciones.nuncaTermina) return { status: 200, ok: true, text: async () => JSON.stringify({ done: false, name: 'op' }) };
         return { status: 200, ok: true, text: async () => JSON.stringify({ done: true, name: 'op' }) };
       }
       return { status: 404, ok: false, text: async () => '{}', json: {} };
@@ -274,6 +286,43 @@ t('el id del lote es un segmento seguro de ruta en el bucket', () => {
     assert.ok(guardado, 'el progreso anterior quedó en Firestore');
     const completados = Object.values(guardado.lotes).filter((l) => l.estado === 'COMPLETADO').length;
     assert.ok(completados >= 2, 'al menos los dos lotes anteriores están registrados: ' + completados);
+  });
+
+  console.log('\n=== 7. Exportaciones lentas: se adoptan, nunca se duplican ===');
+
+  await ta('un lote ya exportado se adopta sin volver a exportar', async () => {
+    const s = simulador({ colecciones: ['clientes', 'pagos'], msPorLote: 1000, previos: ['daily/2026-10-29/clientes/'] });
+    const backup = crearBackupPorLotes(s.deps);
+    const r = await backup.ejecutar({ presupuestoMs: 600000, fecha: '2026-10-29' });
+    assert.strictEqual(r.estado, 'COMPLETADO');
+    const exportados = s.peticiones.filter((p) => p.body && p.body.collectionIds);
+    assert.strictEqual(exportados.length, 1, 'solo debe exportar el lote que faltaba (pagos)');
+    assert.strictEqual(exportados[0].body.collectionIds[0], 'pagos');
+    const guardado = s.estado.get('2026-10-29');
+    assert.strictEqual(guardado.lotes.clientes.adoptado, true, 'el lote adoptado queda registrado como tal');
+  });
+
+  await ta('si la exportación sigue en curso no se pide otra', async () => {
+    const s = simulador({ colecciones: ['clientes', 'pagos'], enCurso: ['daily/2026-10-29/clientes'] });
+    const backup = crearBackupPorLotes(s.deps);
+    const r = await backup.ejecutar({ presupuestoMs: 600000, fecha: '2026-10-29' });
+    assert.strictEqual(r.estado, 'PARCIAL', 'no puede darse por completo');
+    assert.strictEqual(s.peticiones.filter((p) => p.body && p.body.collectionIds).length, 0, 'cero exportaciones nuevas');
+    const guardado = s.estado.get('2026-10-29');
+    assert.strictEqual(guardado.lotes.clientes.estado, 'PENDIENTE', 'no es un fallo: queda pendiente');
+    assert.ok(!r.requiereAlerta, 'una exportación en curso no es motivo de alerta');
+  });
+
+  await ta('una exportación que pasa del plazo queda pendiente, no fallida', async () => {
+    const s = simulador({ colecciones: ['clientes'], nuncaTermina: true });
+    s.deps.timeoutOperacionMs = 50;   // el sondeo se agota enseguida
+    const backup = crearBackupPorLotes(s.deps);
+    const r = await backup.ejecutar({ presupuestoMs: 600000, fecha: '2026-10-29' });
+    assert.strictEqual(r.estado, 'PARCIAL');
+    const guardado = s.estado.get('2026-10-29');
+    assert.strictEqual(guardado.lotes.clientes.estado, 'PENDIENTE');
+    assert.ok(/en curso/i.test(guardado.lotes.clientes.mensaje), 'el manifiesto explica que sigue en curso: ' + guardado.lotes.clientes.mensaje);
+    assert.ok(!r.requiereAlerta, 'no debe alertar por una exportación larga');
   });
 
   console.log('\n== Resumen ==');

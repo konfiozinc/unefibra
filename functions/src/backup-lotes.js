@@ -128,6 +128,31 @@ function crearBackupPorLotes(deps = {}) {
     return { ok, status: r.status, json, texto };
   }
 
+  /**
+   * Nombre de la operación de exportación que TODAVÍA está escribiendo en este
+   * destino, o null si no hay ninguna.
+   *
+   * Por qué importa: el servicio de exportación de este proyecto atiende con mucha
+   * lentitud (medido en producción el 29-oct-2026: entre ~40 s y ~20 min por
+   * colección, y hay días con exportaciones de una hora). Cuando una invocación
+   * muere por tiempo, la operación sigue corriendo en el servidor y termina sola.
+   * Sin esta comprobación la invocación siguiente pedía OTRA exportación hacia el
+   * mismo prefijo: dos operaciones escribiendo los mismos objetos, y la cola del
+   * servicio —que es la que tarda— se llenaba de trabajo repetido.
+   */
+  async function exportacionEnCurso(token, destino) {
+    const r = await pedir(token, `https://firestore.googleapis.com/v1/projects/${proyectoId}/databases/(default)/operations?pageSize=100`, { method: "GET" });
+    if (!r.ok || !r.json || !Array.isArray(r.json.operations)) return null;
+    const buscado = String(destino).replace(/\/+$/, "");
+    for (const op of r.json.operations) {
+      if (op.done) continue;
+      const meta = op.metadata || {};
+      const salida = String(meta.outputUriPrefix || "").replace(/\/+$/, "");
+      if (salida === buscado) return op.name || "sin nombre";
+    }
+    return null;
+  }
+
   /** Lanza la exportación de UN lote y espera a que termine de verdad. */
   async function exportarLote(token, lote, destino) {
     const inicio = await pedir(token, `https://firestore.googleapis.com/v1/projects/${proyectoId}/databases/(default):exportDocuments`, {
@@ -162,8 +187,14 @@ function crearBackupPorLotes(deps = {}) {
       }
       await dormir(intervaloConsultaMs);
     }
-    if (!operacion) throw errorConEstado(504, "La operación del lote no respondió.", { codigo: "DEADLINE_EXCEEDED" });
-    if (!operacion.done) throw errorConEstado(504, "El lote no terminó dentro del plazo.", { codigo: "DEADLINE_EXCEEDED" });
+    if (!operacion) throw errorConEstado(504, "La operación del lote no respondió.", { codigo: "DEADLINE_EXCEEDED", congestion: true });
+    if (!operacion.done) {
+      /* NO es un fallo del respaldo: la exportación sigue corriendo en el servidor
+         y terminará sola, dejando sus objetos en el bucket. Se marca como
+         «en curso» para que la invocación siguiente la ADOPTE en vez de pedir otra
+         (ver `exportacionEnCurso`). */
+      throw errorConEstado(504, "La exportación sigue en curso; se adopta cuando termine.", { codigo: "EN_CURSO", congestion: true });
+    }
     if (operacion.error) {
       const codigo = operacion.error.status || operacion.error.code;
       throw errorConEstado(500, `El lote falló: ${operacion.error.message || codigo}`, { codigo });
@@ -174,14 +205,34 @@ function crearBackupPorLotes(deps = {}) {
   /** Ejecuta un lote con reintentos y verifica que los objetos existan. */
   async function ejecutarLote(lote, prefijoCorrida) {
     const destino = `gs://${bucket}/${prefijoCorrida}/${lote.id}`;
+    const prefijo = `${prefijoCorrida}/${lote.id}/`;
     const inicioMs = ahora();
     let ultimoError = null;
+
+    /* 0) ¿Ya está exportado y verificado en el bucket? Una invocación que muere por
+       tiempo deja la exportación corriendo, y ésta termina sola. Adoptarla es lo
+       que permite reanudar sin volver a exportar lo mismo. */
+    try {
+      const yaHay = await listarObjetos(prefijo);
+      const evaluacion = evaluarObjetos(yaHay);
+      if (evaluacion.completo) {
+        log(`[backup-lotes] ${lote.id}: ya estaba exportado en el bucket (${evaluacion.totalObjetos} objetos)`);
+        return { exito: true, yaEstaba: true, uri: destino, objetos: evaluacion.totalObjetos, ms: ahora() - inicioMs };
+      }
+    } catch (e) {
+      log(`[backup-lotes] ${lote.id}: no se pudo comprobar el bucket (${e.message}); se intenta exportar`);
+    }
 
     for (let intento = 1; intento <= intentosMax; intento++) {
       try {
         const token = await tokenProveedor();
+        /* 1) Si la exportación de este lote sigue en curso, no se pide otra. */
+        const enCurso = await exportacionEnCurso(token, destino);
+        if (enCurso) {
+          log(`[backup-lotes] ${lote.id}: su exportación sigue en curso; se adopta en la próxima corrida`);
+          return { exito: false, congestion: true, ms: ahora() - inicioMs, mensaje: "Exportación en curso: se adopta cuando termine." };
+        }
         await exportarLote(token, lote, destino);
-        const prefijo = `${prefijoCorrida}/${lote.id}/`;
         const objetos = await listarObjetos(prefijo);
         const evaluacion = evaluarObjetos(objetos);
         if (!evaluacion.completo) {
@@ -192,12 +243,13 @@ function crearBackupPorLotes(deps = {}) {
         ultimoError = e;
         const transitorio = esTransitorio(e);
         log(`[backup-lotes] ${lote.id}: intento ${intento} falló (${e.message})${transitorio ? " · reintentable" : " · definitivo"}`);
-        if (e.definitivo || !transitorio || intento === intentosMax) break;
+        if (e.congestion || e.definitivo || !transitorio || intento === intentosMax) break;
         await dormir(esperaProgresiva(intento, baseMs, techoMs));
       }
     }
     return {
       exito: false,
+      congestion: !!(ultimoError && ultimoError.congestion),
       ms: ahora() - inicioMs,
       definitivo: !!ultimoError.definitivo,
       mensaje: String(ultimoError && ultimoError.message || "error desconocido").slice(0, 300)
@@ -265,11 +317,27 @@ function crearBackupPorLotes(deps = {}) {
         }
         log(`[backup-lotes] ${lote.id} (${lote.colecciones.join(", ")})`);
         const r = await ejecutarLote(lote, `daily/${corrida}`);
-        lotesEstado[lote.id] = r.exito
-          ? { estado: "COMPLETADO", uri: r.uri, objetos: r.objetos, ms: r.ms, colecciones: lote.colecciones, cuando: new Date(ahora()).toISOString() }
-          : { estado: r.definitivo ? "FALLIDO_DEFINITIVO" : "FALLIDO", mensaje: r.mensaje, ms: r.ms, colecciones: lote.colecciones, cuando: new Date(ahora()).toISOString() };
+        if (r.exito) {
+          lotesEstado[lote.id] = {
+            estado: "COMPLETADO", uri: r.uri, objetos: r.objetos, ms: r.ms,
+            colecciones: lote.colecciones, cuando: new Date(ahora()).toISOString()
+          };
+          if (r.yaEstaba) lotesEstado[lote.id].adoptado = true;
+        } else if (r.congestion) {
+          /* Ni fallo ni respaldo: la exportación está en la cola del servicio. Se
+             queda PENDIENTE, sin alerta, para que la próxima invocación la adopte. */
+          lotesEstado[lote.id] = {
+            estado: "PENDIENTE", colecciones: lote.colecciones,
+            mensaje: r.mensaje, cuando: new Date(ahora()).toISOString()
+          };
+        } else {
+          lotesEstado[lote.id] = {
+            estado: r.definitivo ? "FALLIDO_DEFINITIVO" : "FALLIDO",
+            mensaje: r.mensaje, ms: r.ms, colecciones: lote.colecciones, cuando: new Date(ahora()).toISOString()
+          };
+          fallidos.push({ lote: lote.id, mensaje: r.mensaje, definitivo: r.definitivo });
+        }
         procesados.push(r);
-        if (!r.exito) fallidos.push({ lote: lote.id, mensaje: r.mensaje, definitivo: r.definitivo });
         /* Se guarda el progreso DESPUÉS de cada lote: si la función muere de
            golpe en el siguiente, este ya está registrado. */
         await estado.guardar(corrida, {
@@ -279,7 +347,9 @@ function crearBackupPorLotes(deps = {}) {
           presupuestoMs: presupuesto,
           porLote
         });
-        if (r.definitivo) break;
+        /* Un fallo definitivo o una exportación en curso detienen la corrida: el
+           servicio atiende de a una operación y seguir sólo alarga la cola. */
+        if (r.definitivo || r.congestion) break;
       }
 
       const resumen = resumir(plan.lotes, lotesEstado, corrida);
