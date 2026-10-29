@@ -160,7 +160,11 @@ async function evaluarServicioPorId(servicioId) {
 }
 
 const { enviarAlertaError } = require("./alertas");
-const { exportarConDetalle } = require("./backup");
+const {
+  exportarConDetalle,
+  BUCKET: BUCKET_BACKUP,
+  PROJECT_ID: PROJECT_ID_BACKUP
+} = require("./backup");
 
 /* ------------------------------------------------------------------
  * Contexto de los mensajes de cobro
@@ -686,41 +690,108 @@ exports.ejecutarMotor = functions.https.onCall(async (data, context) => {
 });
 
 /* ============================================================
- * MÓDULO: BACKUP DIARIO (función programada)
+ * MÓDULO: BACKUP DIARIO (función programada) — KZ-UNEF-028
+ * ------------------------------------------------------------
+ * HISTORIA DEL FALLO: la exportación pedía la base ENTERA en una operación. Con
+ * 332 servicios tardaba 536,8 s y la función gen 1 (máximo 540 s) moría sin poder
+ * verificar el respaldo ni liberar el cerrojo. Subir `timeoutSeconds` no es
+ * posible: 540 s es el techo de gen 1.
+ *
+ * SOLUCIÓN: exportar POR COLECCIONES con presupuesto de tiempo y reanudación
+ * (src/backup-lotes.js). Cada invocación hace lo que cabe en ~7 de los 9 minutos,
+ * guarda el progreso y, si no termina, la corrida sigue en la siguiente
+ * invocación. El respaldo solo se declara COMPLETADO cuando TODAS las colecciones
+ * raíz están verificadas en el bucket.
+ *
+ * Se añade `continuarBackup` (cada 30 min): si la corrida del día quedó a medias,
+ * la termina. Si ya está completa no hace nada y no cuesta lecturas.
  * ============================================================ */
+function backupPorLotes(deps = {}) {
+  const { listarObjetosDelBucket, lockPorDefecto } = require("./backup");
+  const { crearBackupPorLotes } = require("./backup-lotes");
+  const db = getFirestore();
+  return crearBackupPorLotes({
+    proyectoId: PROJECT_ID_BACKUP,
+    bucket: BUCKET_BACKUP,
+    listarColecciones: async () => (await db.listCollections()).map((c) => c.id),
+    listarObjetos: (prefijo) => listarObjetosDelBucket(prefijo),
+    estado: {
+      leer: async (corrida) => {
+        const snap = await db.collection("backups").doc(corrida).get();
+        return snap.exists ? snap.data() : null;
+      },
+      guardar: async (corrida, datos) => {
+        await db.collection("backups").doc(corrida).set(datos, { merge: false });
+      }
+    },
+    lock: deps.lock || lockPorDefecto,
+    ...deps
+  });
+}
+
+/* Presupuesto por invocación: 7 min de los 9 que permite gen 1 (540 s), para que
+   siempre quede margen para verificar y cerrar la corrida. */
+const PRESUPUESTO_BACKUP_MS = 420000;
+
+async function correrBackup({ motivo }) {
+  const inicio = Date.now();
+  const resultado = await backupPorLotes().ejecutar({ presupuestoMs: PRESUPUESTO_BACKUP_MS });
+  const ms = Date.now() - inicio;
+  console.log("Backup de Firestore (" + motivo + "):", {
+    estado: resultado.estado,
+    corrida: resultado.corrida,
+    colecciones: resultado.completadas + "/" + resultado.total,
+    objetos: resultado.objetos || 0,
+    pendientes: resultado.pendientes || 0,
+    loteMasLento: resultado.masLento ? resultado.masLento.ms + " ms" : null,
+    motivo: resultado.motivo || null,
+    ms
+  });
+
+  /* Se avisa SOLO de lo que dejó el respaldo sin hacer: un fallo definitivo o una
+     corrida que sigue incompleta al final del día. Una corrida PARCIAL dentro del
+     día es normal y no merece alarma. */
+  if (resultado.requiereAlerta) {
+    const err = new Error("Respaldo no completado (" + resultado.estado + "): " + (resultado.motivo || JSON.stringify(resultado.fallidos || [])));
+    err.resultado = resultado;
+    try {
+      await enviarAlertaError("backupFirestore (" + motivo + ")", err);
+      console.log("Alerta de respaldo enviada.");
+    } catch (emailErr) {
+      console.error("No se pudo enviar la alerta por email:", emailErr);
+    }
+    throw err;
+  }
+  return resultado;
+}
+
 exports.backupFirestore = functions
   .runWith({ secrets: ["SENDGRID_API_KEY"], timeoutSeconds: 540 })
   .pubsub
   .schedule("0 3 * * *") // 03:00 diario, hora de Bogotá
   .timeZone("America/Bogota")
+  .onRun(() => correrBackup({ motivo: "corrida diaria" }));
+
+/* Continúa una corrida incompleta. Cada 30 minutos; si no hay nada pendiente
+   termina en milisegundos. */
+exports.continuarBackup = functions
+  .runWith({ secrets: ["SENDGRID_API_KEY"], timeoutSeconds: 540 })
+  .pubsub
+  .schedule("*/30 * * * *")
+  .timeZone("America/Bogota")
   .onRun(async () => {
-    /* KZ-UNEF-005 · El respaldo ahora distingue «iniciada» de «completada»:
-       espera la operación, comprueba que los archivos existan en el bucket,
-       reintenta los errores transitorios y usa un cerrojo para no solaparse.
-       El 25-oct el 503 de Firestore dejó el día sin respaldo y nadie se enteró. */
-    const resultado = await exportarConDetalle({ timeoutOperacionMs: 480000 });
-    console.log("Backup de Firestore:", resultado.estado, {
-      destino: resultado.outputUriPrefix || null,
-      objetos: resultado.objetos || 0,
-      intentos: resultado.intentos.length,
-      motivo: resultado.motivo || null
-    });
-
-    if (resultado.requiereAlerta) {
-      const err = new Error(`Respaldo no completado (${resultado.estado}): ${resultado.motivo}`);
-      err.intentos = resultado.intentos;
-      try {
-        await enviarAlertaError("backupFirestore (exportación diaria)", err);
-        console.log("Alerta de respaldo enviada.");
-      } catch (emailErr) {
-        /* Si el correo falla, el fallo del respaldo NO se enmascara: queda en
-           los logs con el estado real y la función termina en error. */
-        console.error("No se pudo enviar la alerta por email:", emailErr);
-      }
-      throw err;
+    const db = getFirestore();
+    const hoy = hoyISO();
+    const snap = await db.collection("backups").doc(hoy).get();
+    const datos = snap.exists ? snap.data() : null;
+    const lotes = datos && datos.lotes ? Object.values(datos.lotes) : [];
+    const pendientes = lotes.filter((l) => l.estado !== "COMPLETADO").length;
+    if (!lotes.length || pendientes === 0) {
+      console.log("Continuación de respaldo: nada pendiente para " + hoy + ".");
+      return { estado: "NADA_PENDIENTE", corrida: hoy };
     }
-
-    return resultado;
+    console.log("Continuación de respaldo: " + pendientes + " lote(s) pendientes de " + lotes.length + ".");
+    return correrBackup({ motivo: "continuación " + hoy });
   });
 
 /* ============================================================
