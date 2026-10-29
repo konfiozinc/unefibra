@@ -160,6 +160,57 @@ function proponerVencimiento(opciones = {}) {
   return { vencimiento: null, origen: 'SIN_CALCULO', motivo: 'sin período pagado ni fecha de alta', advertencias };
 }
 
+/**
+ * Renovación alineada al ciclo de corte (KZ-UNEF-029).
+ *
+ * Por qué existe: al confirmar un pago el sistema sumaba 30 días fijos al
+ * vencimiento. Con los cortes en día 15 y 30 eso hace que la fecha se salga de su
+ * día de corte en cuanto un mes tiene 31 días: 15-nov + 30 días = 15-dic (bien),
+ * pero 15-dic + 30 = 14-ene (mal), y de ahí ya no vuelve sola.
+ *
+ * Esta función devuelve el período y el vencimiento alineados al ciclo:
+ *     período  [corte de este mes, día anterior al corte siguiente)
+ *     vence    corte siguiente
+ *
+ * Se aplica SOLO cuando el vencimiento actual ya es un día de corte del ciclo. Si
+ * la fecha viene desalineada (los clientes heredados de la importación), devuelve
+ * null y quien llama mantiene el cálculo anterior: alinear a la fuerza le quitaría
+ * días ya pagados a un cliente, y eso es una decisión del propietario, no un
+ * efecto secundario de registrar un pago.
+ *
+ * @param {object} opciones { vencimiento, ciclo, hoy }
+ * @returns {{periodoInicio:string, periodoFin:string, vencimiento:string, periodo:string, origen:string}|null}
+ */
+function renovarPorCiclo(opciones = {}) {
+  const ciclo = normalizarCiclo(opciones.ciclo);
+  if (ciclo === null) return null;
+  const fecha = opciones.vencimiento;
+  if (!esFechaISO(fecha)) return null;
+
+  /* ¿Está la fecha justo en el corte de su mes? Si no, no se toca. */
+  const [anio, mes] = fecha.split("-").map(Number);
+  if (fechaDeCorte(anio, mes, ciclo) !== fecha) return null;
+
+  /* Si ya venció, el período nuevo arranca hoy (misma regla que renovacion.js:
+     nunca renovar hacia atrás). */
+  const hoy = esFechaISO(opciones.hoy) ? opciones.hoy : null;
+  const base = hoy && hoy > fecha ? hoy : fecha;
+
+  const periodo = periodoDePago(base, ciclo);
+  if (!periodo) return null;
+  const rango = cubiertoPor(periodo, ciclo);
+  const siguiente = vencimientoTrasPeriodo(periodo, ciclo);
+  if (!rango || !siguiente) return null;
+
+  return {
+    periodo,
+    periodoInicio: rango.desde,
+    periodoFin: rango.hasta,
+    vencimiento: siguiente,
+    origen: "CICLO_DE_CORTE"
+  };
+}
+
 module.exports = {
   CICLOS_VALIDOS,
   normalizarCiclo,
@@ -170,5 +221,6 @@ module.exports = {
   vencimientoTrasPeriodo,
   vencimientoDesdeAlta,
   periodoDePago,
-  proponerVencimiento
+  proponerVencimiento,
+  renovarPorCiclo
 };

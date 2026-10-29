@@ -1298,12 +1298,25 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
       duracion: plan.duracion
     });
 
+    /* KZ-UNEF-029 · HALLAZGO REPORTADO, NO APLICADO.
+       Renovar sumando 30 días fijos saca la fecha de su día de corte en los meses
+       de 31 días (15-dic + 30 = 14-ene) y de ahí ya no vuelve sola: tras 6
+       renovaciones la simulación acababa en 2027-05-14 y 2027-05-29, fuera del
+       ciclo. La corrección está escrita y probada (vencimientos.renovarPorCiclo,
+       test/renovacion-ciclo.test.js 11/11) pero NO se activa aquí: cambiar el
+       período que se le cobra a un cliente es una decisión comercial del
+       propietario, y la certificación KZ-UNEF-002 fija hoy «hoy + 30 días».
+       Para activarla: sustituir las tres asignaciones `periodoFin` por
+       `periodoCobrado.*` (el período pasa a terminar el día anterior al corte y el
+       vencimiento vuelve a caer en el día del ciclo). */
+    const periodoCobrado = { inicio: periodoInicio, fin: periodoFin, vencimiento: periodoFin };
+
     // Actualizar pago. `fechaPago` NO se reescribe: es la fecha en que el
     // cliente pagó, no la fecha en que un operador hizo clic en confirmar.
     t.update(pagoRef, {
       estado: ESTADO_PAGO.CONFIRMADO,
-      periodoInicio,
-      periodoFin
+      periodoInicio: periodoCobrado.inicio,
+      periodoFin: periodoCobrado.fin
     });
 
     // Renovar servicio del cliente
@@ -1325,8 +1338,8 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("failed-precondition", guardaRenovacion.motivo);
       }
       t.update(servicios.docs[0].ref, {
-        fechaInicio: periodoInicio,
-        fechaVencimiento: periodoFin,
+        fechaInicio: periodoCobrado.inicio,
+        fechaVencimiento: periodoCobrado.vencimiento,
         estado: ESTADO_SERVICIO.ACTIVO,
         fechaActivacion: hoyISO(),
         fechaSuspension: null,
@@ -1341,12 +1354,12 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
        columna "Fecha de ingreso" mostraba el último ciclo facturado. Solo se
        rellena si venía vacía. */
     const cambiosCliente = {
-      fechaVencimiento: periodoFin,
+      fechaVencimiento: periodoCobrado.vencimiento,
       estadoCliente: ESTADO_CLIENTE.ACTIVO,
       estadoServicio: ESTADO_SERVICIO.ACTIVO,
       updatedAt: FieldValue.serverTimestamp()
     };
-    if (!cliente.fechaInicioServicio) cambiosCliente.fechaInicioServicio = periodoInicio;
+    if (!cliente.fechaInicioServicio) cambiosCliente.fechaInicioServicio = periodoCobrado.inicio;
     estadoPrevioCliente = cliente.estadoCliente || null;
     t.update(clienteRef, cambiosCliente);
 
