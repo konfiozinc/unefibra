@@ -160,18 +160,24 @@ auditoria_1.overall_export_metadata
 
 ---
 
-## 8. Cómo detener los intentos automáticos (requiere autorización)
+## 8. Cómo detener los intentos automáticos (autorizado y ejecutado)
 
-No se modificó nada de esto. Dos formas seguras, ambas reversibles y sin tocar código:
+**Ejecutado con autorización expresa del propietario a las 09:23Z:** pausa del programador de reanudación.
 
-| Opción | Acción | Efecto | Reversión |
+```
+POST https://cloudscheduler.googleapis.com/v1/projects/une-fibra/locations/us-central1/jobs/firebase-schedule-continuarBackup-us-central1:pause  ->  HTTP 200
+```
+
+| Trabajo | Estado tras la pausa | Cron | Próxima ejecución |
 |---|---|---|---|
-| **A. Pausar la reanudación** (recomendada) | `cloudscheduler.jobs.pause` sobre `projects/une-fibra/locations/us-central1/jobs/firebase-schedule-continuarBackup-us-central1` | No se inicia ninguna exportación nueva; el respaldo queda congelado en su estado actual | `jobs.resume` (mismo trabajo, sin redeploy) |
-| **B. Pausar también la diaria** | idem sobre `firebase-schedule-backupFirestore-us-central1` | Tampoco corre el respaldo de las 03:00 Bogotá | `jobs.resume` |
+| `firebase-schedule-continuarBackup-us-central1` | **PAUSED** | `*/30 * * * *` | ninguna |
+| `firebase-schedule-backupFirestore-us-central1` | ENABLED (sin tocar) | `0 3 * * *` (America/Bogota) | 2026-10-30T08:00Z |
 
-Con la opción A queda igualmente en curso **una** exportación (`daily/2026-10-29/backups`, iniciada 09:08:45Z), que se deja terminar y no se interrumpe.
+Efecto: **no se inicia ninguna exportación nueva**; la única que estaba en curso (`daily/2026-10-29/backups`, desde 09:08:45Z) se deja terminar sin interrumpirla. Es un cambio **reversible**: `…:resume` sobre el mismo trabajo, sin redeploy y sin tocar código.
 
-**Alternativa sin ninguna escritura:** no hacer nada. Las ejecuciones automáticas adoptan lo terminado y no solapan, pero seguirán arrancando exportaciones de los lotes pendientes.
+Pendiente de decisión (no ejecutado): pausar también la diaria si se quiere que no haya ninguna exportación hasta resolver la certificación.
+
+**Alternativa sin ninguna escritura:** no hacer nada. Las ejecuciones automáticas adoptan lo terminado y no solapan, pero seguirían arrancando exportaciones de los lotes pendientes.
 
 ---
 
