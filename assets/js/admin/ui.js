@@ -92,29 +92,46 @@ export function urlWhatsApp(mensaje) {
   return `https://wa.me/${numero}?text=${encodeURIComponent(mensaje)}`;
 }
 
-/** Traduce el error de una Cloud Function callable a un mensaje claro. */
+/** Traduce el error de una Cloud Function callable a un mensaje claro.
+ *  KZ-UNEF-028 · Antes se descartaba SIEMPRE el mensaje del servidor y se devolvía
+ *  un texto genérico. El backend explica en español por qué rechaza una operación
+ *  («Un pago confirmado ya renovó el servicio: no se anula desde aquí»), y el
+ *  operador se quedaba sin ese dato. Ahora se conserva el motivo real. */
 export function msgError(err) {
-  const code = (err && err.code) ? err.code : "";
-  if (code.includes("already-exists")) return "La operación ya fue realizada.";
-  if (code.includes("permission-denied")) return "No tienes permisos para esta operación.";
-  if (code.includes("invalid-argument")) return "Datos incompletos o inválidos.";
+  const code = String((err && err.code) || "");
+  const detalle = typeof (err && err.message) === "string" ? err.message.trim() : "";
   if (code.includes("unauthenticated")) return "Tu sesión expiró. Vuelve a iniciar sesión.";
-  return "No fue posible completar la operación. Intenta nuevamente.";
+  if (code.includes("permission-denied")) return detalle || "No tienes permisos para esta operación.";
+  if (code.includes("already-exists")) return detalle || "La operación ya fue realizada.";
+  if (code.includes("invalid-argument")) return detalle || "Datos incompletos o inválidos.";
+  if (code.includes("failed-precondition")) return detalle || "La operación no está permitida en este momento.";
+  if (code.includes("not-found")) return detalle || "El registro ya no existe.";
+  if (code.includes("aborted") || code.includes("deadline")) return detalle || "Otro cambio ocurrió al mismo tiempo. Vuelve a intentarlo.";
+  if (code.includes("resource-exhausted")) return detalle || "Demasiadas solicitudes seguidas. Espera un momento.";
+  if (code.includes("unavailable") || code.includes("network")) return "Sin conexión. Revisa tu internet e intenta de nuevo.";
+  return detalle || "No fue posible completar la operación. Intenta nuevamente.";
 }
 
 /* ============================================================
  * CICLOS DE CORTE  (COPIA de functions/src/cortes.js)
  * ------------------------------------------------------------
- * El negocio cobra en dos tandas y cada tanda tiene dos fechas: la del
- * aviso de cobro y la del corte, con 5 días de gracia entre ambas:
+ * REGLA VIGENTE (decisión del propietario, 29-oct-2026):
  *
- *     cicloCorte "15"  ->  aviso el día 15  ->  corte el día 20
- *     cicloCorte "30"  ->  aviso el día 30  ->  corte el día 5 del mes siguiente
+ *     Los días de corte comerciales son el 15 y el 30 de cada mes.
+ *     cicloCorte "15"  ->  corte el día 15
+ *     cicloCorte "30"  ->  corte el día 30
  *
- * `clientes.cicloCorte` guarda el día del AVISO, no el del corte.
+ *     Cada corte genera DOS recordatorios, a las 10:00 de Colombia:
+ *         corte 15  ->  aviso el 12  y  aviso el 15
+ *         corte 30  ->  aviso el 27  y  aviso el 30
  *
- * Este archivo es una COPIA de functions/src/cortes.js porque el navegador
- * no puede importar CommonJS. Si cambias una regla aquí, cámbiala allí.
+ * FEBRERO: el ciclo "30" corta el último día real del mes (28 o 29) y su primer
+ * aviso cae 3 días antes (25 o 26). El servicio es mensual: saltarse febrero
+ * dejaría al cliente sin período facturable.
+ *
+ * Este archivo es una COPIA de functions/src/cortes.js porque el navegador no
+ * puede importar CommonJS. import/test-cortes.js compara las dos versiones y
+ * falla si se separan.
  * ============================================================ */
 
 export const DIAS_CORTE = ["15", "30"];
@@ -125,18 +142,21 @@ export function diasDelMes(anio, mes) {
 }
 
 /**
- * Día del CORTE que corresponde a un ciclo: el "15" corta el día 20 y el
- * "30" corta el día 5. Se mantienen anio/mes por compatibilidad con las
- * llamadas existentes, pero ya no se usan.
+ * Día del CORTE que corresponde a un ciclo: el "15" corta el 15 y el "30" corta
+ * el 30. Si se pasan año y mes, se recorta al último día real del mes, que es lo
+ * que resuelve febrero sin un caso especial.
  */
-export function diaCorteDeMes(ciclo) {
-  return String(ciclo) === "15" ? 20 : 5;
+export function diaCorteDeMes(ciclo, anio, mes) {
+  const dia = String(ciclo) === "15" ? 15 : 30;
+  if (Number.isInteger(anio) && Number.isInteger(mes) && mes >= 1 && mes <= 12) {
+    return Math.min(dia, diasDelMes(anio, mes));
+  }
+  return dia;
 }
 
 /**
- * "YYYY-MM-DD" del próximo corte del ciclo a partir de una fecha.
- * Si el corte de este mes todavía no pasó, es el de este mes; si ya
- * pasó, el del mes siguiente.
+ * "YYYY-MM-DD" del próximo corte del ciclo a partir de una fecha. Si hoy es el
+ * día del corte, el próximo corte es hoy.
  */
 export function proximoCorteDe(ciclo, desdeISO) {
   const base = desdeISO || hoyColombia();
@@ -164,4 +184,63 @@ export function etiquetaCorte(ciclo) {
 /** Días que faltan para el próximo corte (negativo no ocurre: se recalcula al mes siguiente). */
 export function diasParaCorte(ciclo, desdeISO) {
   return diasRestantes(proximoCorteDe(ciclo, desdeISO));
+}
+
+/* ============================================================
+ * RECORDATORIOS DE PAGO  (COPIA de functions/src/recordatorios.js)
+ * ------------------------------------------------------------
+ * Por cada corte el cliente recibe EXACTAMENTE DOS avisos a las 10:00 de
+ * Colombia: 3 días antes del corte y el día del corte.
+ * El panel solo los muestra; quien los genera y envía es el motor de las
+ * Cloud Functions. Aquí viven las etiquetas y las palabras del propietario
+ * para que la pantalla hable en comercial y no en códigos.
+ * ============================================================ */
+
+export const ZONA_RECORDATORIOS = "America/Bogota";
+export const HORA_RECORDATORIOS = 10;
+export const DIAS_ANTES_RECORDATORIO = 3;
+
+/** Las dos fechas de aviso de un corte. */
+export function recordatoriosDelCorte(corteISO) {
+  if (typeof corteISO !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(corteISO)) return [];
+  const [y, m, d] = corteISO.split("-").map(Number);
+  const previo = fechaISO(new Date(Date.UTC(y, m - 1, d) - DIAS_ANTES_RECORDATORIO * 86400000));
+  return [
+    { clave: "previo", fecha: previo, etiqueta: `${DIAS_ANTES_RECORDATORIO} días antes del corte`, tipo: "previo" },
+    { clave: "corte", fecha: corteISO, etiqueta: "Día del corte", tipo: "corte" }
+  ];
+}
+
+/** El estado interno de un aviso, en la palabra que entiende el propietario. */
+export function palabraEstadoAviso(estado) {
+  const mapa = { PENDIENTE: "Pendiente", ENVIADA: "Enviado", ERROR: "Fallido", CANCELADA: "Cancelado" };
+  return mapa[String(estado || "").toUpperCase()] || "Sin estado";
+}
+
+/** Qué aviso es, a partir del tipo guardado en la colección `notificaciones`. */
+export function etiquetaTipoAviso(tipo) {
+  const t = String(tipo || "");
+  if (/^CORTE_.*_VENCIDO$/.test(t)) return "Día del corte";
+  if (/^CORTE_.*_\d+_DIAS$/.test(t)) return "3 días antes del corte";
+  if (t === "VENCIMIENTO_HOY") return "Hoy vence";
+  if (/^MORA_/.test(t)) return "Aviso de mora";
+  if (t === "MANUAL") return "Envío manual";
+  return "Aviso";
+}
+
+/** Próximo aviso (fecha y etiqueta) de un corte, útil en las fichas. */
+export function proximoAvisoDe(corteISO, hoy) {
+  const hoyISOStr = hoy || hoyColombia();
+  const pendiente = recordatoriosDelCorte(corteISO).find((r) => r.fecha >= hoyISOStr);
+  return pendiente || null;
+}
+
+/** Cuánto falta para el corte, en palabras (recibe los días ya calculados). */
+export function textoCuandoVence(dias) {
+  if (dias === null || dias === undefined || Number.isNaN(Number(dias))) return "—";
+  const d = Number(dias);
+  if (d < 0) return `Vencido hace ${Math.abs(d)} día(s)`;
+  if (d === 0) return "Vence hoy";
+  if (d === 1) return "Vence mañana";
+  return `Faltan ${d} día(s)`;
 }

@@ -12,22 +12,36 @@ import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 import { esc } from "./ui.js";
 
+/* ============================================================
+ * Menú del panel — KZ-UNEF-028
+ * ------------------------------------------------------------
+ * El propietario no programa: el menú principal tiene SEIS entradas con
+ * nombres comerciales (Inicio, Clientes, Vencimientos, Pagos, Recordatorios,
+ * Planes). Lo técnico (conciliaciones, listas por ciclo, blog, usuarios,
+ * auditoría) queda en «Más opciones», disponible pero fuera del camino diario.
+ *
+ * `min` NO es decorativo: requireAuth lo aplica también al abrir una página
+ * por su URL, no solo al pintar el menú. `grupo` decide en qué bloque aparece.
+ * ============================================================ */
+
 const NAV = [
-  { key: "dashboard", label: "Dashboard", href: "dashboard.html", min: "OPERADOR" },
-  { key: "solicitudes", label: "Solicitudes", href: "solicitudes.html", min: "OPERADOR" },
-  { key: "clientes", label: "Clientes", href: "clientes.html", min: "OPERADOR" },
-  { key: "corte15", label: "Lista Corte 15", href: "lista-corte-15.html", min: "OPERADOR" },
-  { key: "corte30", label: "Lista Corte 30", href: "lista-corte-30.html", min: "OPERADOR" },
-  { key: "servicios", label: "Servicios", href: "servicios.html", min: "OPERADOR" },
-  { key: "conciliacion", label: "Conciliación de servicios", href: "conciliacion.html", min: "ADMIN" },
-  { key: "pagos-historicos", label: "Conciliación de pagos históricos", href: "pagos-historicos.html", min: "ADMIN" },
-  { key: "pagos", label: "Pagos", href: "pagos.html", min: "OPERADOR" },
-  { key: "planes", label: "Planes", href: "planes.html", min: "ADMIN" },
-  { key: "blog", label: "Blog", href: "blog.html", min: "ADMIN" },
-  { key: "notificaciones", label: "Notificaciones", href: "notificaciones.html", min: "ADMIN" },
-  { key: "configuracion", label: "Configuración", href: "configuracion.html", min: "SUPERADMIN" },
-  { key: "usuarios", label: "Usuarios", href: "usuarios.html", min: "SUPERADMIN" },
-  { key: "auditoria", label: "Auditoría", href: "auditoria.html", min: "SUPERADMIN" }
+  { key: "dashboard", label: "Inicio", href: "dashboard.html", min: "OPERADOR", grupo: "principal", icono: "🏠" },
+  { key: "clientes", label: "Clientes", href: "clientes.html", min: "OPERADOR", grupo: "principal", icono: "👤" },
+  { key: "vencimientos", label: "Vencimientos", href: "vencimientos.html", min: "OPERADOR", grupo: "principal", icono: "📅" },
+  { key: "pagos", label: "Pagos", href: "pagos.html", min: "OPERADOR", grupo: "principal", icono: "💵" },
+  { key: "notificaciones", label: "Recordatorios", href: "notificaciones.html", min: "ADMIN", grupo: "principal", icono: "🔔" },
+  { key: "planes", label: "Planes", href: "planes.html", min: "ADMIN", grupo: "principal", icono: "📶" },
+
+  { key: "solicitudes", label: "Solicitudes de clientes", href: "solicitudes.html", min: "OPERADOR", grupo: "mas" },
+  { key: "corte15", label: "Lista de cobro · corte 15", href: "lista-corte-15.html", min: "OPERADOR", grupo: "mas" },
+  { key: "corte30", label: "Lista de cobro · corte 30", href: "lista-corte-30.html", min: "OPERADOR", grupo: "mas" },
+  { key: "servicios", label: "Servicios e instalaciones", href: "servicios.html", min: "OPERADOR", grupo: "mas" },
+  { key: "conciliacion", label: "Revisión de servicios importados", href: "conciliacion.html", min: "ADMIN", grupo: "mas" },
+  { key: "pagos-historicos", label: "Revisión de pagos del Excel", href: "pagos-historicos.html", min: "ADMIN", grupo: "mas" },
+  { key: "blog", label: "Blog del sitio", href: "blog.html", min: "ADMIN", grupo: "mas" },
+  { key: "configuracion", label: "Configuración", href: "configuracion.html", min: "SUPERADMIN", grupo: "mas" },
+  { key: "usuarios", label: "Usuarios y permisos", href: "usuarios.html", min: "SUPERADMIN", grupo: "mas" },
+  { key: "auditoria", label: "Historial de cambios", href: "auditoria.html", min: "SUPERADMIN", grupo: "mas" }
 ];
 
 const NIVEL = { OPERADOR: 1, ADMIN: 2, SUPERADMIN: 3 };
@@ -36,22 +50,31 @@ export function canAccess(rol, min) {
   return (NIVEL[rol] || 0) >= (NIVEL[min] || 0);
 }
 
+function enlaces(rol, activeKey, grupo) {
+  return NAV
+    .filter((n) => n.grupo === grupo && canAccess(rol, n.min))
+    .map((n) => `<a href="${n.href}" class="side__link ${n.key === activeKey ? "is-active" : ""}" ${n.key === activeKey ? 'aria-current="page"' : ""}>${n.icono ? `<span class="side__icon" aria-hidden="true">${n.icono}</span>` : ""}${n.label}</a>`)
+    .join("");
+}
+
 function renderShell(activeKey, rol, nombre) {
   const shell = document.getElementById("app-shell");
   if (!shell) return;
 
-  const enlaces = NAV
-    .filter((n) => canAccess(rol, n.min))
-    .map((n) => `<a href="${n.href}" class="side__link ${n.key === activeKey ? "is-active" : ""}">${n.label}</a>`)
-    .join("");
-
   const activo = NAV.find((n) => n.key === activeKey);
   const titulo = activo ? activo.label : "UneFibra";
+  const hayMas = enlaces(rol, activeKey, "mas").length > 0;
 
   shell.innerHTML = `
     <aside class="sidebar" id="sidebar">
       <a class="side__brand" href="dashboard.html">UneFibra<span>Panel</span></a>
-      <nav class="side__nav">${enlaces}</nav>
+      <nav class="side__nav" aria-label="Principal">
+        ${enlaces(rol, activeKey, "principal")}
+        ${hayMas ? `<details class="side__mas">
+          <summary>Más opciones</summary>
+          <nav aria-label="Más opciones">${enlaces(rol, activeKey, "mas")}</nav>
+        </details>` : ""}
+      </nav>
       <div class="side__foot">
         <span class="side__rol">${esc(rol)}</span>
         <button class="btn btn--ghost btn--block" id="btn-logout">Cerrar sesión</button>
@@ -63,7 +86,7 @@ function renderShell(activeKey, rol, nombre) {
         <button class="menu-toggle" id="menu-toggle" type="button" aria-label="Abrir menú" aria-expanded="false" aria-controls="sidebar">
           <span></span><span></span><span></span>
         </button>
-        <span class="topbar__title">${titulo}</span>
+        <span class="topbar__title">${esc(titulo)}</span>
         <span class="topbar__user">${esc(nombre)}</span>
       </header>
       <main class="content" id="app-content"></main>
@@ -73,6 +96,11 @@ function renderShell(activeKey, rol, nombre) {
     await signOut(auth);
     location.replace("index.html");
   });
+
+  /* Si la página activa está en «Más opciones», el desplegable se abre solo,
+     para que el usuario vea dónde está. */
+  const mas = shell.querySelector(".side__mas");
+  if (mas && NAV.find((n) => n.key === activeKey && n.grupo === "mas")) mas.open = true;
 
   initMobileNav();
 }
@@ -155,6 +183,27 @@ export function requireAuth(activeKey) {
               '). Pide a un SUPERADMIN que lo corrija antes de continuar.</p></div>';
           }
           await signOut(auth);
+          resolve(null);
+          return;
+        }
+        /* KZ-UNEF-028 · El rol mínimo de la página se aplica TAMBIÉN al abrirla
+           por su URL. Antes `min` solo filtraba el menú: un ADMIN podía escribir
+           configuracion.html (datos bancarios) o un OPERADOR conciliacion.html
+           (cartera completa) y la pantalla se pintaba igual. Las Security Rules
+           protegían la escritura, no la lectura. Ahora se niega la pantalla y se
+           devuelve null, igual que cuando no hay sesión, para que la página no
+           intente pintar su contenido. */
+        const entrada = NAV.find((n) => n.key === activeKey);
+        if (entrada && !canAccess(data.rol, entrada.min)) {
+          const shell0 = document.getElementById("app-shell");
+          if (shell0) {
+            shell0.innerHTML = `<div class="content"><div class="panel">
+              <h2>No tienes acceso a esta pantalla</h2>
+              <p class="muted">Tu usuario es <strong>${esc(data.rol)}</strong> y esta sección requiere
+              <strong>${esc(entrada.min)}</strong>. Pide a un administrador que revise tus permisos.</p>
+              <p><a class="btn btn--ghost" href="dashboard.html">Volver al inicio</a></p>
+            </div></div>`;
+          }
           resolve(null);
           return;
         }

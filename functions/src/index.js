@@ -109,6 +109,10 @@ function diasHasta(fecha) {
  * propia copia en assets/js/admin/ui.js, porque no puede importar CommonJS.
  * ------------------------------------------------------------------ */
 const { proximoCorteDe, cicloValido } = require("./cortes");
+/* KZ-UNEF-028 · Regla definitiva de recordatorios (dos avisos por vencimiento:
+ * 3 días antes del corte y el día del corte, a las 10:00 de Colombia). El módulo
+ * es puro y está probado en test/recordatorios.test.js; aquí solo se ejecuta. */
+const { decidirRecordatorios, palabraEstado } = require("./recordatorios");
 const {
   SOPORTE_POR_DEFECTO,
   construirMensajePrevioCorte,
@@ -325,6 +329,23 @@ async function marcarEntregaPush(notifRef, resultado) {
   }
 }
 
+/**
+ * KZ-UNEF-028 · ¿El cliente ya pagó el período que termina en este corte?
+ * Devuelve true si existe UN pago CONFIRMADO cuyo período llega hasta el corte o
+ * más allá. Es la comprobación que impide mandar recordatorios de cobro (o de
+ * mora) a quien ya pagó, que es una de las tres condiciones del propietario.
+ */
+async function pagoConfirmadoCubreCorte(clienteId, corteISO) {
+  if (!clienteId || !corteISO) return false;
+  const snap = await db.collection("pagos")
+    .where("clienteId", "==", clienteId)
+    .where("estado", "==", ESTADO_PAGO.CONFIRMADO)
+    .where("periodoFin", ">=", String(corteISO))
+    .limit(1)
+    .get();
+  return !snap.empty;
+}
+
 /** Registra una notificación y devuelve su referencia (o false si ya existía). */
 async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoServicio) {
   // Clave anti-duplicados: clienteId + periodo + tipo
@@ -377,9 +398,15 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
 /* Motor de vencimientos. Lógica en una función propia para poder dispararla:
    - desde el cron diario (processDueDates) y
    - manualmente desde un callable (ejecutarMotor, solo SUPERADMIN) para operación
-     y para pruebas controladas sin esperar el cron. Es idempotente y audita. */
-async function ejecutarMotorVencimientos() {
+     y para pruebas controladas sin esperar el cron. Es idempotente y audita.
+
+   KZ-UNEF-028 · `opciones.hoy` existe ÚNICAMENTE para simular la fecha de los
+   recordatorios en el emulador (la expone `ejecutarMotor` con guardián de
+   entorno). Sin él se usa la fecha real de Colombia. No afecta a estados,
+   suspensiones ni fechas del servicio: solo a la decisión de qué aviso toca. */
+async function ejecutarMotorVencimientos(opciones = {}) {
     try {
+    const hoyRecordatorio = opciones.hoy || hoyISO();
     const resumen = { revisados: 0, notificaciones: 0, porVencer: 0, pendientes: 0, suspendidos: 0, ciclos: 0, avisosCorte: 0, ciclosNotificacion: 0 };
 
     // 1) Configuración de intervalos (días antes/después) y suspensión.
@@ -387,9 +414,14 @@ async function ejecutarMotorVencimientos() {
     const cfg = {};
     cfgSnap.forEach((d) => (cfg[d.id] = d.data().valor));
 
-    // Recordatorios (decisión comercial confirmada): 3 días antes del vencimiento
-    // y el mismo día (0). Suspensión: 3 días naturales de mora.
-    const diasAntes = cfg.diasAntes || [3];
+    // Recordatorios (regla definitiva del propietario, KZ-UNEF-028).
+    //   · Exactamente DOS avisos por vencimiento: 3 días antes del corte y el día
+    //     del corte, a las 10:00 de Colombia. Las fechas las decide
+    //     src/recordatorios.js; ya no se configura desde `configuracion`.
+    //   · Se siguen leyendo `diasDespues` (solo para servicios sin ciclo, hoy
+    //     inexistentes) y `diasSuspension` (3 días naturales de mora).
+    //   · Las claves históricas `diasAntes` / `diasDespues` de la colección
+    //     `configuracion` quedan retiradas: si existen en Firestore, se ignoran.
     const diasDespues = cfg.diasDespues || [0];
     const diasSuspension = cfg.diasSuspension || 3;
 
@@ -456,36 +488,46 @@ async function ejecutarMotorVencimientos() {
         resumen.porVencer++;
       }
 
-      // 4) Avisos del ciclo de corte. El texto sale de las PLANTILLAS editables
-      //    (configuracion/plantillasMensaje) con los datos reales de la empresa
-      //    (metodos_pago y configuracion/soporte): aquí no hay textos sueltos.
+      // 4) Recordatorios del corte. KZ-UNEF-028 · REGLA DEFINITIVA DEL PROPIETARIO:
+      //    por cada vencimiento se envían EXACTAMENTE DOS avisos, a las 10:00 de
+      //    Colombia: 3 días antes del corte y el mismo día del corte.
+      //      corte 15 -> aviso el 12 y el 15 · corte 30 -> aviso el 27 y el 30
+      //    La decisión (fechas, ventana de recuperación, deduplicación y omisión
+      //    cuando ya hay pago confirmado) vive en src/recordatorios.js, que es
+      //    puro y está probado aparte. Aquí solo se ejecuta.
       const cicloCliente = cicloValido(cliente.cicloCorte, servicio.fechaVencimiento);
       const proximoCorte = cicloCliente
         ? (cliente.proximoCorte || proximoCorteDe(cicloCliente))
         : null;
+      /* KZ-UNEF-028 · «Ya está cubierto» significa que el servicio está pagado
+         MÁS ALLÁ del corte. Con `>=` un cliente que vence justo el día del corte
+         se consideraba cubierto y no recibía ninguno de sus dos avisos, que es
+         exactamente a quien hay que avisar. */
       const cubiertoHastaCorte = !!proximoCorte && !!cliente.fechaVencimiento &&
-        String(cliente.fechaVencimiento) >= proximoCorte;
-      const avisarPorCorte = !!cicloCliente && !cubiertoHastaCorte;
-      const diasAviso = avisarPorCorte ? diasHasta(proximoCorte) : dias;
-      const periodoAviso = avisarPorCorte ? `corte-${cicloCliente}-${proximoCorte}` : periodo;
+        String(cliente.fechaVencimiento) > proximoCorte;
 
-      // Trazabilidad (tarea 2): cada ciclo de corte —el mes de `proximoCorte`—
-      // lleva su propio registro de qué avisos previos ya se enviaron. Al cambiar
-      // de ciclo se reinicia, para que el mes siguiente vuelvan a salir.
-      const cicloNotificacion = proximoCorte ? String(proximoCorte).slice(0, 7) : null;
-      const cambioDeCiclo = !!cicloNotificacion && cliente.cicloActualNotificacion !== cicloNotificacion;
-      const diasNotificados = cambioDeCiclo
-        ? []
-        : (Array.isArray(cliente.diasAntesNotificados) ? cliente.diasAntesNotificados : []);
+      /* Trazabilidad por corte: `recordatoriosCiclo` guarda, para ESTE corte, qué
+         avisos ya salieron. Al cambiar de corte se reinicia solo, porque la clave
+         lleva la fecha; así el mes siguiente vuelven a salir los dos. */
+      const memoCiclo = cliente.recordatoriosCiclo && String(cliente.recordatoriosCiclo.corte) === String(proximoCorte)
+        ? cliente.recordatoriosCiclo
+        : { corte: proximoCorte, enviados: [] };
+      const enviadosEsteCorte = Array.isArray(memoCiclo.enviados) ? memoCiclo.enviados : [];
 
-      if (cambioDeCiclo) {
-        await clienteRef.update({
-          cicloActualNotificacion: cicloNotificacion,
-          diasAntesNotificados: [],
-          updatedAt: FieldValue.serverTimestamp()
-        });
-        resumen.ciclosNotificacion++;
-      }
+      /* Si el cliente ya pagó el período que viene, no se le molesta: se mira el
+         estado real de los pagos, no solo la fecha del servicio. */
+      const pagoCubreCorte = proximoCorte ? await pagoConfirmadoCubreCorte(cliente.id, proximoCorte) : false;
+
+      const decision = proximoCorte
+        ? decidirRecordatorios({
+            corteISO: proximoCorte,
+            ciclo: cicloCliente,
+            hoy: hoyRecordatorio,
+            yaEnviados: enviadosEsteCorte,
+            pagoConfirmado: cubiertoHastaCorte || pagoCubreCorte
+          })
+        : [];
+      resumen.omitidosPorPago = (resumen.omitidosPorPago || 0) + decision.filter((d) => d.motivo === "pago confirmado del período").length;
 
       const opcionesMensaje = {
         cuentas: ctxMensajes.cuentas,
@@ -494,82 +536,51 @@ async function ejecutarMotorVencimientos() {
         fechaLimite: proximoCorte
       };
 
-      for (const n of diasAntes) {
-        /* KZ-UNEF-001 · Ventana en vez de igualdad exacta.
-           Antes `diasAviso !== n` exigía que el cron cayera justo el día exacto:
-           si una corrida fallaba o se desplegaba a esa hora, diasAviso saltaba
-           de n+1 a n-1 y ese recordatorio NO se enviaba nunca, sin recuperación
-           y sin aviso. Ahora se envía también con retraso, pero solo mientras
-           el aviso siga teniendo sentido (0 <= diasAviso <= n) y siempre que no
-           se haya avisado ya ese día en este ciclo (guarda de abajo). */
-        if (diasAviso > n || diasAviso < 0) continue;
-        // Ya se le avisó este día en este mismo ciclo: no se repite.
-        if (avisarPorCorte && diasNotificados.includes(n)) continue;
+      /* 4.a) Ejecuta la decisión de recordatorios.js. Cada aviso que toca hoy se
+         registra con su clave anti-duplicados, se intenta entregar y se anota el
+         resultado real (Estado ENVIADA si llegó, ERROR → «Fallido» si no). Los dos
+         avisos comparten el período del corte, así que la clave de la colección
+         `notificaciones` no puede repetirse aunque el motor corra dos veces. */
+      for (const paso of decision) {
+        if (paso.accion !== "enviar") continue;
+        const { recordatorio } = paso;
+        const esDiaDelCorte = recordatorio.clave === "corte";
+        const periodoAviso = `corte-${cicloCliente}-${proximoCorte}`;
+        const titulo = esDiaDelCorte ? "Tu factura está vencida" : "Tu factura está disponible";
+        const cuerpo = esDiaDelCorte
+          ? construirMensajePostCorte(cliente, { ...opcionesMensaje, plantilla: ctxMensajes.plantillaDespues })
+          : construirMensajePrevioCorte(cliente, { ...opcionesMensaje, plantilla: ctxMensajes.plantillaAntes });
 
-        const tipo = avisarPorCorte ? `CORTE_${cicloCliente}_${n}_DIAS` : `RECORDATORIO_${n}_DIAS`;
-        const titulo = avisarPorCorte ? "Tu factura está disponible" : "Tu servicio está por vencer";
-        const cuerpo = avisarPorCorte
-          ? construirMensajePrevioCorte(cliente, {
-              ...opcionesMensaje,
-              plantilla: ctxMensajes.plantillaAntes
-            })
-          : `UneFibra: tu servicio de Internet vence en ${n} día(s) (${servicio.fechaVencimiento}). ` +
-            `Realiza tu pago para mantenerlo activo.`;
+        const nueva = await registrarNotificacion(cliente.id, recordatorio.tipo, titulo, cuerpo, periodoAviso);
+        if (!nueva) continue; // ya existía (otra corrida la creó): no se duplica
 
-        const nueva = await registrarNotificacion(cliente.id, tipo, titulo, cuerpo, periodoAviso);
-        if (nueva) {
-          const entrega = await enviarPush(
-            cliente.id, titulo,
-            avisarPorCorte ? `Tu factura vence el ${proximoCorte}.` : `Vence en ${n} día(s).`
-          );
-          await marcarEntregaPush(nueva, entrega);
-          resumen.notificaciones++;
-
-          if (avisarPorCorte) {
-            resumen.avisosCorte++;
-            // Queda registrado que a este cliente ya se le avisó con n días.
-            await clienteRef.update({
-              diasAntesNotificados: FieldValue.arrayUnion(n),
-              fechaUltimaNotificacion: FieldValue.serverTimestamp(),
-              tipoUltimaNotificacion: "antesCorte",
-              cicloActualNotificacion: cicloNotificacion
-            });
-          }
-        }
-      }
-
-      // 4.bis) El día del corte, si sigue sin pagar: mensaje de factura vencida.
-      //        Se envía UNA sola vez por ciclo (la clave incluye la fecha).
-      if (avisarPorCorte && diasHasta(proximoCorte) === 0) {
-        const nueva = await registrarNotificacion(
-          cliente.id,
-          `CORTE_${cicloCliente}_VENCIDO`,
-          "Tu factura está vencida",
-          construirMensajePostCorte(cliente, {
-            ...opcionesMensaje,
-            plantilla: ctxMensajes.plantillaDespues
-          }),
-          `${periodoAviso}-vencido`
+        const entrega = await enviarPush(
+          cliente.id, titulo,
+          esDiaDelCorte ? "Tu servicio será suspendido." : `Tu factura vence el ${proximoCorte}.`
         );
-        if (nueva) {
-          const entrega = await enviarPush(cliente.id, "Tu factura está vencida", "Tu servicio será suspendido.");
-          await marcarEntregaPush(nueva, entrega);
-          resumen.notificaciones++;
-          resumen.avisosCorte++;
-          await clienteRef.update({
-            fechaUltimaNotificacion: FieldValue.serverTimestamp(),
-            tipoUltimaNotificacion: "despuesCorte",
-            cicloActualNotificacion: cicloNotificacion
-          });
-        }
+        await marcarEntregaPush(nueva, entrega);
+        resumen.notificaciones++;
+        resumen.avisosCorte++;
+
+        const enviados = [...new Set([...enviadosEsteCorte, recordatorio.clave])];
+        await clienteRef.update({
+          recordatoriosCiclo: { corte: proximoCorte, enviados, actualizadoEn: FieldValue.serverTimestamp() },
+          fechaUltimaNotificacion: FieldValue.serverTimestamp(),
+          tipoUltimaNotificacion: esDiaDelCorte ? "despuesCorte" : "antesCorte",
+          cicloActualNotificacion: String(proximoCorte).slice(0, 7)
+        });
+        enviadosEsteCorte.length = 0;
+        enviadosEsteCorte.push(...enviados);
       }
 
-      // 5) Día del vencimiento y días posteriores (mora)
-      for (const n of diasDespues) {
+      /* 5) Fila heredada de días después del vencimiento. KZ-UNEF-028: para los
+         clientes con ciclo de corte NO se usa, porque la regla del propietario
+         fija exactamente dos avisos por vencimiento y este bloque añadiría un
+         tercero. Se conserva solo para servicios sin ciclo (no los hay hoy:
+         `cicloValido` siempre deduce uno), de modo que el comportamiento queda
+         explícito y no una rama muerta silenciosa. */
+      for (const n of (cicloCliente ? [] : diasDespues)) {
         if (dias !== n) continue;
-        // Si el cliente tiene ciclo de corte, el aviso "hoy vence" lo cubre el
-        // mensaje de factura vencida de arriba: no se le manda dos veces.
-        if (n === 0 && avisarPorCorte) continue;
 
         const tipo = n === 0 ? "VENCIMIENTO_HOY" : `MORA_${Math.abs(n)}_DIAS`;
         const nueva = await registrarNotificacion(
@@ -650,10 +661,28 @@ exports.processDueDates = functions
   .timeZone("America/Bogota")
   .onRun(() => ejecutarMotorVencimientos());
 
-/* Disparo manual (solo SUPERADMIN) para operación y pruebas controladas. */
+/* Disparo manual (solo SUPERADMIN) para operación y pruebas controladas.
+   KZ-UNEF-028 · `data.hoy` permite simular la fecha de los recordatorios, pero
+   SOLO en el emulador: en producción se ignora con un error explícito, para que
+   nadie pueda forzar avisos con una fecha inventada. */
 exports.ejecutarMotor = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
-  return ejecutarMotorVencimientos();
+  let hoySimulado = null;
+  if (data && data.hoy) {
+    const proyectoActual = (functions.app || {}).options && functions.app.options.projectId;
+    const esEmulador = !!process.env.FIRESTORE_EMULATOR_HOST
+      || String(proyectoActual || "").startsWith("demo-")
+      || process.env.FUNCTIONS_EMULATOR === "true";
+    if (!esEmulador) {
+      throw new functions.https.HttpsError("failed-precondition",
+        "La simulación de fecha solo está disponible en el emulador. En producción se usa la fecha real de Colombia.");
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data.hoy))) {
+      throw new functions.https.HttpsError("invalid-argument", "Fecha de simulación inválida (usa YYYY-MM-DD).");
+    }
+    hoySimulado = String(data.hoy);
+  }
+  return ejecutarMotorVencimientos(hoySimulado ? { hoy: hoySimulado } : {});
 });
 
 /* ============================================================
@@ -881,7 +910,8 @@ const CAMPOS_BOOLEANOS_CLIENTE = ["whatsappOptIn"];
  *    importados llegaron sin barrio). Si se exigiera, editar cualquier cosa
  *    obligaría a rellenar el barrio primero, y no se podrían corregir errores.
  *  - Si cambia el ciclo de corte, se recalcula `proximoCorte` con la regla
- *    vigente (ciclo 15 -> corte el día 20; ciclo 30 -> corte el día 5).
+ *    vigente (ciclo 15 -> corte el día 15; ciclo 30 -> corte el día 30, y el
+ *    último día real del mes cuando no llega a 30).
  */
 exports.actualizarCliente = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);

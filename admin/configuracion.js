@@ -16,7 +16,7 @@ import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
 import { collection, getDocs, addDoc, doc, updateDoc, setDoc, deleteDoc, serverTimestamp } from "firebase/firestore";
-import { msgError } from "../assets/js/admin/ui.js";
+import { msgError, esc } from "../assets/js/admin/ui.js";
 
 let metodos = [];
 
@@ -37,15 +37,15 @@ function renderMetodos() {
         <tbody>
           ${metodos.map((m) => `
             <tr>
-              <td>${m.nombre}${m.principal ? ' <span class="badge-estado tone-green">Principal</span>' : ""}</td>
-              <td>${m.tipoCuenta || "—"}</td>
-              <td>${m.numeroCuenta || "—"}</td>
-              <td>${m.titular || "—"}</td>
+              <td>${esc(m.nombre)}${m.principal ? ' <span class="badge-estado tone-green">Principal</span>' : ""}</td>
+              <td>${esc(m.tipoCuenta || "—")}</td>
+              <td>${esc(m.numeroCuenta || "—")}</td>
+              <td>${esc(m.titular || "—")}</td>
               <td>${m.activo === false ? "Inactivo" : "Activo"}</td>
               <td>
-                <button class="btn btn--ghost btn--sm" data-edit="${m.id}">Editar</button>
-                <button class="btn btn--ghost btn--sm" data-toggle="${m.id}">${m.activo === false ? "Activar" : "Desactivar"}</button>
-                <button class="btn btn--ghost btn--sm" data-del="${m.id}">Eliminar</button>
+                <button class="btn btn--ghost btn--sm" data-edit="${esc(m.id)}">Editar</button>
+                <button class="btn btn--ghost btn--sm" data-toggle="${esc(m.id)}">${m.activo === false ? "Activar" : "Desactivar"}</button>
+                <button class="btn btn--ghost btn--sm" data-del="${esc(m.id)}">Eliminar</button>
               </td>
             </tr>`).join("")}
         </tbody>
@@ -139,15 +139,15 @@ function abrirModalMetodo(metodo) {
       <form class="modal" id="modal-metodo" novalidate>
         <h2>Editar método de pago</h2>
         <div class="form-grid two">
-          <label class="field"><span>Nombre *</span><input name="nombre" required maxlength="60" value="${m.nombre || ""}" /></label>
+          <label class="field"><span>Nombre *</span><input name="nombre" required maxlength="60" value="${esc(m.nombre || "")}" /></label>
           <label class="field"><span>Tipo de cuenta</span>
             <select name="tipoCuenta">
               <option value="Ahorros" ${m.tipoCuenta === "Ahorros" ? "selected" : ""}>Ahorros</option>
               <option value="Corriente" ${m.tipoCuenta === "Corriente" ? "selected" : ""}>Corriente</option>
             </select>
           </label>
-          <label class="field"><span>Número de cuenta</span><input name="numeroCuenta" value="${m.numeroCuenta || ""}" /></label>
-          <label class="field"><span>Titular</span><input name="titular" value="${m.titular || ""}" /></label>
+          <label class="field"><span>Número de cuenta</span><input name="numeroCuenta" value="${esc(m.numeroCuenta || "")}" /></label>
+          <label class="field"><span>Titular</span><input name="titular" value="${esc(m.titular || "")}" /></label>
         </div>
         <label class="radio"><input type="checkbox" name="principal" ${m.principal ? "checked" : ""} /> Usar como cuenta principal para el cobro</label>
         <div class="modal__actions">
@@ -206,17 +206,10 @@ async function guardarMetodo(ev, metodo) {
 }
 
 // ---------------- Recordatorios ----------------
-function parseLista(id) {
-  const el = document.getElementById(id);
-  return el.value.split(",").map((s) => Number(s.trim())).filter((n) => !Number.isNaN(n));
-}
-
 async function cargarConfig() {
   const snap = await getDocs(collection(db, "configuracion"));
   const cfg = {};
   snap.forEach((d) => { cfg[d.id] = d.data().valor; });
-  document.getElementById("cfg-diasAntes").value = (cfg.diasAntes || [3]).join(", ");
-  document.getElementById("cfg-diasDespues").value = (cfg.diasDespues || [0]).join(", ");
   document.getElementById("cfg-diasSuspension").value = cfg.diasSuspension ?? 3;
 
   document.getElementById("cfg-whatsapp1").value = (cfg.soporte && cfg.soporte.whatsapp1) || "";
@@ -229,14 +222,16 @@ async function cargarConfig() {
     : "Todavía no has guardado plantillas propias: el sistema está usando las de fábrica. Si guardas algo aquí, reemplazará a las de fábrica.";
 }
 
+/* KZ-UNEF-028 · Los días de aviso ya NO se configuran: la regla es fija (dos
+   avisos por corte, 3 días antes y el día del corte, a las 10:00). Se quitó el
+   formulario editable para no ofrecer un ajuste que no hace nada. Lo único que
+   sigue siendo configurable es cuántos días de mora se esperan para suspender. */
 async function guardarConfig() {
   const msg = document.getElementById("cfg-msg");
-  const diasAntes = parseLista("cfg-diasAntes");
-  const diasDespues = parseLista("cfg-diasDespues");
   const diasSuspension = Number(document.getElementById("cfg-diasSuspension").value);
 
-  if (!diasAntes.length || !diasDespues.length || !diasSuspension) {
-    msg.textContent = "Revisa los valores ingresados.";
+  if (!diasSuspension || diasSuspension < 1 || diasSuspension > 60) {
+    msg.textContent = "Escribe un número de días entre 1 y 60.";
     msg.className = "modal__msg err";
     return;
   }
@@ -245,17 +240,9 @@ async function guardarConfig() {
   msg.textContent = "Guardando…";
 
   try {
-    await Promise.all([
-      setDoc(doc(db, "configuracion", "diasAntes"), {
-        clave: "diasAntes", valor: diasAntes, descripcion: "Días antes del vencimiento para recordatorios", updatedAt: serverTimestamp()
-      }),
-      setDoc(doc(db, "configuracion", "diasDespues"), {
-        clave: "diasDespues", valor: diasDespues, descripcion: "Día del vencimiento (0) y posteriores (negativos)", updatedAt: serverTimestamp()
-      }),
-      setDoc(doc(db, "configuracion", "diasSuspension"), {
-        clave: "diasSuspension", valor: diasSuspension, descripcion: "Días de mora para suspender", updatedAt: serverTimestamp()
-      })
-    ]);
+    await setDoc(doc(db, "configuracion", "diasSuspension"), {
+      clave: "diasSuspension", valor: diasSuspension, descripcion: "Días de mora para suspender", updatedAt: serverTimestamp()
+    });
     msg.textContent = "Configuración guardada.";
     msg.className = "modal__msg ok";
   } catch (err) {
@@ -389,11 +376,18 @@ async function borrarDemo() {
       </div>
 
       <div class="panel span-2">
-        <h2>Recordatorios automáticos</h2>
-        <div class="form-grid">
-          <label class="field"><span>Días antes del vencimiento (separados por coma)</span><input id="cfg-diasAntes" /></label>
-          <label class="field"><span>Día del vencimiento y posteriores (0 = hoy, negativos = después)</span><input id="cfg-diasDespues" /></label>
-          <label class="field"><span>Días de mora para suspender</span><input id="cfg-diasSuspension" type="number" min="1" /></label>
+        <h2>Recordatorios de pago</h2>
+        <div class="panel" style="background:var(--surface-2);border-color:rgba(0,176,240,0.3);">
+          <p style="margin:0 0 8px;font-weight:600;">La regla es fija: dos avisos por cada corte, a las 10:00 a.m.</p>
+          <ul class="muted" style="margin:0 0 0 18px;font-size:0.9rem;line-height:1.7;">
+            <li>Corte del <strong>15</strong>: aviso el <strong>12</strong> y el <strong>15</strong>.</li>
+            <li>Corte del <strong>30</strong>: aviso el <strong>27</strong> y el <strong>30</strong> (en febrero, el último día del mes).</li>
+            <li>Si el cliente ya pagó, no se le envía ninguno.</li>
+          </ul>
+          <p class="muted" style="margin:10px 0 0;font-size:0.82rem;">Los mensajes de esos dos avisos se editan abajo, en «Plantillas de los mensajes de cobro».</p>
+        </div>
+        <div class="form-grid" style="margin-top:14px;">
+          <label class="field"><span>Días de mora antes de suspender el servicio</span><input id="cfg-diasSuspension" type="number" min="1" max="60" /></label>
         </div>
         <div class="actions" style="margin-top:16px;"><button class="btn btn--primary" id="btn-guardar-config">Guardar configuración</button></div>
         <p class="modal__msg" id="cfg-msg" role="status"></p>

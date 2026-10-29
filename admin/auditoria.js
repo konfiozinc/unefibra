@@ -1,13 +1,20 @@
 /* ============================================================
- * UneFibra SAS — Admin: auditoría (SUPERADMIN)
+ * UneFibra SAS — Admin: historial de cambios (SUPERADMIN)
  * ------------------------------------------------------------
  * Registro inmutable de operaciones importantes (colección
- * `auditoria`), con búsqueda por acción/entidad/usuario.
+ * `auditoria`), con búsqueda por acción, entidad o usuario.
+ *
+ * KZ-UNEF-028 · Este módulo era el único del panel que interpolaba datos de
+ * Firestore sin escapar (`usuarioNombre`, `accion`, `entidad`, `entidadId`).
+ * `usuarioNombre` lo escribe un operador desde el alta de usuarios, así que un
+ * nombre con HTML se ejecutaba en el navegador de quien abriera el historial.
+ * Ahora todo pasa por esc().
  * ============================================================ */
 
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { collection, getDocs } from "firebase/firestore";
+import { esc } from "../assets/js/admin/ui.js";
 
 let registros = [];
 let busqueda = "";
@@ -51,17 +58,21 @@ function renderTabla() {
 
   const rows = list.slice(0, 200).map((r) => `
     <tr>
-      <td>${fmtTs(r.fecha)}</td>
-      <td>${r.usuarioNombre || r.usuarioId || "sistema"}</td>
-      <td>${r.accion || "—"}</td>
-      <td>${r.entidad || "—"}${r.entidadId ? ` #${r.entidadId}` : ""}</td>
+      <td>${esc(fmtTs(r.fecha))}</td>
+      <td>${esc(r.usuarioNombre || r.usuarioId || "sistema")}</td>
+      <td>${esc(r.accion || "—")}</td>
+      <td>${esc(r.entidad || "—")}${r.entidadId ? " #" + esc(r.entidadId) : ""}</td>
     </tr>`).join("");
+
+  const recortado = list.length > 200
+    ? `<p class="muted" style="font-size:0.82rem;margin-top:10px;">Se muestran los 200 cambios más recientes de ${list.length} cargados. Usa la búsqueda para encontrar uno concreto.</p>`
+    : "";
 
   cont.innerHTML = `
     <table>
       <thead><tr><th>Fecha</th><th>Usuario</th><th>Acción</th><th>Entidad</th></tr></thead>
       <tbody>${rows}</tbody>
-    </table>`;
+    </table>${recortado}`;
 }
 
 (async function main() {

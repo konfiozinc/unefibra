@@ -1,41 +1,41 @@
 /* ============================================================
- * UneFibra SAS — Admin: notificaciones
+ * UneFibra SAS — Admin: Recordatorios de pago
  * ------------------------------------------------------------
- * Lista el registro de notificaciones (colección `notificaciones`)
- * y permite enviar una notificación push manual vía Cloud Function.
+ * KZ-UNEF-028 · Esta pantalla habla como el propietario, no como la base de
+ * datos: cada aviso se muestra con su nombre comercial («3 días antes del
+ * corte» / «Día del corte») y su estado en tres palabras: Pendiente, Enviado o
+ * Fallido. El nombre técnico del estado y el tipo interno quedan en el detalle.
  * ============================================================ */
 
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { call } from "../assets/js/admin/callables.js";
 import { collection, getDocs } from "firebase/firestore";
-import { msgError, esc } from "../assets/js/admin/ui.js";
+import { msgError, esc, palabraEstadoAviso, etiquetaTipoAviso } from "../assets/js/admin/ui.js";
 
 let ctx = null;
 let notificaciones = [];
 let clientes = [];
 let filtro = "todos";
 
+/* Los filtros usan las mismas palabras que ve el propietario. */
 const ESTADOS = [
-  { key: "todos", label: "Todas" },
+  { key: "todos", label: "Todos" },
   { key: "PENDIENTE", label: "Pendientes" },
-  { key: "ENVIADA", label: "Enviadas" },
-  { key: "ERROR", label: "Con error" },
-  { key: "CANCELADA", label: "Canceladas" }
+  { key: "ENVIADA", label: "Enviados" },
+  { key: "ERROR", label: "Fallidos" },
+  { key: "CANCELADA", label: "Cancelados" }
 ];
 
+const TONO = {
+  PENDIENTE: "tone-amber",
+  ENVIADA: "tone-green",
+  ERROR: "tone-red",
+  CANCELADA: "tone-violet"
+};
+
 function badgeNotif(e) {
-  const map = {
-    PENDIENTE: ["Pendiente", "tone-amber"],
-    ENVIADA: ["Enviada", "tone-green"],
-    ERROR: ["Error", "tone-red"],
-    CANCELADA: ["Cancelada", "tone-violet"]
-  };
-  const [l, t] = map[e] || [e || "—", ""];
-  /* KZ-UNEF-001 · esc() en todo lo que llega de Firestore: el mensaje lo
-     escribe el operador y el nombre del cliente viene del alta, así que ambos
-     pueden traer HTML. */
-  return `<span class="badge-estado ${esc(t)}">${esc(l)}</span>`;
+  return `<span class="badge-estado ${esc(TONO[e] || "")}">${esc(palabraEstadoAviso(e))}</span>`;
 }
 
 function clienteNombre(id) {
@@ -53,8 +53,18 @@ function renderToolbar() {
   const canSend = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
   return `
     <div class="toolbar">
-      <div class="filters">${ESTADOS.map((e) => `<button class="chip ${e.key === filtro ? "is-active" : ""}" data-filtro="${e.key}">${e.label}</button>`).join("")}</div>
-      ${canSend ? '<button class="btn btn--primary" id="btn-enviar">Enviar notificación</button>' : ""}
+      <div class="toolbar__left">
+        <div class="filters">${ESTADOS.map((e) => `<button class="chip ${e.key === filtro ? "is-active" : ""}" data-filtro="${e.key}">${e.label}</button>`).join("")}</div>
+      </div>
+      ${canSend ? '<button class="btn btn--primary" id="btn-enviar">Enviar aviso a un cliente</button>' : ""}
+    </div>
+    <div class="panel" style="margin-bottom:14px;">
+      <p class="muted" style="margin:0;font-size:0.88rem;">
+        Cada cliente recibe <strong>dos avisos</strong> por cobro, a las 10:00 a.m.:
+        <strong>3 días antes del corte</strong> y <strong>el día del corte</strong>
+        (corte 15 → días 12 y 15 · corte 30 → días 27 y 30).
+        Los avisos se preparan solos; aquí ves si salieron.
+      </p>
     </div>
     <div class="table-wrap" id="tabla"></div>
     <div id="modal-root"></div>`;
@@ -79,17 +89,16 @@ function renderTabla() {
 
   const rows = list.map((n) => `
     <tr>
-      <td>${fmtTs(n.fechaProgramada)}</td>
+      <td>${esc(fmtTs(n.fechaProgramada))}</td>
       <td>${clienteNombre(n.clienteId)}</td>
-      <td>${esc(n.tipo || "—")}</td>
-      <td class="muted">${esc((n.mensaje || "").slice(0, 80))}${(n.mensaje || "").length > 80 ? "…" : ""}</td>
-      <td>${esc(n.canal || "—")}</td>
+      <td>${esc(etiquetaTipoAviso(n.tipo))}<div class="muted" style="font-size:0.78rem;">${esc(n.tipo || "—")}</div></td>
+      <td class="muted">${esc((n.mensaje || "").slice(0, 80))}${(n.mensaje || "").length > 80 ? "…" : ""}${n.error ? `<div class="muted" style="font-size:0.78rem;color:var(--red);">${esc(String(n.error).slice(0, 90))}</div>` : ""}</td>
       <td>${badgeNotif(n.estado)}</td>
     </tr>`).join("");
 
   cont.innerHTML = `
     <table>
-      <thead><tr><th>Fecha</th><th>Cliente</th><th>Tipo</th><th>Mensaje</th><th>Canal</th><th>Estado</th></tr></thead>
+      <thead><tr><th>Fecha</th><th>Cliente</th><th>Aviso</th><th>Mensaje</th><th>Estado</th></tr></thead>
       <tbody>${rows}</tbody>
     </table>`;
 }
@@ -101,13 +110,13 @@ function abrirModal() {
   root.innerHTML = `
     <div class="modal-backdrop">
       <form class="modal" id="modal-form" novalidate>
-        <h2>Enviar notificación</h2>
+        <h2>Enviar aviso a un cliente</h2>
         <div class="form-grid">
           <label class="field"><span>Cliente *</span><select name="clienteId" required>${op || '<option value="">Sin clientes</option>'}</select></label>
           <label class="field"><span>Título</span><input name="titulo" value="UneFibra" /></label>
           <label class="field"><span>Mensaje *</span><textarea name="mensaje" rows="3" required></textarea></label>
         </div>
-        <p class="muted" style="font-size:0.82rem;">Se envía como push a los tokens registrados del cliente (requiere autorización previa del cliente).</p>
+        <p class="muted" style="font-size:0.82rem;">Se entrega por notificación push a los dispositivos registrados del cliente. Si no hay dispositivos registrados, el aviso quedará como <strong>Fallido</strong> y verás el motivo en la lista.</p>
         <div class="modal__actions">
           <button type="button" class="btn btn--ghost" id="btn-cancelar">Cancelar</button>
           <button type="submit" class="btn btn--primary" id="btn-guardar">Enviar</button>

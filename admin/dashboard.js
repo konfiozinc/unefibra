@@ -7,7 +7,7 @@
 
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
-import { proximoCorteDe, fmtFecha } from "../assets/js/admin/ui.js";
+import { proximoCorteDe, fmtFecha, recordatoriosDelCorte } from "../assets/js/admin/ui.js";
 import {
   collection, query, where, getCountFromServer, getAggregateFromServer, sum
 } from "firebase/firestore";
@@ -138,6 +138,28 @@ function card(label, value, opts = {}) {
         <p class="muted" style="font-size:0.82rem;margin-top:10px;">
           El corte del ciclo 30 cae el último día del mes cuando el mes no llega a 30 (febrero).
         </p>
+        <div style="margin-top:14px;">
+          <a class="btn btn--primary" href="vencimientos.html">Ver quién está al día y quién debe</a>
+        </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>Avisos de cobro que vienen</h2>
+        <p class="muted" style="font-size:0.88rem;margin-bottom:12px;">
+          Cada cliente recibe dos avisos, a las 10:00 a.m.: tres días antes de su corte y el día del corte.
+        </p>
+        <div class="kv">
+          ${[
+            { etiqueta: "Corte 15", corte: proximoCorteDe("15") },
+            { etiqueta: "Corte 30", corte: proximoCorteDe("30") }
+          ].map(({ etiqueta, corte }) => {
+            const [a1, a2] = recordatoriosDelCorte(corte);
+            return `<div class="kv__item"><span class="kv__k">${etiqueta}</span><span>${fmtFecha(a1.fecha)} y ${fmtFecha(a2.fecha)} · corte ${fmtFecha(corte)}</span></div>`;
+          }).join("")}
+        </div>
+        <div style="margin-top:14px;">
+          <a class="btn btn--ghost" href="notificaciones.html">Ver recordatorios enviados</a>
+        </div>
       </div>`;
   } catch (err) {
     console.error("Error al cargar el dashboard:", err);

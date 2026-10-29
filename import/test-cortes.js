@@ -40,13 +40,15 @@ function fmt(iso) {
   }
 
   console.log("\n=== 4) Fechas REALES de aviso y corte (oct-dic 2026) ===");
-  console.log("  El motor avisa cuando faltan 5 dias para el corte, y el mismo dia del corte.");
+  // KZ-UNEF-028: la regla del propietario son DOS avisos por corte, 3 días antes
+  // y el día del corte. Antes este diagnóstico miraba 5 días (regla retirada).
+  console.log("  El motor avisa 3 dias antes del corte y el mismo dia del corte.");
   for (const ciclo of ["15", "30"]) {
     const avisos = [], cortes = [];
     for (let t = Date.parse("2026-10-01T00:00:00Z"); t <= Date.parse("2026-12-31T00:00:00Z"); t += 86400000) {
       const hoy = new Date(t).toISOString().slice(0, 10);
       const pc = cjs.proximoCorteDe(ciclo, hoy);
-      if (diasHasta(pc, hoy) === 5) avisos.push(hoy);
+      if (diasHasta(pc, hoy) === 3) avisos.push(hoy);
       if (diasHasta(pc, hoy) === 0) cortes.push(hoy);
     }
     console.log("  ciclo " + ciclo + ":");

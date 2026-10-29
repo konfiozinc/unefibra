@@ -184,3 +184,15 @@ clientes ──▶ servicios (clienteId)
 pagos ──▶ servicios (servicioId, opcional)
 solicitudes_contacto ──(convertir)──▶ clientes
 ```
+
+## NOTA KZ-UNEF-028 (29-oct-2026) — recordatorios de pago
+
+La regla de avisos cambió y este documento hablaba de la anterior. Vigente hoy:
+
+- El corte cae el **día del ciclo**: 15 o 30 (en febrero, el último día del mes).
+- **Dos avisos por corte**, a las 10:00 de Colombia: **3 días antes** y **el día del corte**.
+  Corte 15 -> días 12 y 15 · Corte 30 -> días 27 y 30.
+- Quedan **retirados** `configuracion.diasAntes` y `configuracion.diasDespues`: si existen se ignoran.
+  Sigue vigente `configuracion.diasSuspension`.
+- La implementación está en `functions/src/recordatorios.js`; el detalle completo, en `docs/CICLOS_DE_CORTE.md`.
+

@@ -57,22 +57,60 @@ misma fecha de próximo corte, así que ordenar por esa fecha no ordena nada. Se
 ordena por **fecha de vencimiento ascendente**: primero quien más debe, que es lo
 útil para cobrar.
 
-## 3. Avisos automáticos
+## 3. Avisos automáticos — REGLA DEFINITIVA (KZ-UNEF-028, 29-oct-2026)
 
-El motor diario (`processDueDates`, 10:00 hora de Bogotá) ahora calcula los avisos
-a partir de `proximoCorte`:
+> **Cambio de regla.** Hasta el 29-oct-2026 el negocio usaba dos fechas por tanda
+> con 5 días de gracia (el "15" avisaba el 15 y cortaba el 20; el "30" avisaba el
+> 30 y cortaba el 5 del mes siguiente) y una lista de días configurables
+> (`diasAntes`). El propietario fijó una regla única y más simple, y esa es la que
+> rige hoy.
 
-- Si el cliente **tiene ciclo**, el aviso que manda es el del **corte** (la fecha
-  real de cobro): «Tu corte está programado», en los días configurados en
-  `configuracion.diasAntes` (por defecto 3).
-- Si **ya pagó por adelantado** hasta ese corte, **no se le avisa**: la condición
-  es `fechaVencimiento >= proximoCorte`. Sin esta guarda el sistema molestaría
-  todos los meses a clientes que están al día.
-- Si el cliente **no tiene ciclo** asignado, se usan los recordatorios de siempre
-  basados en `fechaVencimiento`.
+**El corte cae el mismo día del ciclo: día 15 o día 30.**
 
-Los avisos de mora (después del vencimiento) siguen basados en `fechaVencimiento`:
-son sobre la deuda real, no sobre la fecha de corte.
+**Cada corte genera EXACTAMENTE DOS recordatorios, los dos a las 10:00 de Colombia
+(`America/Bogota`):**
+
+| Ciclo | Aviso 1 | Aviso 2 (día del corte) |
+|---|---|---|
+| Corte **15** | día **12** | día **15** |
+| Corte **30** | día **27** | día **30** |
+
+Condiciones que impone el motor:
+
+1. **Nunca más de dos avisos por vencimiento.** Cada aviso lleva una clave de
+   deduplicación estable (`clienteId + periodo + tipo`) en la colección
+   `notificaciones`, así que dos corridas del motor no duplican nada.
+2. **A quien ya pagó no se le avisa.** Antes de enviar se comprueba que no exista
+   un pago `CONFIRMADO` cuyo `periodoFin` llegue al corte o más allá, y que la
+   fecha del servicio no esté pagada más allá del corte.
+3. **Ventana de recuperación.** El cron corre una vez al día; si una corrida falla,
+   el aviso no se pierde: el previo puede salir entre 3 días antes y el día
+   anterior al corte, y el del corte entre ese día y los 2 siguientes. Las dos
+   ventanas no se solapan, así que nunca se convierten en tres avisos.
+4. **Se registra el resultado real de cada envío.** El estado interno
+   (`PENDIENTE`, `ENVIADA`, `ERROR`, `CANCELADA`) se muestra al propietario como
+   **Pendiente / Enviado / Fallido**, y el motivo del fallo se guarda en el aviso.
+
+La decisión vive en `functions/src/recordatorios.js` (puro: sin Firestore ni red) y
+se prueba en `functions/test/recordatorios.test.js` (22 casos, incluidos febrero,
+los duplicados y el cliente que ya pagó) y en
+`functions/test/recordatorios-emulador.test.js` (19 casos contra el motor real).
+
+`configuracion.diasAntes` y `configuracion.diasDespues` **quedan retirados**: si
+existen en Firestore se ignoran, y el panel ya no los ofrece (sería un ajuste que no
+hace nada). Sigue configurable `configuracion.diasSuspension`: los días de mora
+antes de suspender.
+
+### Qué NO envía avisos hoy
+
+El canal de entrega es la notificación push (`tokens_notificacion`). **No existe
+integración con la API de WhatsApp de Meta** (ver `docs/AGENTE_WHATSAPP_BUSINESS.md`):
+mientras no la haya, cada aviso queda registrado con su estado real y el envío al
+cliente se hace a mano por WhatsApp Business con el texto ya redactado en la lista
+de cobro. Si el cliente no tiene dispositivos registrados, el aviso queda
+**Fallido** con el motivo «Sin tokens registrados»: es la verdad, no un «enviado»
+ficticio.
+
 
 ## 4. Notificaciones previas al corte
 
