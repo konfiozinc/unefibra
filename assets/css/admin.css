@@ -321,3 +321,10 @@ td .btn--sm { margin-left: 6px; }
      convierta en una sábana: se reduce el relleno de las celdas. */
   th, td { padding: 10px 12px; }
 }
+
+/* Las rejillas de dos columnas (.detail-grid, usada por Configuracion y las fichas)
+   tenían el mismo problema: sus hijos, con `min-width: auto`, no podían encogerse
+   por debajo del ancho mínimo de la tabla (760 px) y estiraban la página entera. */
+.detail-grid { min-width: 0; }
+.detail-grid > * { min-width: 0; }
+.panel { min-width: 0; }

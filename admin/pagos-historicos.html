@@ -127,6 +127,13 @@
   </div>
 </div>
 
+<!-- KZ-UNEF-028 · La pagina no cargaba assets/js/config.js, asi que
+     window.UNEFIBRAS_CONFIG no existia: core.js no inicializaba Firebase y
+     callables.js lanzaba "Cannot read properties of null (reading 'container')".
+     La pantalla quedaba muerta en el navegador (sin datos y sin sesion). Se carga
+     igual que en el resto del panel, antes del modulo. -->
+<script src="../assets/js/config.js"></script>
+
 <script type="importmap">
   { "imports": {
       "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
