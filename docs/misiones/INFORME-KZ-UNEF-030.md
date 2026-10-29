@@ -170,8 +170,10 @@ POST https://cloudscheduler.googleapis.com/v1/projects/une-fibra/locations/us-ce
 
 | Trabajo | Estado tras la pausa | Cron | Próxima ejecución |
 |---|---|---|---|
-| `firebase-schedule-continuarBackup-us-central1` | **PAUSED** | `*/30 * * * *` | ninguna |
-| `firebase-schedule-backupFirestore-us-central1` | ENABLED (sin tocar) | `0 3 * * *` (America/Bogota) | 2026-10-30T08:00Z |
+| `firebase-schedule-continuarBackup-us-central1` | **PAUSED** (09:23Z) | `*/30 * * * *` | ninguna |
+| `firebase-schedule-backupFirestore-us-central1` | **PAUSED** (09:35Z, autorizado) | `0 3 * * *` (America/Bogota) | ninguna |
+
+**Consecuencia a tener presente:** mientras ambas estén pausadas **no habrá respaldo automático**, ni la reanudación cada 30 min ni la corrida diaria de las 03:00 Bogotá del 30-oct. La situación queda estable, sin exportaciones nuevas, hasta que se autorice la reanudación.
 
 Efecto: **no se inicia ninguna exportación nueva**; la única que estaba en curso (`daily/2026-10-29/backups`, desde 09:08:45Z) se deja terminar sin interrumpirla. Es un cambio **reversible**: `…:resume` sobre el mismo trabajo, sin redeploy y sin tocar código.
 
