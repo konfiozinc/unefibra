@@ -56,6 +56,7 @@ function simulador(opciones = {}) {
         const body = JSON.parse(init.body);
         if (opciones.rechazar === 'PERMISO') return { status: 403, ok: false, text: async () => '{"error":{"status":"PERMISSION_DENIED"}}' };
         if (opciones.rechazar === 'SIN_COLECCION') return { status: 400, ok: false, text: async () => '{"error":{"message":"unknown collection"}}' };
+        if (opciones.rechazar === 'YA_EN_CURSO') return { status: 400, ok: false, text: async () => '{"error":{"code":400,"message":"Another export operation is already in progress.","status":"FAILED_PRECONDITION"}}' };
         operacion++;
         prefijosExportados.add(body.outputUriPrefix.replace('gs://unefibra-firestore-backups/', '') + '/');
         reloj += msPorLote;                     // el lote tarda lo que se simule
@@ -323,6 +324,16 @@ t('el id del lote es un segmento seguro de ruta en el bucket', () => {
     assert.strictEqual(guardado.lotes.clientes.estado, 'PENDIENTE');
     assert.ok(/en curso/i.test(guardado.lotes.clientes.mensaje), 'el manifiesto explica que sigue en curso: ' + guardado.lotes.clientes.mensaje);
     assert.ok(!r.requiereAlerta, 'no debe alertar por una exportación larga');
+  });
+
+  await ta('un rechazo porque ya hay una exportación en curso no es un fallo', async () => {
+    const s = simulador({ colecciones: ['clientes'], rechazar: 'YA_EN_CURSO' });
+    const backup = crearBackupPorLotes(s.deps);
+    const r = await backup.ejecutar({ presupuestoMs: 600000, fecha: '2026-10-29' });
+    assert.strictEqual(r.estado, 'PARCIAL');
+    assert.strictEqual(s.estado.get('2026-10-29').lotes.clientes.estado, 'PENDIENTE', 'queda pendiente, no fallido');
+    assert.strictEqual(s.peticiones.filter((p) => p.body && p.body.collectionIds).length, 1, 'no reintenta dentro de la misma invocación');
+    assert.ok(!r.requiereAlerta, 'no es motivo de alerta');
   });
 
   console.log('\n== Resumen ==');

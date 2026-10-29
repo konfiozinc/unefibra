@@ -129,6 +129,31 @@ function crearBackupPorLotes(deps = {}) {
   }
 
   /**
+   * Lista de operaciones de la base, con PLAZO CORTO.
+   *
+   * `GET /operations` se ha quedado colgado más de 300 s en producción (KZ-030), y
+   * dentro de la función eso se come la invocación completa y deja el cerrojo
+   * tomado. Con plazo, un cuelgue se convierte en «no lo sé» y la corrida sigue.
+   */
+  async function listarOperaciones(token) {
+    const control = typeof AbortController === "function" ? new AbortController() : null;
+    const temporizador = control ? setTimeout(() => control.abort(), 15000) : null;
+    try {
+      const r = await pedir(token, `https://firestore.googleapis.com/v1/projects/${proyectoId}/databases/(default)/operations?pageSize=100`, {
+        method: "GET",
+        signal: control ? control.signal : undefined
+      });
+      if (!r.ok || !r.json || !Array.isArray(r.json.operations)) return null;
+      return r.json.operations;
+    } catch (e) {
+      log("[backup-lotes] no se pudo leer la lista de operaciones:", e.message);
+      return null;
+    } finally {
+      if (temporizador) clearTimeout(temporizador);
+    }
+  }
+
+  /**
    * Nombre de la operación de exportación que TODAVÍA está escribiendo en este
    * destino, o null si no hay ninguna.
    *
@@ -141,10 +166,10 @@ function crearBackupPorLotes(deps = {}) {
    * servicio —que es la que tarda— se llenaba de trabajo repetido.
    */
   async function exportacionEnCurso(token, destino) {
-    const r = await pedir(token, `https://firestore.googleapis.com/v1/projects/${proyectoId}/databases/(default)/operations?pageSize=100`, { method: "GET" });
-    if (!r.ok || !r.json || !Array.isArray(r.json.operations)) return null;
+    const operaciones = await listarOperaciones(token);
+    if (!operaciones) return null;   // no se pudo saber: se intenta exportar igual
     const buscado = String(destino).replace(/\/+$/, "");
-    for (const op of r.json.operations) {
+    for (const op of operaciones) {
       if (op.done) continue;
       const meta = op.metadata || {};
       const salida = String(meta.outputUriPrefix || "").replace(/\/+$/, "");
@@ -167,9 +192,17 @@ function crearBackupPorLotes(deps = {}) {
          fallo del respaldo, se marca para revisar y se sigue con el resto. */
       throw errorConEstado(400, "Firestore rechazó el lote de colecciones.", { definitivo: false, sinColeccion: true });
     }
+    if ((inicio.status === 400 || inicio.status === 409) && /in progress|already|otra operaci/i.test(inicio.texto || "")) {
+      /* «Ya hay una exportación en curso en esta base»: el servicio atiende de a una
+         operación. No es un fallo del lote; se deja para la próxima invocación. */
+      throw errorConEstado(inicio.status, "Ya hay una exportación en curso en la base; se reintenta en la próxima corrida.", { congestion: true });
+    }
     if (!inicio.ok) {
       const codigo = inicio.json && inicio.json.error && inicio.json.error.status;
-      throw errorConEstado(inicio.status, `Exportación del lote rechazada (${inicio.status})`, { codigo });
+      /* El detalle del rechazo se guarda en el mensaje: sin él, un 400/503 obliga a
+         adivinar la causa (pasó en KZ-030 con el primer intento de certificar). */
+      const detalle = String(inicio.texto || "").replace(/\s+/g, " ").slice(0, 140);
+      throw errorConEstado(inicio.status, `Exportación del lote rechazada (${inicio.status})` + (detalle ? ": " + detalle : ""), { codigo });
     }
     const nombreOperacion = inicio.json && inicio.json.name;
     if (!nombreOperacion) throw errorConEstado(inicio.status, "La exportación no devolvió el nombre de la operación.");
