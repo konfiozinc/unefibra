@@ -1,0 +1,307 @@
+{
+  "medidoEn": "2026-10-29T09:21:40.629Z",
+  "operaciones": [
+    {
+      "done": true,
+      "start": "2026-10-29T08:03:34.389505Z",
+      "end": "2026-10-29T08:14:19.101176Z",
+      "destino": "gs://unefibra-firestore-backups/pre-kz-030/2026-10-29T08-03-33-728Z/planes"
+    },
+    {
+      "done": true,
+      "start": "2026-10-29T08:03:35.015910Z",
+      "end": "2026-10-29T08:08:19.842621Z",
+      "destino": "gs://unefibra-firestore-backups/pre-kz-030/2026-10-29T08-03-34-895Z/configuracion"
+    },
+    {
+      "done": true,
+      "start": "2026-10-29T08:03:35.658826Z",
+      "end": "2026-10-29T08:14:19.897100Z",
+      "destino": "gs://unefibra-firestore-backups/pre-kz-030/2026-10-29T08-03-35-601Z/metodos_pago"
+    },
+    {
+      "done": true,
+      "start": "2026-10-29T08:03:36.311567Z",
+      "end": "2026-10-29T08:15:48.610345Z",
+      "destino": "gs://unefibra-firestore-backups/pre-kz-030/2026-10-29T08-03-36-256Z/usuarios"
+    },
+    {
+      "done": true,
+      "start": "2026-10-29T08:04:02.355652Z",
+      "end": "2026-10-29T08:14:20.161906Z",
+      "destino": "gs://unefibra-firestore-backups/pre-kz-030/2026-10-29T08-04-01-695Z/auditoria"
+    },
+    {
+      "done": true,
+      "start": "2026-10-29T08:05:20.823472Z",
+      "end": "2026-10-29T08:25:11.282113Z",
+      "destino": "gs://unefibra-firestore-backups/pre-kz-030/2026-10-29T08-05-20-151Z/auditoria"
+    },
+    {
+      "done": true,
+      "start": "2026-10-29T08:23:05.360563Z",
+      "end": "2026-10-29T08:38:38.951241Z",
+      "destino": "gs://unefibra-firestore-backups/daily/2026-10-29/auditoria"
+    },
+    {
+      "done": true,
+      "start": "2026-10-29T08:31:42.218070Z",
+      "end": "2026-10-29T08:37:23.454740Z",
+      "destino": "gs://unefibra-firestore-backups/daily/2026-10-29/auditoria"
+    },
+    {
+      "done": true,
+      "start": "2026-10-29T08:59:57.404299Z",
+      "end": "2026-10-29T09:08:40.383423Z",
+      "destino": "gs://unefibra-firestore-backups/daily/2026-10-29/auditoria"
+    },
+    {
+      "done": false,
+      "start": "2026-10-29T09:08:45.846912Z",
+      "end": null,
+      "destino": "gs://unefibra-firestore-backups/daily/2026-10-29/backups"
+    }
+  ],
+  "funciones": [
+    {
+      "nombre": "enviarNotificacion",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:18.415Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "anularPago",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:22.181Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "rechazarServicioConciliado",
+      "version": "1",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:19.851302811Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "reactivarServicio",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:24.178Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "habilitarServiciosLote",
+      "version": "1",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:31:14.579697233Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "prepararServicioConciliacion",
+      "version": "1",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:22.298847018Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "activarServicio",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:26.724Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "borrarDemo",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:28.541Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "processDueDates",
+      "version": "11",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:13.222Z",
+      "runtime": "nodejs22",
+      "timeout": "540s"
+    },
+    {
+      "nombre": "evaluarServiciosConciliacion",
+      "version": "1",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:17.700127548Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "crearCliente",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:19.679Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "backupFirestore",
+      "version": "11",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-29T09:15:18.584Z",
+      "runtime": "nodejs22",
+      "timeout": "540s"
+    },
+    {
+      "nombre": "actualizarCliente",
+      "version": "6",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:29.888Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "suspenderServicio",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:19.113Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "mensajeCobro",
+      "version": "8",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:23.116Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "confirmarPago",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:24.509Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "crearUsuario",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:25.914Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "seedDemo",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:21.618Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "validarServicioConciliado",
+      "version": "1",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:01.893504499Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "habilitarServicio",
+      "version": "1",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:20.394419277Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "eliminarCliente",
+      "version": "6",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:28.445Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "migrarCiclosCorte",
+      "version": "9",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:19.644Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "continuarBackup",
+      "version": "4",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-29T09:15:19.982Z",
+      "runtime": "nodejs22",
+      "timeout": "540s"
+    },
+    {
+      "nombre": "registrarPago",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:27.144Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "estadoMikrotik",
+      "version": "2",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:26.311Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "desactivarServicio",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:31.985Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "actualizarUsuario",
+      "version": "10",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:30.214Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    },
+    {
+      "nombre": "ejecutarMotor",
+      "version": "3",
+      "estado": "ACTIVE",
+      "actualizada": "2026-10-26T18:30:23.676Z",
+      "runtime": "nodejs22",
+      "timeout": "60s"
+    }
+  ],
+  "programadores": [
+    {
+      "nombre": "firebase-schedule-backupFirestore-us-central1",
+      "estado": "ENABLED",
+      "cron": "0 3 * * *",
+      "tz": "America/Bogota",
+      "proxima": "2026-10-30T08:00:00Z"
+    },
+    {
+      "nombre": "firebase-schedule-continuarBackup-us-central1",
+      "estado": "ENABLED",
+      "cron": "*/30 * * * *",
+      "tz": "America/Bogota",
+      "proxima": "2026-10-29T09:30:00Z"
+    }
+  ]
+}
