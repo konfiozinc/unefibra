@@ -89,8 +89,14 @@ function crearBackupPorLotes(deps = {}) {
   const timeoutOperacionMs = deps.timeoutOperacionMs || 240000; // 4 min por lote
   const intervaloConsultaMs = deps.intervaloConsultaMs || 3000;
   const intentosMax = deps.intentosMax || 3;
-  const baseMs = deps.baseMsRetroceso || 2000;
-  const techoMs = deps.techoMsRetroceso || 20000;
+  /* KZ-030 · Espera LARGA a propósito. Medido en producción: la PRIMERA
+     exportación de una colección después de un rato inactivo tarda ~58 s (roza el
+     límite interno del servicio y a veces devuelve «Deadline expired before
+     operation could complete»), y las siguientes tardan ~1 s. Reintentar a los 2
+     o 4 segundos caía otra vez en el camino frío y fallaba igual; reintentar tras
+     ~30 s entra en el camino caliente. */
+  const baseMs = deps.baseMsRetroceso || 30000;
+  const techoMs = deps.techoMsRetroceso || 60000;
 
   const listarColecciones = deps.listarColecciones;
   const listarObjetos = deps.listarObjetos;
