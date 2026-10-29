@@ -1620,6 +1620,35 @@ exports.prepararServicioConciliacion = functions.https.onCall(async (data, conte
 });
 
 /** 3 · HABILITAR: solo desde VALIDADA. Devuelve el servicio al motor. */
+/**
+ * Escribe la habilitación de un servicio con PRECONDICIÓN de estado (KZ-UNEF-029).
+ *
+ * El defecto que corrige: tanto «habilitar» como «habilitar en tanda» comprobaban
+ * el estado FUERA de la escritura. Dos administradores que pulsaran a la vez leían
+ * el mismo estado, y las dos escrituras y auditorías pasaban (la batería de
+ * KZ-UNEF-008 lo detectaba: «solo una habilitación prospera», 200 / 200).
+ * La transacción RELEE el documento y exige que siga sin habilitar: la segunda
+ * llamada encuentra «HABILITADA» y se rechaza con un motivo claro.
+ */
+async function escribirHabilitacion(servicioId, bloque) {
+  const ref = db.collection("servicios").doc(servicioId);
+  await db.runTransaction(async (t) => {
+    const snap = await t.get(ref);
+    if (!snap.exists) throw new functions.https.HttpsError("not-found", "El servicio no existe.");
+    const estadoActual = (snap.data().conciliacion || {}).estado;
+    if (estadoActual === "HABILITADA") {
+      throw new functions.https.HttpsError("failed-precondition", "El servicio ya está habilitado: otro usuario lo habilitó antes.");
+    }
+    if (estadoActual === "RECHAZADA") {
+      throw new functions.https.HttpsError("failed-precondition", "El servicio está rechazado: no se puede habilitar.");
+    }
+    if (estadoActual !== "PENDIENTE_VALIDACION" && estadoActual !== "VALIDADA") {
+      throw new functions.https.HttpsError("failed-precondition", "El servicio no está en un estado habilitable (" + String(estadoActual) + ").");
+    }
+    t.update(ref, { conciliacion: bloque, updatedAt: FieldValue.serverTimestamp() });
+  });
+}
+
 exports.habilitarServicio = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
   const { servicioId, autorizarVencido, justificacion, advertenciaAceptada } = data || {};
@@ -1634,9 +1663,8 @@ exports.habilitarServicio = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("failed-precondition", permiso.motivo);
   }
 
-  const ref = db.collection("servicios").doc(servicioId);
   const bloque = bloqueHabilitado({ por: usuario.nombre || context.auth.uid });
-  await ref.update({ conciliacion: bloque, updatedAt: FieldValue.serverTimestamp() });
+  await escribirHabilitacion(servicioId, bloque);
   await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
     "HABILITAR_SERVICIO", "servicios", servicioId,
     { estado: "VALIDADA" },
@@ -1718,7 +1746,9 @@ exports.habilitarServiciosLote = functions.https.onCall(async (data, context) =>
 
     const ref = db.collection("servicios").doc(id);
     try {
-      await ref.update({ conciliacion: bloqueHabilitado({ por: usuario.nombre || context.auth.uid }), updatedAt: FieldValue.serverTimestamp() });
+      /* Misma precondición que la habilitación individual: si otro proceso la
+         habilitó entre la comprobación y la escritura, esta se rechaza. */
+      await escribirHabilitacion(id, bloqueHabilitado({ por: usuario.nombre || context.auth.uid }));
       await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
         "HABILITAR_SERVICIO_LOTE", "servicios", id, { estado: "VALIDADA" },
         { estado: "HABILITADA", situacion: ev.situacion, autorizoVencido: autorizadoEste });
