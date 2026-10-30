@@ -1,0 +1,92 @@
+{
+  "medidoEn": "2026-10-29T09:19:32.097Z",
+  "coleccionesRaiz": [
+    "auditoria",
+    "backups",
+    "clientes",
+    "clientes_hoja3_4_backup",
+    "configuracion",
+    "historial_estados",
+    "metodos_pago",
+    "planes",
+    "servicios",
+    "usuarios"
+  ],
+  "conteos": {
+    "auditoria": 16,
+    "backups": 1,
+    "clientes": 358,
+    "clientes_hoja3_4_backup": 60,
+    "configuracion": 4,
+    "historial_estados": 10,
+    "metodos_pago": 5,
+    "planes": 10,
+    "servicios": 332,
+    "usuarios": 2
+  },
+  "detalle": {
+    "auditoria": {
+      "documentos": 16,
+      "actualizadoMasReciente": "2026-10-11T04:12:20.321988Z"
+    },
+    "backups": {
+      "documentos": 1,
+      "actualizadoMasReciente": "2026-10-29T09:14:42.603055Z"
+    },
+    "clientes": {
+      "documentos": 358,
+      "actualizadoMasReciente": "2026-10-28T15:00:34.088147Z"
+    },
+    "clientes_hoja3_4_backup": {
+      "documentos": 60,
+      "actualizadoMasReciente": "2026-10-06T15:50:26.488830Z"
+    },
+    "configuracion": {
+      "documentos": 4,
+      "actualizadoMasReciente": "2026-10-29T09:14:42.689654Z"
+    },
+    "historial_estados": {
+      "documentos": 10,
+      "actualizadoMasReciente": "2026-10-28T15:00:34.304938Z"
+    },
+    "metodos_pago": {
+      "documentos": 5,
+      "actualizadoMasReciente": "2026-09-27T20:01:13.566783Z"
+    },
+    "planes": {
+      "documentos": 10,
+      "actualizadoMasReciente": "2026-10-06T04:09:47.524882Z"
+    },
+    "servicios": {
+      "documentos": 332,
+      "actualizadoMasReciente": "2026-10-28T15:00:34.152431Z"
+    },
+    "usuarios": {
+      "documentos": 2,
+      "actualizadoMasReciente": "2026-09-26T13:26:23.719489Z"
+    }
+  },
+  "serviciosPorConciliacion": {
+    "(sin conciliacion)": 5,
+    "PENDIENTE_VALIDACION": 327
+  },
+  "configuracion": [
+    {
+      "id": "backupEnCurso",
+      "updateTime": "2026-10-29T09:14:42.689654Z"
+    },
+    {
+      "id": "camposDireccionObligatorios",
+      "updateTime": "2026-09-26T15:39:22.004742Z"
+    },
+    {
+      "id": "plantillasMensaje",
+      "updateTime": "2026-09-26T15:39:21.803652Z"
+    },
+    {
+      "id": "soporte",
+      "updateTime": "2026-09-26T15:39:21.628309Z"
+    }
+  ],
+  "documentosTocadosDesdeElInicio": []
+}

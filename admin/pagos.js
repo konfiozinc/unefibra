@@ -53,10 +53,21 @@ function renderToolbar() {
         <div class="search"><input id="buscar" type="search" placeholder="Buscar cliente…" value="${busqueda}" /></div>
         <div class="filters">${ESTADOS.map((e) => `<button class="chip ${e.key === filtro ? "is-active" : ""}" data-filtro="${e.key}">${e.label}</button>`).join("")}</div>
       </div>
-      ${canWrite ? '<button class="btn btn--primary" id="btn-registrar">+ Registrar pago</button>' : ""}
+      ${canWrite ? '<button class="btn btn--primary" id="btn-registrar" disabled title="Cargando clientes…">+ Registrar pago</button>' : ""}
     </div>
     <div class="table-wrap" id="tabla"></div>
     <div id="modal-root"></div>`;
+}
+
+/* KZ-UNEF-028 · El botón se habilita cuando la lista de clientes ya está
+   cargada. Antes se podía pulsar antes de tiempo y el formulario aparecía con
+   «Sin clientes», que a un usuario sin conocimientos técnicos le hace pensar que
+   no tiene clientes registrados. */
+function habilitarRegistrar() {
+  const btn = document.getElementById("btn-registrar");
+  if (!btn) return;
+  btn.disabled = false;
+  btn.removeAttribute("title");
 }
 
 function filtrar() {
@@ -224,6 +235,7 @@ async function cargar() {
   metodos = activos.length ? activos : ((cfg && cfg.metodosPagoPorDefecto) || ["Otro"]);
 
   renderTabla();
+  habilitarRegistrar();
 }
 
 // ---------------- Eventos ----------------

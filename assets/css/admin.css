@@ -270,3 +270,61 @@ td .btn--sm { margin-left: 6px; }
   .detail-grid .span-2 { grid-column: span 2; }
   .modal .form-grid.two { grid-template-columns: repeat(2, 1fr); }
 }
+
+/* ============================================================
+   Menú agrupado del panel — KZ-UNEF-028
+   ------------------------------------------------------------
+   El menú principal es corto y en lenguaje comercial; lo técnico vive en un
+   desplegable «Más opciones». Estas reglas solo dan forma a ese desplegable y
+   a los iconos; no cambian el diseño del resto del panel.
+   ============================================================ */
+.side__icon { display: inline-block; width: 20px; text-align: center; margin-right: 8px; font-size: 0.95em; }
+.side__mas { border-top: 1px solid var(--line); margin-top: 10px; padding-top: 8px; }
+.side__mas > summary {
+  list-style: none;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: var(--radius);
+  color: var(--text-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+}
+.side__mas > summary::-webkit-details-marker { display: none; }
+.side__mas > summary::after { content: "▾"; font-size: 0.9rem; transition: transform 0.15s ease; }
+.side__mas[open] > summary::after { transform: rotate(180deg); }
+.side__mas > summary:hover { background: rgba(148,163,184,0.08); color: var(--text); }
+.side__mas > nav { display: grid; gap: 4px; margin-top: 4px; }
+@media (max-width: 720px) {
+  .side__mas > summary { padding: 13px 14px; }
+}
+
+/* ============================================================
+   Desborde horizontal en el teléfono — KZ-UNEF-028
+   ------------------------------------------------------------
+   `.content` es un grid y sus hijos tenían el `min-width: auto` por defecto.
+   Como `table` declara `min-width: 760px`, la columna del grid se estiraba hasta
+   ese ancho y TODA la página desbordaba en el móvil (el `overflow-x: auto` de
+   `.table-wrap` nunca llegaba a activarse). Con `min-width: 0` la columna puede
+   encogerse y la tabla se desplaza dentro de su marco, que es lo que se espera.
+   ============================================================ */
+.content { min-width: 0; }
+.content > * { min-width: 0; }
+.table-wrap { max-width: 100%; }
+@media (max-width: 720px) {
+  /* La tabla se puede leer igual, pero en el teléfono conviene que no se
+     convierta en una sábana: se reduce el relleno de las celdas. */
+  th, td { padding: 10px 12px; }
+}
+
+/* Las rejillas de dos columnas (.detail-grid, usada por Configuracion y las fichas)
+   tenían el mismo problema: sus hijos, con `min-width: auto`, no podían encogerse
+   por debajo del ancho mínimo de la tabla (760 px) y estiraban la página entera. */
+.detail-grid { min-width: 0; }
+.detail-grid > * { min-width: 0; }
+.panel { min-width: 0; }

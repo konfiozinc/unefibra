@@ -109,6 +109,10 @@ function diasHasta(fecha) {
  * propia copia en assets/js/admin/ui.js, porque no puede importar CommonJS.
  * ------------------------------------------------------------------ */
 const { proximoCorteDe, cicloValido } = require("./cortes");
+/* KZ-UNEF-028 · Regla definitiva de recordatorios (dos avisos por vencimiento:
+ * 3 días antes del corte y el día del corte, a las 10:00 de Colombia). El módulo
+ * es puro y está probado en test/recordatorios.test.js; aquí solo se ejecuta. */
+const { decidirRecordatorios, palabraEstado } = require("./recordatorios");
 const {
   SOPORTE_POR_DEFECTO,
   construirMensajePrevioCorte,
@@ -156,7 +160,11 @@ async function evaluarServicioPorId(servicioId) {
 }
 
 const { enviarAlertaError } = require("./alertas");
-const { exportarConDetalle } = require("./backup");
+const {
+  exportarConDetalle,
+  BUCKET: BUCKET_BACKUP,
+  PROJECT_ID: PROJECT_ID_BACKUP
+} = require("./backup");
 
 /* ------------------------------------------------------------------
  * Contexto de los mensajes de cobro
@@ -325,6 +333,23 @@ async function marcarEntregaPush(notifRef, resultado) {
   }
 }
 
+/**
+ * KZ-UNEF-028 · ¿El cliente ya pagó el período que termina en este corte?
+ * Devuelve true si existe UN pago CONFIRMADO cuyo período llega hasta el corte o
+ * más allá. Es la comprobación que impide mandar recordatorios de cobro (o de
+ * mora) a quien ya pagó, que es una de las tres condiciones del propietario.
+ */
+async function pagoConfirmadoCubreCorte(clienteId, corteISO) {
+  if (!clienteId || !corteISO) return false;
+  const snap = await db.collection("pagos")
+    .where("clienteId", "==", clienteId)
+    .where("estado", "==", ESTADO_PAGO.CONFIRMADO)
+    .where("periodoFin", ">=", String(corteISO))
+    .limit(1)
+    .get();
+  return !snap.empty;
+}
+
 /** Registra una notificación y devuelve su referencia (o false si ya existía). */
 async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoServicio) {
   // Clave anti-duplicados: clienteId + periodo + tipo
@@ -377,9 +402,15 @@ async function registrarNotificacion(clienteId, tipo, titulo, mensaje, periodoSe
 /* Motor de vencimientos. Lógica en una función propia para poder dispararla:
    - desde el cron diario (processDueDates) y
    - manualmente desde un callable (ejecutarMotor, solo SUPERADMIN) para operación
-     y para pruebas controladas sin esperar el cron. Es idempotente y audita. */
-async function ejecutarMotorVencimientos() {
+     y para pruebas controladas sin esperar el cron. Es idempotente y audita.
+
+   KZ-UNEF-028 · `opciones.hoy` existe ÚNICAMENTE para simular la fecha de los
+   recordatorios en el emulador (la expone `ejecutarMotor` con guardián de
+   entorno). Sin él se usa la fecha real de Colombia. No afecta a estados,
+   suspensiones ni fechas del servicio: solo a la decisión de qué aviso toca. */
+async function ejecutarMotorVencimientos(opciones = {}) {
     try {
+    const hoyRecordatorio = opciones.hoy || hoyISO();
     const resumen = { revisados: 0, notificaciones: 0, porVencer: 0, pendientes: 0, suspendidos: 0, ciclos: 0, avisosCorte: 0, ciclosNotificacion: 0 };
 
     // 1) Configuración de intervalos (días antes/después) y suspensión.
@@ -387,9 +418,14 @@ async function ejecutarMotorVencimientos() {
     const cfg = {};
     cfgSnap.forEach((d) => (cfg[d.id] = d.data().valor));
 
-    // Recordatorios (decisión comercial confirmada): 3 días antes del vencimiento
-    // y el mismo día (0). Suspensión: 3 días naturales de mora.
-    const diasAntes = cfg.diasAntes || [3];
+    // Recordatorios (regla definitiva del propietario, KZ-UNEF-028).
+    //   · Exactamente DOS avisos por vencimiento: 3 días antes del corte y el día
+    //     del corte, a las 10:00 de Colombia. Las fechas las decide
+    //     src/recordatorios.js; ya no se configura desde `configuracion`.
+    //   · Se siguen leyendo `diasDespues` (solo para servicios sin ciclo, hoy
+    //     inexistentes) y `diasSuspension` (3 días naturales de mora).
+    //   · Las claves históricas `diasAntes` / `diasDespues` de la colección
+    //     `configuracion` quedan retiradas: si existen en Firestore, se ignoran.
     const diasDespues = cfg.diasDespues || [0];
     const diasSuspension = cfg.diasSuspension || 3;
 
@@ -456,36 +492,46 @@ async function ejecutarMotorVencimientos() {
         resumen.porVencer++;
       }
 
-      // 4) Avisos del ciclo de corte. El texto sale de las PLANTILLAS editables
-      //    (configuracion/plantillasMensaje) con los datos reales de la empresa
-      //    (metodos_pago y configuracion/soporte): aquí no hay textos sueltos.
+      // 4) Recordatorios del corte. KZ-UNEF-028 · REGLA DEFINITIVA DEL PROPIETARIO:
+      //    por cada vencimiento se envían EXACTAMENTE DOS avisos, a las 10:00 de
+      //    Colombia: 3 días antes del corte y el mismo día del corte.
+      //      corte 15 -> aviso el 12 y el 15 · corte 30 -> aviso el 27 y el 30
+      //    La decisión (fechas, ventana de recuperación, deduplicación y omisión
+      //    cuando ya hay pago confirmado) vive en src/recordatorios.js, que es
+      //    puro y está probado aparte. Aquí solo se ejecuta.
       const cicloCliente = cicloValido(cliente.cicloCorte, servicio.fechaVencimiento);
       const proximoCorte = cicloCliente
         ? (cliente.proximoCorte || proximoCorteDe(cicloCliente))
         : null;
+      /* KZ-UNEF-028 · «Ya está cubierto» significa que el servicio está pagado
+         MÁS ALLÁ del corte. Con `>=` un cliente que vence justo el día del corte
+         se consideraba cubierto y no recibía ninguno de sus dos avisos, que es
+         exactamente a quien hay que avisar. */
       const cubiertoHastaCorte = !!proximoCorte && !!cliente.fechaVencimiento &&
-        String(cliente.fechaVencimiento) >= proximoCorte;
-      const avisarPorCorte = !!cicloCliente && !cubiertoHastaCorte;
-      const diasAviso = avisarPorCorte ? diasHasta(proximoCorte) : dias;
-      const periodoAviso = avisarPorCorte ? `corte-${cicloCliente}-${proximoCorte}` : periodo;
+        String(cliente.fechaVencimiento) > proximoCorte;
 
-      // Trazabilidad (tarea 2): cada ciclo de corte —el mes de `proximoCorte`—
-      // lleva su propio registro de qué avisos previos ya se enviaron. Al cambiar
-      // de ciclo se reinicia, para que el mes siguiente vuelvan a salir.
-      const cicloNotificacion = proximoCorte ? String(proximoCorte).slice(0, 7) : null;
-      const cambioDeCiclo = !!cicloNotificacion && cliente.cicloActualNotificacion !== cicloNotificacion;
-      const diasNotificados = cambioDeCiclo
-        ? []
-        : (Array.isArray(cliente.diasAntesNotificados) ? cliente.diasAntesNotificados : []);
+      /* Trazabilidad por corte: `recordatoriosCiclo` guarda, para ESTE corte, qué
+         avisos ya salieron. Al cambiar de corte se reinicia solo, porque la clave
+         lleva la fecha; así el mes siguiente vuelven a salir los dos. */
+      const memoCiclo = cliente.recordatoriosCiclo && String(cliente.recordatoriosCiclo.corte) === String(proximoCorte)
+        ? cliente.recordatoriosCiclo
+        : { corte: proximoCorte, enviados: [] };
+      const enviadosEsteCorte = Array.isArray(memoCiclo.enviados) ? memoCiclo.enviados : [];
 
-      if (cambioDeCiclo) {
-        await clienteRef.update({
-          cicloActualNotificacion: cicloNotificacion,
-          diasAntesNotificados: [],
-          updatedAt: FieldValue.serverTimestamp()
-        });
-        resumen.ciclosNotificacion++;
-      }
+      /* Si el cliente ya pagó el período que viene, no se le molesta: se mira el
+         estado real de los pagos, no solo la fecha del servicio. */
+      const pagoCubreCorte = proximoCorte ? await pagoConfirmadoCubreCorte(cliente.id, proximoCorte) : false;
+
+      const decision = proximoCorte
+        ? decidirRecordatorios({
+            corteISO: proximoCorte,
+            ciclo: cicloCliente,
+            hoy: hoyRecordatorio,
+            yaEnviados: enviadosEsteCorte,
+            pagoConfirmado: cubiertoHastaCorte || pagoCubreCorte
+          })
+        : [];
+      resumen.omitidosPorPago = (resumen.omitidosPorPago || 0) + decision.filter((d) => d.motivo === "pago confirmado del período").length;
 
       const opcionesMensaje = {
         cuentas: ctxMensajes.cuentas,
@@ -494,82 +540,51 @@ async function ejecutarMotorVencimientos() {
         fechaLimite: proximoCorte
       };
 
-      for (const n of diasAntes) {
-        /* KZ-UNEF-001 · Ventana en vez de igualdad exacta.
-           Antes `diasAviso !== n` exigía que el cron cayera justo el día exacto:
-           si una corrida fallaba o se desplegaba a esa hora, diasAviso saltaba
-           de n+1 a n-1 y ese recordatorio NO se enviaba nunca, sin recuperación
-           y sin aviso. Ahora se envía también con retraso, pero solo mientras
-           el aviso siga teniendo sentido (0 <= diasAviso <= n) y siempre que no
-           se haya avisado ya ese día en este ciclo (guarda de abajo). */
-        if (diasAviso > n || diasAviso < 0) continue;
-        // Ya se le avisó este día en este mismo ciclo: no se repite.
-        if (avisarPorCorte && diasNotificados.includes(n)) continue;
+      /* 4.a) Ejecuta la decisión de recordatorios.js. Cada aviso que toca hoy se
+         registra con su clave anti-duplicados, se intenta entregar y se anota el
+         resultado real (Estado ENVIADA si llegó, ERROR → «Fallido» si no). Los dos
+         avisos comparten el período del corte, así que la clave de la colección
+         `notificaciones` no puede repetirse aunque el motor corra dos veces. */
+      for (const paso of decision) {
+        if (paso.accion !== "enviar") continue;
+        const { recordatorio } = paso;
+        const esDiaDelCorte = recordatorio.clave === "corte";
+        const periodoAviso = `corte-${cicloCliente}-${proximoCorte}`;
+        const titulo = esDiaDelCorte ? "Tu factura está vencida" : "Tu factura está disponible";
+        const cuerpo = esDiaDelCorte
+          ? construirMensajePostCorte(cliente, { ...opcionesMensaje, plantilla: ctxMensajes.plantillaDespues })
+          : construirMensajePrevioCorte(cliente, { ...opcionesMensaje, plantilla: ctxMensajes.plantillaAntes });
 
-        const tipo = avisarPorCorte ? `CORTE_${cicloCliente}_${n}_DIAS` : `RECORDATORIO_${n}_DIAS`;
-        const titulo = avisarPorCorte ? "Tu factura está disponible" : "Tu servicio está por vencer";
-        const cuerpo = avisarPorCorte
-          ? construirMensajePrevioCorte(cliente, {
-              ...opcionesMensaje,
-              plantilla: ctxMensajes.plantillaAntes
-            })
-          : `UneFibra: tu servicio de Internet vence en ${n} día(s) (${servicio.fechaVencimiento}). ` +
-            `Realiza tu pago para mantenerlo activo.`;
+        const nueva = await registrarNotificacion(cliente.id, recordatorio.tipo, titulo, cuerpo, periodoAviso);
+        if (!nueva) continue; // ya existía (otra corrida la creó): no se duplica
 
-        const nueva = await registrarNotificacion(cliente.id, tipo, titulo, cuerpo, periodoAviso);
-        if (nueva) {
-          const entrega = await enviarPush(
-            cliente.id, titulo,
-            avisarPorCorte ? `Tu factura vence el ${proximoCorte}.` : `Vence en ${n} día(s).`
-          );
-          await marcarEntregaPush(nueva, entrega);
-          resumen.notificaciones++;
-
-          if (avisarPorCorte) {
-            resumen.avisosCorte++;
-            // Queda registrado que a este cliente ya se le avisó con n días.
-            await clienteRef.update({
-              diasAntesNotificados: FieldValue.arrayUnion(n),
-              fechaUltimaNotificacion: FieldValue.serverTimestamp(),
-              tipoUltimaNotificacion: "antesCorte",
-              cicloActualNotificacion: cicloNotificacion
-            });
-          }
-        }
-      }
-
-      // 4.bis) El día del corte, si sigue sin pagar: mensaje de factura vencida.
-      //        Se envía UNA sola vez por ciclo (la clave incluye la fecha).
-      if (avisarPorCorte && diasHasta(proximoCorte) === 0) {
-        const nueva = await registrarNotificacion(
-          cliente.id,
-          `CORTE_${cicloCliente}_VENCIDO`,
-          "Tu factura está vencida",
-          construirMensajePostCorte(cliente, {
-            ...opcionesMensaje,
-            plantilla: ctxMensajes.plantillaDespues
-          }),
-          `${periodoAviso}-vencido`
+        const entrega = await enviarPush(
+          cliente.id, titulo,
+          esDiaDelCorte ? "Tu servicio será suspendido." : `Tu factura vence el ${proximoCorte}.`
         );
-        if (nueva) {
-          const entrega = await enviarPush(cliente.id, "Tu factura está vencida", "Tu servicio será suspendido.");
-          await marcarEntregaPush(nueva, entrega);
-          resumen.notificaciones++;
-          resumen.avisosCorte++;
-          await clienteRef.update({
-            fechaUltimaNotificacion: FieldValue.serverTimestamp(),
-            tipoUltimaNotificacion: "despuesCorte",
-            cicloActualNotificacion: cicloNotificacion
-          });
-        }
+        await marcarEntregaPush(nueva, entrega);
+        resumen.notificaciones++;
+        resumen.avisosCorte++;
+
+        const enviados = [...new Set([...enviadosEsteCorte, recordatorio.clave])];
+        await clienteRef.update({
+          recordatoriosCiclo: { corte: proximoCorte, enviados, actualizadoEn: FieldValue.serverTimestamp() },
+          fechaUltimaNotificacion: FieldValue.serverTimestamp(),
+          tipoUltimaNotificacion: esDiaDelCorte ? "despuesCorte" : "antesCorte",
+          cicloActualNotificacion: String(proximoCorte).slice(0, 7)
+        });
+        enviadosEsteCorte.length = 0;
+        enviadosEsteCorte.push(...enviados);
       }
 
-      // 5) Día del vencimiento y días posteriores (mora)
-      for (const n of diasDespues) {
+      /* 5) Fila heredada de días después del vencimiento. KZ-UNEF-028: para los
+         clientes con ciclo de corte NO se usa, porque la regla del propietario
+         fija exactamente dos avisos por vencimiento y este bloque añadiría un
+         tercero. Se conserva solo para servicios sin ciclo (no los hay hoy:
+         `cicloValido` siempre deduce uno), de modo que el comportamiento queda
+         explícito y no una rama muerta silenciosa. */
+      for (const n of (cicloCliente ? [] : diasDespues)) {
         if (dias !== n) continue;
-        // Si el cliente tiene ciclo de corte, el aviso "hoy vence" lo cubre el
-        // mensaje de factura vencida de arriba: no se le manda dos veces.
-        if (n === 0 && avisarPorCorte) continue;
 
         const tipo = n === 0 ? "VENCIMIENTO_HOY" : `MORA_${Math.abs(n)}_DIAS`;
         const nueva = await registrarNotificacion(
@@ -650,48 +665,133 @@ exports.processDueDates = functions
   .timeZone("America/Bogota")
   .onRun(() => ejecutarMotorVencimientos());
 
-/* Disparo manual (solo SUPERADMIN) para operación y pruebas controladas. */
+/* Disparo manual (solo SUPERADMIN) para operación y pruebas controladas.
+   KZ-UNEF-028 · `data.hoy` permite simular la fecha de los recordatorios, pero
+   SOLO en el emulador: en producción se ignora con un error explícito, para que
+   nadie pueda forzar avisos con una fecha inventada. */
 exports.ejecutarMotor = functions.https.onCall(async (data, context) => {
   await verificarRol(context, ["SUPERADMIN"]);
-  return ejecutarMotorVencimientos();
+  let hoySimulado = null;
+  if (data && data.hoy) {
+    const proyectoActual = (functions.app || {}).options && functions.app.options.projectId;
+    const esEmulador = !!process.env.FIRESTORE_EMULATOR_HOST
+      || String(proyectoActual || "").startsWith("demo-")
+      || process.env.FUNCTIONS_EMULATOR === "true";
+    if (!esEmulador) {
+      throw new functions.https.HttpsError("failed-precondition",
+        "La simulación de fecha solo está disponible en el emulador. En producción se usa la fecha real de Colombia.");
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(String(data.hoy))) {
+      throw new functions.https.HttpsError("invalid-argument", "Fecha de simulación inválida (usa YYYY-MM-DD).");
+    }
+    hoySimulado = String(data.hoy);
+  }
+  return ejecutarMotorVencimientos(hoySimulado ? { hoy: hoySimulado } : {});
 });
 
 /* ============================================================
- * MÓDULO: BACKUP DIARIO (función programada)
+ * MÓDULO: BACKUP DIARIO (función programada) — KZ-UNEF-028
+ * ------------------------------------------------------------
+ * HISTORIA DEL FALLO: la exportación pedía la base ENTERA en una operación. Con
+ * 332 servicios tardaba 536,8 s y la función gen 1 (máximo 540 s) moría sin poder
+ * verificar el respaldo ni liberar el cerrojo. Subir `timeoutSeconds` no es
+ * posible: 540 s es el techo de gen 1.
+ *
+ * SOLUCIÓN: exportar POR COLECCIONES con presupuesto de tiempo y reanudación
+ * (src/backup-lotes.js). Cada invocación hace lo que cabe en ~7 de los 9 minutos,
+ * guarda el progreso y, si no termina, la corrida sigue en la siguiente
+ * invocación. El respaldo solo se declara COMPLETADO cuando TODAS las colecciones
+ * raíz están verificadas en el bucket.
+ *
+ * Se añade `continuarBackup` (cada 30 min): si la corrida del día quedó a medias,
+ * la termina. Si ya está completa no hace nada y no cuesta lecturas.
  * ============================================================ */
+function backupPorLotes(deps = {}) {
+  const { listarObjetosDelBucket, lockPorDefecto } = require("./backup");
+  const { crearBackupPorLotes } = require("./backup-lotes");
+  const db = getFirestore();
+  return crearBackupPorLotes({
+    proyectoId: PROJECT_ID_BACKUP,
+    bucket: BUCKET_BACKUP,
+    listarColecciones: async () => (await db.listCollections()).map((c) => c.id),
+    listarObjetos: (prefijo) => listarObjetosDelBucket(prefijo),
+    estado: {
+      leer: async (corrida) => {
+        const snap = await db.collection("backups").doc(corrida).get();
+        return snap.exists ? snap.data() : null;
+      },
+      guardar: async (corrida, datos) => {
+        await db.collection("backups").doc(corrida).set(datos, { merge: false });
+      }
+    },
+    lock: deps.lock || lockPorDefecto,
+    ...deps
+  });
+}
+
+/* Presupuesto por invocación: 7 min de los 9 que permite gen 1 (540 s), para que
+   siempre quede margen para verificar y cerrar la corrida. */
+const PRESUPUESTO_BACKUP_MS = 420000;
+
+async function correrBackup({ motivo }) {
+  const inicio = Date.now();
+  const resultado = await backupPorLotes().ejecutar({ presupuestoMs: PRESUPUESTO_BACKUP_MS });
+  const ms = Date.now() - inicio;
+  console.log("Backup de Firestore (" + motivo + "):", {
+    estado: resultado.estado,
+    corrida: resultado.corrida,
+    colecciones: resultado.completadas + "/" + resultado.total,
+    objetos: resultado.objetos || 0,
+    pendientes: resultado.pendientes || 0,
+    loteMasLento: resultado.masLento ? resultado.masLento.ms + " ms" : null,
+    motivo: resultado.motivo || null,
+    ms
+  });
+
+  /* Se avisa SOLO de lo que dejó el respaldo sin hacer: un fallo definitivo o una
+     corrida que sigue incompleta al final del día. Una corrida PARCIAL dentro del
+     día es normal y no merece alarma. */
+  if (resultado.requiereAlerta) {
+    const err = new Error("Respaldo no completado (" + resultado.estado + "): " + (resultado.motivo || JSON.stringify(resultado.fallidos || [])));
+    err.resultado = resultado;
+    try {
+      await enviarAlertaError("backupFirestore (" + motivo + ")", err);
+      console.log("Alerta de respaldo enviada.");
+    } catch (emailErr) {
+      console.error("No se pudo enviar la alerta por email:", emailErr);
+    }
+    throw err;
+  }
+  return resultado;
+}
+
 exports.backupFirestore = functions
   .runWith({ secrets: ["SENDGRID_API_KEY"], timeoutSeconds: 540 })
   .pubsub
   .schedule("0 3 * * *") // 03:00 diario, hora de Bogotá
   .timeZone("America/Bogota")
+  .onRun(() => correrBackup({ motivo: "corrida diaria" }));
+
+/* Continúa una corrida incompleta. Cada 30 minutos; si no hay nada pendiente
+   termina en milisegundos. */
+exports.continuarBackup = functions
+  .runWith({ secrets: ["SENDGRID_API_KEY"], timeoutSeconds: 540 })
+  .pubsub
+  .schedule("*/30 * * * *")
+  .timeZone("America/Bogota")
   .onRun(async () => {
-    /* KZ-UNEF-005 · El respaldo ahora distingue «iniciada» de «completada»:
-       espera la operación, comprueba que los archivos existan en el bucket,
-       reintenta los errores transitorios y usa un cerrojo para no solaparse.
-       El 25-oct el 503 de Firestore dejó el día sin respaldo y nadie se enteró. */
-    const resultado = await exportarConDetalle({ timeoutOperacionMs: 480000 });
-    console.log("Backup de Firestore:", resultado.estado, {
-      destino: resultado.outputUriPrefix || null,
-      objetos: resultado.objetos || 0,
-      intentos: resultado.intentos.length,
-      motivo: resultado.motivo || null
-    });
-
-    if (resultado.requiereAlerta) {
-      const err = new Error(`Respaldo no completado (${resultado.estado}): ${resultado.motivo}`);
-      err.intentos = resultado.intentos;
-      try {
-        await enviarAlertaError("backupFirestore (exportación diaria)", err);
-        console.log("Alerta de respaldo enviada.");
-      } catch (emailErr) {
-        /* Si el correo falla, el fallo del respaldo NO se enmascara: queda en
-           los logs con el estado real y la función termina en error. */
-        console.error("No se pudo enviar la alerta por email:", emailErr);
-      }
-      throw err;
+    const db = getFirestore();
+    const hoy = hoyISO();
+    const snap = await db.collection("backups").doc(hoy).get();
+    const datos = snap.exists ? snap.data() : null;
+    const lotes = datos && datos.lotes ? Object.values(datos.lotes) : [];
+    const pendientes = lotes.filter((l) => l.estado !== "COMPLETADO").length;
+    if (!lotes.length || pendientes === 0) {
+      console.log("Continuación de respaldo: nada pendiente para " + hoy + ".");
+      return { estado: "NADA_PENDIENTE", corrida: hoy };
     }
-
-    return resultado;
+    console.log("Continuación de respaldo: " + pendientes + " lote(s) pendientes de " + lotes.length + ".");
+    return correrBackup({ motivo: "continuación " + hoy });
   });
 
 /* ============================================================
@@ -881,7 +981,8 @@ const CAMPOS_BOOLEANOS_CLIENTE = ["whatsappOptIn"];
  *    importados llegaron sin barrio). Si se exigiera, editar cualquier cosa
  *    obligaría a rellenar el barrio primero, y no se podrían corregir errores.
  *  - Si cambia el ciclo de corte, se recalcula `proximoCorte` con la regla
- *    vigente (ciclo 15 -> corte el día 20; ciclo 30 -> corte el día 5).
+ *    vigente (ciclo 15 -> corte el día 15; ciclo 30 -> corte el día 30, y el
+ *    último día real del mes cuando no llega a 30).
  */
 exports.actualizarCliente = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
@@ -961,6 +1062,112 @@ exports.actualizarCliente = functions.https.onCall(async (data, context) => {
     "ACTUALIZAR_CLIENTE", "clientes", clienteId, antesMap, despuesMap);
 
   return { clienteId, cambios: Object.keys(despuesMap), ignorados };
+});
+
+/* ============================================================
+ * MÓDULO: REVISIÓN COMERCIAL (KZ-UNEF-031)
+ * ------------------------------------------------------------
+ * El propietario confirma o corrige los datos comerciales de un servicio migrado
+ * (valor mensual, día de corte, plan y fecha de cobro) sin hojas de cálculo.
+ *
+ * DECISIONES QUE IMPORTAN
+ *  · NO se toca `conciliacion.estado`: los servicios siguen PENDIENTE_VALIDACION y
+ *    el motor sigue ignorándolos. Confirmar el dato NO es habilitar el cobro;
+ *    habilitar es un acto aparte (`habilitarServicio`), deliberado.
+ *  · NO se tocan `pagos` ni `notificaciones`: el historial de pagos no se reescribe.
+ *  · Si el cliente ya tiene pagos, mover la fecha exige un motivo escrito.
+ *  · Repetir la misma confirmación no escribe dos veces (idempotente).
+ * ============================================================ */
+exports.confirmarRevisionComercial = functions.https.onCall(async (data, context) => {
+  const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const revision = require("./revision-comercial");
+
+  const servicioId = data && data.servicioId;
+  if (!servicioId) throw new functions.https.HttpsError("invalid-argument", "Se requiere servicioId.");
+
+  const correcciones = (data && data.correcciones) || {};
+  const nota = String((data && data.motivo) || "").trim().slice(0, 500);
+
+  const refServicio = db.collection("servicios").doc(servicioId);
+  const snapServicio = await refServicio.get();
+  if (!snapServicio.exists) throw new functions.https.HttpsError("not-found", "El servicio no existe.");
+  const servicio = snapServicio.data();
+
+  const clienteId = servicio.clienteId || (data && data.clienteId);
+  if (!clienteId) throw new functions.https.HttpsError("failed-precondition", "El servicio no tiene cliente asociado.");
+  const refCliente = db.collection("clientes").doc(clienteId);
+  const snapCliente = await refCliente.get();
+  if (!snapCliente.exists) throw new functions.https.HttpsError("failed-precondition", "El cliente del servicio no existe.");
+  const cliente = snapCliente.data();
+
+  const planesSnap = await db.collection("planes").get();
+  const planes = planesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  const resultado = revision.aplicarCorrecciones({ servicio, cliente, correcciones, planes });
+  if (resultado.errores.length) {
+    throw new functions.https.HttpsError("invalid-argument", resultado.errores.map((e) => e.error).join(" "));
+  }
+
+  /* Con pagos ya registrados, mover la fecha sin explicación dejaría el historial
+     contando otra cosa. Se exige el motivo, no se adivina. */
+  const pagos = await db.collection("pagos").where("clienteId", "==", clienteId).get();
+  const cambioFecha = resultado.aplicadas.some((a) => a.campo === "fechaVencimiento");
+  if (pagos.size > 0 && cambioFecha && !nota) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Este cliente ya tiene " + pagos.size + " pago(s) registrados. Escribe el motivo del cambio de fecha para dejarlo en el historial."
+    );
+  }
+
+  const CAMPOS_SERVICIO = ["fechaVencimiento", "precioMensual", "cicloCorte", "planId"];
+  const antesS = {}, despuesS = {};
+  for (const campo of CAMPOS_SERVICIO) {
+    const previo = servicio[campo] === undefined ? null : servicio[campo];
+    const nuevo = resultado.servicio[campo] === undefined ? null : resultado.servicio[campo];
+    if (previo !== nuevo) { antesS[campo] = previo; despuesS[campo] = nuevo; }
+  }
+  const yaConfirmado = servicio.revisionComercial && servicio.revisionComercial.estado === "CONFIRMADA";
+  if (!Object.keys(despuesS).length && yaConfirmado) {
+    return { servicioId, clienteId, cambiado: false, campos: [], mensaje: "Ese servicio ya estaba confirmado con estos datos." };
+  }
+
+  const en = FieldValue.serverTimestamp();
+  const sello = {
+    estado: "CONFIRMADA",
+    por: context.auth.uid,
+    porNombre: usuario.nombre || context.auth.uid,
+    en,
+    nota: nota || null,
+    cambio: Object.keys(despuesS)
+  };
+  const actualizacionServicio = { ...despuesS, revisionComercial: sello, updatedAt: en };
+  const actualizacionCliente = {};
+  for (const campo of CAMPOS_SERVICIO) {
+    if (despuesS[campo] !== undefined) actualizacionCliente[campo] = despuesS[campo];
+  }
+  if (Object.keys(actualizacionCliente).length) actualizacionCliente.updatedAt = en;
+
+  await db.runTransaction(async (tx) => {
+    const actual = await tx.get(refServicio);
+    if (!actual.exists) throw new functions.https.HttpsError("not-found", "El servicio desapareció mientras se confirmaba.");
+    tx.update(refServicio, actualizacionServicio);
+    if (Object.keys(actualizacionCliente).length) tx.update(refCliente, actualizacionCliente);
+  });
+
+  await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
+    "CONFIRMAR_REVISION_COMERCIAL", "servicios", servicioId,
+    { ...antesS, revisionComercial: servicio.revisionComercial || null },
+    { ...despuesS, revisionComercial: { estado: "CONFIRMADA", por: context.auth.uid, nota: nota || null } });
+
+  const huboCambio = Object.keys(despuesS).length > 0;
+  return {
+    servicioId, clienteId, cambiado: huboCambio, campos: Object.keys(despuesS),
+    fechaVencimiento: resultado.servicio.fechaVencimiento || null,
+    precioMensual: resultado.servicio.precioMensual || null,
+    cicloCorte: resultado.servicio.cicloCorte || null,
+    mensaje: (huboCambio ? "Datos guardados." : "Confirmado.") +
+      " El servicio sigue sin cobrarse hasta que lo habilites."
+  };
 });
 
 /**
@@ -1197,12 +1404,29 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
       duracion: plan.duracion
     });
 
+    /* KZ-UNEF-032 · LA RENOVACIÓN RESPETA EL DÍA DE CORTE DEL CLIENTE.
+       Antes el período se calculaba sumando la duración del plan (30 días fijos):
+       un cliente del corte 30 que pagaba el 30-nov renovaba al 29-dic, y desde ahí
+       corría un día por mes sin volver nunca a su corte. Ahora, si el cliente tiene
+       ciclo, el vencimiento nuevo es el SIGUIENTE día de corte (15 o 30, y en
+       febrero o meses de 30 días el último día real del mes). Si no tiene ciclo se
+       conserva el cálculo anterior, para no cambiar el comportamiento de quien
+       todavía no tiene corte asignado. */
+    const hoyDeRenovacion = hoyISO();
+    const baseDeRenovacion = cliente.fechaVencimiento && cliente.fechaVencimiento > hoyDeRenovacion
+      ? cliente.fechaVencimiento
+      : hoyDeRenovacion;
+    const alCorte = require("./vencimientos").renovarAlCorte({ ciclo: cliente.cicloCorte, base: baseDeRenovacion });
+    const periodoCobrado = alCorte
+      ? { inicio: alCorte.periodoInicio, fin: alCorte.periodoFin, vencimiento: alCorte.vencimiento }
+      : { inicio: periodoInicio, fin: periodoFin, vencimiento: periodoFin };
+
     // Actualizar pago. `fechaPago` NO se reescribe: es la fecha en que el
     // cliente pagó, no la fecha en que un operador hizo clic en confirmar.
     t.update(pagoRef, {
       estado: ESTADO_PAGO.CONFIRMADO,
-      periodoInicio,
-      periodoFin
+      periodoInicio: periodoCobrado.inicio,
+      periodoFin: periodoCobrado.fin
     });
 
     // Renovar servicio del cliente
@@ -1224,8 +1448,8 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
         throw new functions.https.HttpsError("failed-precondition", guardaRenovacion.motivo);
       }
       t.update(servicios.docs[0].ref, {
-        fechaInicio: periodoInicio,
-        fechaVencimiento: periodoFin,
+        fechaInicio: periodoCobrado.inicio,
+        fechaVencimiento: periodoCobrado.vencimiento,
         estado: ESTADO_SERVICIO.ACTIVO,
         fechaActivacion: hoyISO(),
         fechaSuspension: null,
@@ -1240,12 +1464,12 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
        columna "Fecha de ingreso" mostraba el último ciclo facturado. Solo se
        rellena si venía vacía. */
     const cambiosCliente = {
-      fechaVencimiento: periodoFin,
+      fechaVencimiento: periodoCobrado.vencimiento,
       estadoCliente: ESTADO_CLIENTE.ACTIVO,
       estadoServicio: ESTADO_SERVICIO.ACTIVO,
       updatedAt: FieldValue.serverTimestamp()
     };
-    if (!cliente.fechaInicioServicio) cambiosCliente.fechaInicioServicio = periodoInicio;
+    if (!cliente.fechaInicioServicio) cambiosCliente.fechaInicioServicio = periodoCobrado.inicio;
     estadoPrevioCliente = cliente.estadoCliente || null;
     t.update(clienteRef, cambiosCliente);
 
@@ -1506,6 +1730,35 @@ exports.prepararServicioConciliacion = functions.https.onCall(async (data, conte
 });
 
 /** 3 · HABILITAR: solo desde VALIDADA. Devuelve el servicio al motor. */
+/**
+ * Escribe la habilitación de un servicio con PRECONDICIÓN de estado (KZ-UNEF-029).
+ *
+ * El defecto que corrige: tanto «habilitar» como «habilitar en tanda» comprobaban
+ * el estado FUERA de la escritura. Dos administradores que pulsaran a la vez leían
+ * el mismo estado, y las dos escrituras y auditorías pasaban (la batería de
+ * KZ-UNEF-008 lo detectaba: «solo una habilitación prospera», 200 / 200).
+ * La transacción RELEE el documento y exige que siga sin habilitar: la segunda
+ * llamada encuentra «HABILITADA» y se rechaza con un motivo claro.
+ */
+async function escribirHabilitacion(servicioId, bloque) {
+  const ref = db.collection("servicios").doc(servicioId);
+  await db.runTransaction(async (t) => {
+    const snap = await t.get(ref);
+    if (!snap.exists) throw new functions.https.HttpsError("not-found", "El servicio no existe.");
+    const estadoActual = (snap.data().conciliacion || {}).estado;
+    if (estadoActual === "HABILITADA") {
+      throw new functions.https.HttpsError("failed-precondition", "El servicio ya está habilitado: otro usuario lo habilitó antes.");
+    }
+    if (estadoActual === "RECHAZADA") {
+      throw new functions.https.HttpsError("failed-precondition", "El servicio está rechazado: no se puede habilitar.");
+    }
+    if (estadoActual !== "PENDIENTE_VALIDACION" && estadoActual !== "VALIDADA") {
+      throw new functions.https.HttpsError("failed-precondition", "El servicio no está en un estado habilitable (" + String(estadoActual) + ").");
+    }
+    t.update(ref, { conciliacion: bloque, updatedAt: FieldValue.serverTimestamp() });
+  });
+}
+
 exports.habilitarServicio = functions.https.onCall(async (data, context) => {
   const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
   const { servicioId, autorizarVencido, justificacion, advertenciaAceptada } = data || {};
@@ -1520,9 +1773,8 @@ exports.habilitarServicio = functions.https.onCall(async (data, context) => {
     throw new functions.https.HttpsError("failed-precondition", permiso.motivo);
   }
 
-  const ref = db.collection("servicios").doc(servicioId);
   const bloque = bloqueHabilitado({ por: usuario.nombre || context.auth.uid });
-  await ref.update({ conciliacion: bloque, updatedAt: FieldValue.serverTimestamp() });
+  await escribirHabilitacion(servicioId, bloque);
   await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
     "HABILITAR_SERVICIO", "servicios", servicioId,
     { estado: "VALIDADA" },
@@ -1604,7 +1856,9 @@ exports.habilitarServiciosLote = functions.https.onCall(async (data, context) =>
 
     const ref = db.collection("servicios").doc(id);
     try {
-      await ref.update({ conciliacion: bloqueHabilitado({ por: usuario.nombre || context.auth.uid }), updatedAt: FieldValue.serverTimestamp() });
+      /* Misma precondición que la habilitación individual: si otro proceso la
+         habilitó entre la comprobación y la escritura, esta se rechaza. */
+      await escribirHabilitacion(id, bloqueHabilitado({ por: usuario.nombre || context.auth.uid }));
       await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
         "HABILITAR_SERVICIO_LOTE", "servicios", id, { estado: "VALIDADA" },
         { estado: "HABILITADA", situacion: ev.situacion, autorizoVencido: autorizadoEste });
@@ -1910,3 +2164,14 @@ exports.borrarDemo = functions.https.onCall(async (data, context) => {
   await auditar(context.auth.uid, context.auth.uid, "BORRAR_DEMO", "sistema", "demo", null, { eliminados });
   return { eliminados };
 });
+
+/* ============================================================
+ * KZ-UNEF-023 · Modulo administrativo de pagos historicos
+ * Deshabilitado en produccion: PAGOS_HISTORICOS_HABILITADO no existe alli.
+ * ============================================================ */
+const pagosHistoricos = require("./pagosHistoricos").crearCallables({
+  functions, db, verificarRol, auditar, FieldValue
+});
+exports.listarPropuestasPagos = pagosHistoricos.listarPropuestasPagos;
+exports.decidirPropuestasPagos = pagosHistoricos.decidirPropuestasPagos;
+exports.corregirVencimientoContractual = pagosHistoricos.corregirVencimientoContractual;

@@ -1,0 +1,12 @@
+﻿# Restauración aislada · copia del 30-oct (KZ-UNEF-035)
+| Comprobación | Resultado |
+|---|---|
+| Emulador aislado (8091, demo-restauracion-30) con daily/2026-10-30/clientes | 358 documentos restaurados = 358 de producción ✅ |
+| clientes: ids reales dentro del binario | 3/3 · valores de campo 12/12 |
+| servicios: ids reales / valores | 3/3 · 12/12 |
+| historial_estados: ids reales / valores | 3/3 · 12/12 |
+| clientes_hoja3_4_backup: ids reales / valores | 3/3 · 12/12 |
+| Prefijos antiguos sobrescritos | 0 (daily/2026-10-29 = 6 obj, pre-kz-030 = 18, daily/2026-10-28 = 12; 0 objetos de hoy) |
+| Operaciones activas antes de exportar | 0 de 36 |
+
+Ejecutado el 2026-10-30 entre 08:15Z y 08:19Z. Programaciones de respaldo PAUSED antes y después. Sin despliegues ni cambios de datos comerciales.

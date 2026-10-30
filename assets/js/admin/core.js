@@ -33,6 +33,18 @@ function esModoEmulador() {
   }
 }
 
+/**
+ * KZ-UNEF-028 · ¿Estamos en modo emulador? Se pregunta con el mismo criterio que
+ * usa el resto del núcleo: el flag viaja en sessionStorage porque las
+ * redirecciones internas del panel (login → dashboard) pierden el `?emulador=1`.
+ * Lo consume callables.js para conectar TAMBIÉN las Cloud Functions al emulador;
+ * antes solo miraba la URL, así que tras el primer salto las llamadas dejaban de
+ * ir al emulador.
+ */
+export function modoEmuladorActivo() {
+  return esModoEmulador();
+}
+
 /** Indica si Firebase está realmente configurado (sin placeholders). */
 export function isConfigured() {
   const f = CFG && CFG.firebase;

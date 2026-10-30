@@ -1,0 +1,43 @@
+LOGIN OK como super.duena@panel.test
+
+[Inicio] dashboard.html
+  campos: (ninguno)
+  botones: Cerrar sesión | Ver quién está al día y quién debe | Ver recordatorios enviados | Revisar y confirmar datos
+  texto: CLIENTES CORTE 15 2 Próximo corte: 15/11/2026 CLIENTES CORTE 30 4 Próximo corte: 30/10/2026 CLIENTES ACTIVOS 4 Servicio habilitado y al día POR VENCER 0 Próximos 7 días PENDIENTES DE PAGO 0 Vencidos sin pago que cubra el periodo SUSPENDIDOS 0 Servicio suspendi
+
+[Clientes] clientes.html
+  campos: input[buscar] "Buscar nombre, documento o teléfono…" · select[por-pagina]
+  botones: Cerrar sesión | ← Inicio | Todos | Activos | Por vencer | Pendientes | Suspendidos | Inactivos | Todos | Ciclo 15 | Ciclo 30 | + Nuevo cliente | Editar | Suspender
+  texto: ← Inicio Todos Activos Por vencer Pendientes Suspendidos Inactivos Ciclo de corte: Todos Ciclo 15 Ciclo 30 + Nuevo cliente Mostrando 1-7 de 7 clientes Mostrar: 25 50 100 Todos # NOMBRE TELÉFONO IP PLAN PRECIO MENSUAL CICLO ESTADO FECHA DE INGRESO ACCIONES 1 AN
+
+[Vencimientos] vencimientos.html
+  campos: (ninguno)
+  botones: Cerrar sesión | Volver al inicio | Ver ficha | Registrar pago | Ver ficha | Registrar pago | Ver ficha | Registrar pago | Ver ficha | Registrar pago | Ver ficha | Registrar pago | Ver ficha | Registrar pago
+  texto: Vencimientos Hoy es 30/10/2026. Cada cliente recibe dos avisos: 3 días antes de su corte y el día del corte, a las 10:00 a.m. Volver al inicio AL DÍA 2 clientes con su corte más adelante POR VENCER 5 corte en los próximos 7 días VENCIDOS 0 $ 0 por cobrar Venci
+
+[Pagos] pagos.html
+  campos: input[buscar] "Buscar cliente…"
+  botones: Cerrar sesión | Todos | Pendientes | Confirmados | Rechazados | Anulados | + Registrar pago
+  texto: Todos Pendientes Confirmados Rechazados Anulados + Registrar pago FECHA CLIENTE MÉTODO MONTO PERIODO ESTADO ACCIONES 16/11/2026 CLIENTE FICTICIO REVISION — $ 45.000 — – 30/11/2026 Confirmado 16/11/2026 CLIENTE FICTICIO REVISION — $ 45.000 — – 30/11/2026 Confir
+
+[Recordatorios] notificaciones.html
+  campos: (ninguno)
+  botones: Cerrar sesión | Todos | Pendientes | Enviados | Fallidos | Cancelados | Enviar aviso a un cliente
+  texto: Todos Pendientes Enviados Fallidos Cancelados Enviar aviso a un cliente Cada cliente recibe dos avisos por cobro, a las 10:00 a.m.: 3 días antes del corte y el día del corte (corte 15 → días 12 y 15 · corte 30 → días 27 y 30). Los avisos se preparan solos; aqu
+
+[Planes] planes.html
+  campos: (ninguno)
+  botones: Cerrar sesión | + Nuevo plan | Editar | Desactivar | Editar | Desactivar | Editar | Desactivar | Editar | Desactivar | Editar | Desactivar | Editar | Desactivar
+  texto: El precio y la duración se usan al calcular vencimientos. + Nuevo plan NOMBRE VELOCIDAD PRECIO DURACIÓN ESTADO ACCIONES Plan sin precio (importado) 30 Mbps $ 0 30 días Activo Editar Desactivar Hogar 45 Mbps 45 Mbps $ 45.000 30 días Activo Editar Desactivar Hog
+
+[Revisión de clientes] revision-clientes.html
+  campos: input[q] "Buscar por nombre, documento o teléfono…" · input[precioMensual] · select[cicloCorte] · input[fechaVencimiento] · input[precioMensual] · select[cicloCorte] · input[fechaVencimiento] · input[precioMensual] · select[cicloCorte] · input[fechaVencimiento] · input[precioMensual] · select[cicloCorte] · input[fechaVencimiento] · input[precioMensual] · select[cicloCorte] · input[fechaVencimiento]
+  botones: Cerrar sesión | Por revisar (5) | Confirmados (5) | Guardar y confirmar | Ver cliente | Guardar y confirmar | Ver cliente | Guardar y confirmar | Ver cliente | Guardar y confirmar | Ver cliente | Guardar y confirmar | Ver cliente
+  texto: Revisión de clientes Aquí se confirman los datos comerciales de los servicios que se importaron sin evidencia: el valor mensual, el día de corte y la fecha de cobro. Confirmar un dato no activa el cobro; solo deja el registro correcto. Por revisar (5) Confirma
+
+[Historial de cambios] auditoria.html
+  campos: input[buscar] "Buscar por acción, entidad o usuario…"
+  botones: Cerrar sesión
+  texto: FECHA USUARIO ACCIÓN ENTIDAD 30/10/2026 12:44 a. m. Dueña Ficticia CONFIRMAR_REVISION_COMERCIAL servicios #revs21793339076765 30/10/2026 12:44 a. m. Dueña Ficticia CONFIRMAR_REVISION_COMERCIAL servicios #revs1793339076765 30/10/2026 12:37 a. m. Dueña Ficticia 
+
+errores de consola/página: ninguno

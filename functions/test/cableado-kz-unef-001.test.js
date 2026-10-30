@@ -180,9 +180,19 @@ t('existe marcarEntregaPush', () => {
   assert.ok(/async function marcarEntregaPush/.test(indice), 'no existe marcarEntregaPush');
 });
 
-t('se marca el resultado en los tres envios del motor', () => {
+/* KZ-UNEF-028 · El motor ya no calcula la ventana dentro del bucle: delega en
+   src/recordatorios.js, que es puro y tiene su propia batería
+   (test/recordatorios.test.js, 22 comprobaciones). Aquí se comprueba que el
+   cableado sigue existiendo: el motor decide, marca la entrega real y no envía
+   nada a quien ya pagó. */
+t('se marca el resultado en los envios del motor', () => {
   const llamadas = (indice.match(/await marcarEntregaPush\(/g) || []).length;
-  assert.ok(llamadas === 3, 'se esperaban 3 marcas del motor y hay ' + llamadas);
+  assert.ok(llamadas >= 2, 'se esperaban al menos 2 marcas del motor y hay ' + llamadas);
+});
+
+t('el motor delega los recordatorios en el modulo probado', () => {
+  assert.ok(/decidirRecordatorios\(/.test(indice), 'el motor no usa decidirRecordatorios');
+  assert.ok(/pagoConfirmadoCubreCorte\(/.test(indice), 'el motor no comprueba el pago confirmado');
 });
 
 t('registrarNotificacion devuelve la referencia del documento', () => {
@@ -202,8 +212,19 @@ t('los errores de FCM no reconocidos se registran', () => {
 
 console.log('\n=== 9. El recordatorio tiene ventana de recuperacion ===');
 
-t('el motor no exige el dia exacto para los avisos previos', () => {
-  assert.ok(/if \(diasAviso > n \|\| diasAviso < 0\) continue;/.test(indice), 'sigue con igualdad exacta');
+/* KZ-UNEF-028 · La ventana ya no está escrita como condición dentro del motor:
+   vive en src/recordatorios.js (enVentana / decidirRecordatorios) y se prueba
+   caso por caso en test/recordatorios.test.js. Aquí se comprueba que la regla
+   nueva está cableada y que la antigua igualdad exacta no sobrevive. */
+t('el motor ya no exige el dia exacto suelto', () => {
+  assert.ok(!/if \(diasAviso > n \|\| diasAviso < 0\) continue;/.test(indice), 'sigue el bucle viejo con igualdad exacta');
+  assert.ok(/decidirRecordatorios\(\{/.test(indice), 'el motor no llama a la decisión probada');
+});
+
+t('la ventana de recuperación está en el módulo probado', () => {
+  const mod = require('fs').readFileSync(require('path').join(__dirname, '..', 'src', 'recordatorios.js'), 'utf8');
+  assert.ok(/function enVentana/.test(mod), 'no existe enVentana');
+  assert.ok(/VENTANA_PREVIO/.test(mod) && /VENTANA_CORTE/.test(mod), 'faltan las ventanas');
 });
 
 t('el cron del motor tiene timeout propio', () => {

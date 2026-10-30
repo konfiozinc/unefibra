@@ -1,0 +1,66 @@
+{
+  "prefijo": "gs://unefibra-firestore-backups/daily/2026-10-30/",
+  "objetos": [
+    {
+      "name": "daily/2026-10-30/clientes/all_namespaces/kind_clientes/all_namespaces_kind_clientes.export_metadata",
+      "size": "1181",
+      "updated": "2026-10-30T08:16:03.255Z"
+    },
+    {
+      "name": "daily/2026-10-30/clientes/all_namespaces/kind_clientes/output-0",
+      "size": "340223",
+      "updated": "2026-10-30T08:16:02.701Z"
+    },
+    {
+      "name": "daily/2026-10-30/clientes/clientes.overall_export_metadata",
+      "size": "115",
+      "updated": "2026-10-30T08:16:03.465Z"
+    },
+    {
+      "name": "daily/2026-10-30/clientes_hoja3_4_backup/all_namespaces/kind_clientes_hoja3_4_backup/all_namespaces_kind_clientes_hoja3_4_backup.export_metadata",
+      "size": "1165",
+      "updated": "2026-10-30T08:19:02.098Z"
+    },
+    {
+      "name": "daily/2026-10-30/clientes_hoja3_4_backup/all_namespaces/kind_clientes_hoja3_4_backup/output-0",
+      "size": "69633",
+      "updated": "2026-10-30T08:19:01.744Z"
+    },
+    {
+      "name": "daily/2026-10-30/clientes_hoja3_4_backup/clientes_hoja3_4_backup.overall_export_metadata",
+      "size": "160",
+      "updated": "2026-10-30T08:19:02.311Z"
+    },
+    {
+      "name": "daily/2026-10-30/historial_estados/all_namespaces/kind_historial_estados/all_namespaces_kind_historial_estados.export_metadata",
+      "size": "315",
+      "updated": "2026-10-30T08:18:03.367Z"
+    },
+    {
+      "name": "daily/2026-10-30/historial_estados/all_namespaces/kind_historial_estados/output-0",
+      "size": "3859",
+      "updated": "2026-10-30T08:18:02.827Z"
+    },
+    {
+      "name": "daily/2026-10-30/historial_estados/historial_estados.overall_export_metadata",
+      "size": "140",
+      "updated": "2026-10-30T08:18:03.561Z"
+    },
+    {
+      "name": "daily/2026-10-30/servicios/all_namespaces/kind_servicios/all_namespaces_kind_servicios.export_metadata",
+      "size": "758",
+      "updated": "2026-10-30T08:17:03.427Z"
+    },
+    {
+      "name": "daily/2026-10-30/servicios/all_namespaces/kind_servicios/output-0",
+      "size": "237291",
+      "updated": "2026-10-30T08:17:02.441Z"
+    },
+    {
+      "name": "daily/2026-10-30/servicios/servicios.overall_export_metadata",
+      "size": "118",
+      "updated": "2026-10-30T08:17:03.643Z"
+    }
+  ],
+  "bajadoEn": "2026-10-30T08:19:53.938Z"
+}

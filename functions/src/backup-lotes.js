@@ -1,0 +1,487 @@
+/* ============================================================
+ * UneFibra SAS — Respaldo de Firestore por lotes (KZ-UNEF-028)
+ * ------------------------------------------------------------
+ * EL DEFECTO QUE ESTO CORRIGE
+ * La exportación diaria pedía la base ENTERA en una sola operación. Con 332
+ * servicios esa operación tarda 536,8 s y la función (gen 1) muere a los 540 s:
+ * la exportación llegaba a completarse en el bucket, pero la función no alcanzaba
+ * a verificarla ni a liberar el cerrojo, y el respaldo quedaba SIN CERTIFICAR.
+ * Subir `timeoutSeconds` no es una opción: 540 s es el máximo de gen 1.
+ *
+ * LA SOLUCIÓN (sin cambiar de plan ni de infraestructura)
+ *   · Se exporta POR COLECCIONES, un lote cada vez, cada uno con su propia
+ *     operación y su propio prefijo en el bucket.
+ *   · Cada invocación trabaja con un PRESUPUESTO de tiempo (por defecto 420 s de
+ *     los 540 disponibles) y guarda el progreso en Firestore.
+ *   · Si el presupuesto se agota, la corrida devuelve PARCIAL (no es un error):
+ *     la siguiente invocación continúa exactamente donde quedó, sin repetir los
+ *     lotes ya completados ni duplicar objetos.
+ *   · El respaldo solo se declara COMPLETADO cuando TODAS las colecciones raíz
+ *     están exportadas y verificadas en el bucket. Nunca antes.
+ *
+ * POR QUÉ NO GEN 2
+ * Gen 2 (`onSchedule`, 1800 s) también resolvería el tiempo, pero exige Cloud
+ * Run/Eventarc y un cambio de facturación del proyecto. El loteo consigue lo
+ * mismo dentro de gen 1 y sin coste nuevo: se prefiere por la restricción de no
+ * cambiar planes sin justificarlo. Si algún día una sola colección no cupiera en
+ * el presupuesto, el manifiesto lo mostraría (se guarda el tiempo de cada lote) y
+ * entonces sí habría que evaluar gen 2.
+ *
+ * Todo es inyectable (`deps`) para probar los escenarios sin tocar el bucket real
+ * ni generar exportaciones de verdad.
+ * ============================================================ */
+
+"use strict";
+
+const { evaluarObjetos, esTransitorio, esperaProgresiva } = require("./backup");
+
+const COLECCION_ESTADO = "backups";
+const DOC_CERROJO = "backupEnCurso";
+const COLECCION_CONFIG = "configuracion";
+
+/** Nombre de corrida por defecto: un día (así una corrida puede durar varias ejecuciones). */
+function corridaDeFecha(fechaISO) {
+  return String(fechaISO || new Date().toISOString().slice(0, 10));
+}
+
+/** Convierte un id de colección en un segmento seguro de ruta en el bucket. */
+function segmento(coleccion) {
+  return String(coleccion).replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 80);
+}
+
+/**
+ * Reparte las colecciones en lotes. `porLote` = 1 significa una operación de
+ * exportación por colección: es lo más granular y lo que permite reanudar con el
+ * mínimo trabajo repetido.
+ */
+function planear(colecturas, porLote = 1) {
+  const lista = [...new Set((colecturas || []).filter(Boolean).map(String))].sort();
+  const tamano = Math.max(1, Math.floor(porLote));
+  const lotes = [];
+  for (let i = 0; i < lista.length; i += tamano) {
+    const grupos = lista.slice(i, i + tamano);
+    lotes.push({ id: grupos.map(segmento).join("__"), colecciones: grupos });
+  }
+  return { total: lista.length, tamano, lotes };
+}
+
+/**
+ * Crea el respaldo por lotes con dependencias inyectables.
+ *
+ * deps:
+ *   fetchImpl, tokenProveedor, dormir, ahora, log
+ *   listarColecciones()            -> string[]  (colecciones raíz)
+ *   listarObjetos(prefijo)         -> string[]
+ *   estado.leer(corrida) / estado.guardar(corrida, datos)
+ *   lock.adquirir(ms) / lock.liberar(estado)
+ *   proyectoId, bucket, porLote, presupuestoMs, timeoutOperacionMs,
+ *   intervaloConsultaMs, intentosMax, baseMsRetroceso, techoMsRetroceso
+ */
+function crearBackupPorLotes(deps = {}) {
+  const fetchImpl = deps.fetchImpl || fetch;
+  const dormir = deps.dormir || ((ms) => new Promise((r) => setTimeout(r, ms)));
+  const ahora = deps.ahora || (() => Date.now());
+  const log = deps.log || ((...a) => console.log(...a));
+  const proyectoId = deps.proyectoId || "une-fibra";
+  const bucket = deps.bucket || "unefibra-firestore-backups";
+  const porLote = deps.porLote || 1;
+  const presupuestoMs = deps.presupuestoMs || 420000;      // 7 min de los 9 disponibles
+  const timeoutOperacionMs = deps.timeoutOperacionMs || 240000; // 4 min por lote
+  const intervaloConsultaMs = deps.intervaloConsultaMs || 3000;
+  const intentosMax = deps.intentosMax || 3;
+  /* KZ-030 · Espera LARGA a propósito. Medido en producción: la PRIMERA
+     exportación de una colección después de un rato inactivo tarda ~58 s (roza el
+     límite interno del servicio y a veces devuelve «Deadline expired before
+     operation could complete»), y las siguientes tardan ~1 s. Reintentar a los 2
+     o 4 segundos caía otra vez en el camino frío y fallaba igual; reintentar tras
+     ~30 s entra en el camino caliente. */
+  const baseMs = deps.baseMsRetroceso || 30000;
+  const techoMs = deps.techoMsRetroceso || 60000;
+  /* KZ-031 · `incluirEstado` permite exportar la colección del manifiesto. Por
+     defecto NO se exporta: ver `ejecutar`. */
+  const incluirEstado = deps.incluirEstado === true;
+  /* KZ-031 · `usarSnapshot` fija UNA sola referencia temporal para todos los lotes
+     de la corrida, para que el respaldo sea consistente entre colecciones. Queda
+     apagado por defecto: cambia el comportamiento de la API de exportación y su
+     coste no está medido en este proyecto. Encenderlo es `usarSnapshot: true`. */
+  const usarSnapshot = deps.usarSnapshot === true;
+
+  const listarColecciones = deps.listarColecciones;
+  const listarObjetos = deps.listarObjetos;
+  const estado = deps.estado;
+  const lock = deps.lock;
+
+  const tokenProveedor = deps.tokenProveedor || (async () => {
+    const admin = require("firebase-admin");
+    const t = await admin.getApp().options.credential.getAccessToken();
+    return t.access_token;
+  });
+
+  function errorConEstado(status, mensaje, extra) {
+    const e = new Error(mensaje);
+    e.status = status;
+    if (extra) Object.assign(e, extra);
+    return e;
+  }
+
+  async function pedir(token, url, opciones) {
+    const r = await fetchImpl(url, {
+      ...opciones,
+      headers: { Authorization: "Bearer " + token, "Content-Type": "application/json", ...(opciones && opciones.headers) }
+    });
+    const texto = await r.text();
+    let json = null;
+    try { json = texto ? JSON.parse(texto) : null; } catch (e) { /* texto plano */ }
+    const ok = r.ok !== undefined ? r.ok : (r.status >= 200 && r.status < 300);
+    return { ok, status: r.status, json, texto };
+  }
+
+  /**
+   * Lista de operaciones de la base, con PLAZO CORTO.
+   *
+   * `GET /operations` se ha quedado colgado más de 300 s en producción (KZ-030), y
+   * dentro de la función eso se come la invocación completa y deja el cerrojo
+   * tomado. Con plazo, un cuelgue se convierte en «no lo sé» y la corrida sigue.
+   */
+  async function listarOperaciones(token) {
+    const control = typeof AbortController === "function" ? new AbortController() : null;
+    const temporizador = control ? setTimeout(() => control.abort(), 15000) : null;
+    try {
+      const r = await pedir(token, `https://firestore.googleapis.com/v1/projects/${proyectoId}/databases/(default)/operations?pageSize=100`, {
+        method: "GET",
+        signal: control ? control.signal : undefined
+      });
+      if (!r.ok || !r.json || !Array.isArray(r.json.operations)) return null;
+      return r.json.operations;
+    } catch (e) {
+      log("[backup-lotes] no se pudo leer la lista de operaciones:", e.message);
+      return null;
+    } finally {
+      if (temporizador) clearTimeout(temporizador);
+    }
+  }
+
+  /**
+   * Nombre de la operación de exportación que TODAVÍA está escribiendo en este
+   * destino, o null si no hay ninguna.
+   *
+   * Por qué importa: el servicio de exportación de este proyecto atiende con mucha
+   * lentitud (medido en producción el 29-oct-2026: entre ~40 s y ~20 min por
+   * colección, y hay días con exportaciones de una hora). Cuando una invocación
+   * muere por tiempo, la operación sigue corriendo en el servidor y termina sola.
+   * Sin esta comprobación la invocación siguiente pedía OTRA exportación hacia el
+   * mismo prefijo: dos operaciones escribiendo los mismos objetos, y la cola del
+   * servicio —que es la que tarda— se llenaba de trabajo repetido.
+   */
+  async function exportacionEnCurso(token, destino) {
+    const operaciones = await listarOperaciones(token);
+    if (!operaciones) return null;   // no se pudo saber: se intenta exportar igual
+    const buscado = String(destino).replace(/\/+$/, "");
+    for (const op of operaciones) {
+      if (op.done) continue;
+      const meta = op.metadata || {};
+      const salida = String(meta.outputUriPrefix || "").replace(/\/+$/, "");
+      if (salida === buscado) return op.name || "sin nombre";
+    }
+    return null;
+  }
+
+  /** Lanza la exportación de UN lote y espera a que termine de verdad. */
+  async function exportarLote(token, lote, destino, snapshot) {
+    const cuerpo = { outputUriPrefix: destino, collectionIds: lote.colecciones };
+    /* KZ-031 · Misma referencia temporal para todos los lotes: sin ella, cada
+       colección se copia en un instante distinto y el respaldo no representa una
+       sola foto de la base. */
+    if (snapshot) cuerpo.snapshotTime = snapshot;
+    const inicio = await pedir(token, `https://firestore.googleapis.com/v1/projects/${proyectoId}/databases/(default):exportDocuments`, {
+      method: "POST",
+      body: JSON.stringify(cuerpo)
+    });
+    if (inicio.status === 401 || inicio.status === 403) {
+      throw errorConEstado(inicio.status, "Sin permiso para exportar Firestore (revisar el rol de la cuenta de servicio).", { definitivo: true });
+    }
+    if (inicio.status === 400 && /collection/i.test(inicio.texto || "")) {
+      /* Una colección puede dejar de existir entre el plan y el lote: no es un
+         fallo del respaldo, se marca para revisar y se sigue con el resto. */
+      throw errorConEstado(400, "Firestore rechazó el lote de colecciones.", { definitivo: false, sinColeccion: true });
+    }
+    if ((inicio.status === 400 || inicio.status === 409) && /in progress|already|otra operaci/i.test(inicio.texto || "")) {
+      /* «Ya hay una exportación en curso en esta base»: el servicio atiende de a una
+         operación. No es un fallo del lote; se deja para la próxima invocación. */
+      throw errorConEstado(inicio.status, "Ya hay una exportación en curso en la base; se reintenta en la próxima corrida.", { congestion: true });
+    }
+    if (!inicio.ok) {
+      const codigo = inicio.json && inicio.json.error && inicio.json.error.status;
+      /* El detalle del rechazo se guarda en el mensaje: sin él, un 400/503 obliga a
+         adivinar la causa (pasó en KZ-030 con el primer intento de certificar). */
+      const detalle = String(inicio.texto || "").replace(/\s+/g, " ").slice(0, 140);
+      throw errorConEstado(inicio.status, `Exportación del lote rechazada (${inicio.status})` + (detalle ? ": " + detalle : ""), { codigo });
+    }
+    const nombreOperacion = inicio.json && inicio.json.name;
+    if (!nombreOperacion) throw errorConEstado(inicio.status, "La exportación no devolvió el nombre de la operación.");
+
+    const limite = ahora() + timeoutOperacionMs;
+    let operacion = null;
+    while (ahora() < limite) {
+      const consulta = await pedir(token, `https://firestore.googleapis.com/v1/${nombreOperacion}`, { method: "GET" });
+      if (consulta.status === 401 || consulta.status === 403) {
+        throw errorConEstado(consulta.status, "Sin permiso para consultar la operación de exportación.", { definitivo: true });
+      }
+      if (consulta.ok && consulta.json) {
+        operacion = consulta.json;
+        if (operacion.done) break;
+      }
+      await dormir(intervaloConsultaMs);
+    }
+    if (!operacion) throw errorConEstado(504, "La operación del lote no respondió.", { codigo: "DEADLINE_EXCEEDED", congestion: true });
+    if (!operacion.done) {
+      /* NO es un fallo del respaldo: la exportación sigue corriendo en el servidor
+         y terminará sola, dejando sus objetos en el bucket. Se marca como
+         «en curso» para que la invocación siguiente la ADOPTE en vez de pedir otra
+         (ver `exportacionEnCurso`). */
+      throw errorConEstado(504, "La exportación sigue en curso; se adopta cuando termine.", { codigo: "EN_CURSO", congestion: true });
+    }
+    if (operacion.error) {
+      const codigo = operacion.error.status || operacion.error.code;
+      throw errorConEstado(500, `El lote falló: ${operacion.error.message || codigo}`, { codigo });
+    }
+    return nombreOperacion;
+  }
+
+  /** Ejecuta un lote con reintentos y verifica que los objetos existan. */
+  async function ejecutarLote(lote, prefijoCorrida, snapshot) {
+    const destino = `gs://${bucket}/${prefijoCorrida}/${lote.id}`;
+    const prefijo = `${prefijoCorrida}/${lote.id}/`;
+    const inicioMs = ahora();
+    let ultimoError = null;
+
+    /* 0) ¿Ya está exportado y verificado en el bucket? Una invocación que muere por
+       tiempo deja la exportación corriendo, y ésta termina sola. Adoptarla es lo
+       que permite reanudar sin volver a exportar lo mismo. */
+    try {
+      const yaHay = await listarObjetos(prefijo);
+      const evaluacion = evaluarObjetos(yaHay);
+      if (evaluacion.completo) {
+        log(`[backup-lotes] ${lote.id}: ya estaba exportado en el bucket (${evaluacion.totalObjetos} objetos)`);
+        return { exito: true, yaEstaba: true, uri: destino, objetos: evaluacion.totalObjetos, ms: ahora() - inicioMs };
+      }
+    } catch (e) {
+      log(`[backup-lotes] ${lote.id}: no se pudo comprobar el bucket (${e.message}); se intenta exportar`);
+    }
+
+    for (let intento = 1; intento <= intentosMax; intento++) {
+      try {
+        const token = await tokenProveedor();
+        /* 1) Si la exportación de este lote sigue en curso, no se pide otra. */
+        const enCurso = await exportacionEnCurso(token, destino);
+        if (enCurso) {
+          log(`[backup-lotes] ${lote.id}: su exportación sigue en curso; se adopta en la próxima corrida`);
+          return { exito: false, congestion: true, ms: ahora() - inicioMs, mensaje: "Exportación en curso: se adopta cuando termine." };
+        }
+        await exportarLote(token, lote, destino, snapshot);
+        const objetos = await listarObjetos(prefijo);
+        const evaluacion = evaluarObjetos(objetos);
+        if (!evaluacion.completo) {
+          throw errorConEstado(500, "Lote incompleto en el bucket: " + evaluacion.motivo, { codigo: "INCOMPLETA" });
+        }
+        return { exito: true, uri: destino, objetos: evaluacion.totalObjetos, ms: ahora() - inicioMs, intentos: intento };
+      } catch (e) {
+        ultimoError = e;
+        const transitorio = esTransitorio(e);
+        log(`[backup-lotes] ${lote.id}: intento ${intento} falló (${e.message})${transitorio ? " · reintentable" : " · definitivo"}`);
+        if (e.congestion || e.definitivo || !transitorio || intento === intentosMax) break;
+        await dormir(esperaProgresiva(intento, baseMs, techoMs));
+      }
+    }
+    return {
+      exito: false,
+      congestion: !!(ultimoError && ultimoError.congestion),
+      ms: ahora() - inicioMs,
+      definitivo: !!ultimoError.definitivo,
+      mensaje: String(ultimoError && ultimoError.message || "error desconocido").slice(0, 300)
+    };
+  }
+
+  /**
+   * Ejecuta la corrida. Puede devolver:
+   *   COMPLETADO        todos los lotes verificados (incluye si ya lo estaba)
+   *   PARCIAL           se agotó el presupuesto y quedan lotes; la próxima sigue
+   *   FALLIDO           algún lote falló de forma definitiva
+   *   OMITIDO           otro proceso tiene el cerrojo
+   */
+  async function ejecutar(opciones = {}) {
+    const presupuesto = opciones.presupuestoMs || presupuestoMs;
+    const corrida = opciones.corrida || corridaDeFecha(opciones.fecha);
+    const inicioCorrida = ahora();
+
+    const cerrojo = await lock.adquirir(opciones.duracionCerrojoMs || 15 * 60 * 1000);
+    if (!cerrojo.ok) {
+      log("[backup-lotes] omitido:", cerrojo.motivo);
+      return { estado: "OMITIDO", motivo: cerrojo.motivo, corrida };
+    }
+
+    try {
+      /* 1) Plan del día: todas las colecciones raíz que existan AHORA. */
+      const colecciones = await listarColecciones();
+      if (!Array.isArray(colecciones) || !colecciones.length) {
+        throw errorConEstado(500, "No se pudo leer la lista de colecciones de Firestore.", { definitivo: true });
+      }
+      /* KZ-031 · `backups` guarda el manifiesto de este mismo respaldo. Exportarla
+         es autorreferente: cambia mientras se copia, nunca coincide consigo misma y
+         ocupa un turno de una cola que es el cuello de botella real (medido:
+         5-20 min por colección). Se excluye del plan; el manifiesto se puede
+         reconstruir de Firestore y no es dato comercial. */
+      const paraExportar = incluirEstado
+        ? colecciones
+        : colecciones.filter((c) => String(c) !== COLECCION_ESTADO);
+      if (paraExportar.length !== colecciones.length) {
+        log(`[backup-lotes] se excluye ${COLECCION_ESTADO} del plan (es el manifiesto del respaldo)`);
+      }
+      if (!paraExportar.length) {
+        throw errorConEstado(500, "No hay colecciones que exportar (solo existe el manifiesto).", { definitivo: true });
+      }
+      const plan = planear(paraExportar, porLote);
+
+      /* 2) Estado previo de la corrida (permite reanudar). */
+      const previo = (await estado.leer(corrida)) || { lotes: {} };
+      const lotesEstado = { ...(previo.lotes || {}) };
+
+      /* Referencia temporal común: si la corrida ya tenía una, se reutiliza para
+         que los lotes de hoy sean la misma foto de la base. */
+      let snapshot = null;
+      if (usarSnapshot) {
+        snapshot = previo.snapshotTime || new Date(ahora() - 60000).toISOString();
+      }
+
+      /* Un lote nuevo aparece si alguien creó una colección desde la última
+         ejecución: se añade como pendiente en lugar de quedarse fuera del
+         respaldo sin que nadie lo note. */
+      let nuevos = 0;
+      for (const lote of plan.lotes) {
+        if (!lotesEstado[lote.id]) {
+          lotesEstado[lote.id] = { estado: "PENDIENTE", colecciones: lote.colecciones };
+          nuevos++;
+        }
+      }
+
+      const pendientes = plan.lotes.filter((l) => (lotesEstado[l.id] || {}).estado !== "COMPLETADO");
+      if (!pendientes.length) {
+        const resumen = resumir(plan.lotes, lotesEstado, corrida);
+        log("[backup-lotes] la corrida ya estaba completa", resumen);
+        await lock.liberar("COMPLETADO");
+        return { ...resumen, estado: "COMPLETADO", yaEstaba: true, corrida };
+      }
+
+      /* 3) Ejecución con presupuesto: nunca se arranca un lote si no queda
+         margen suficiente para el más lento observado. */
+      const procesados = [];
+      let fallidos = [];
+      for (const lote of pendientes) {
+        const transcurrido = ahora() - inicioCorrida;
+        if (transcurrido >= presupuesto) {
+          log("[backup-lotes] presupuesto agotado, quedan", pendientes.length - procesados.length, "lotes");
+          break;
+        }
+        log(`[backup-lotes] ${lote.id} (${lote.colecciones.join(", ")})`);
+        const r = await ejecutarLote(lote, `daily/${corrida}`, snapshot);
+        if (r.exito) {
+          lotesEstado[lote.id] = {
+            estado: "COMPLETADO", uri: r.uri, objetos: r.objetos, ms: r.ms,
+            colecciones: lote.colecciones, cuando: new Date(ahora()).toISOString()
+          };
+          if (r.yaEstaba) lotesEstado[lote.id].adoptado = true;
+        } else if (r.congestion) {
+          /* Ni fallo ni respaldo: la exportación está en la cola del servicio. Se
+             queda PENDIENTE, sin alerta, para que la próxima invocación la adopte. */
+          lotesEstado[lote.id] = {
+            estado: "PENDIENTE", colecciones: lote.colecciones,
+            mensaje: r.mensaje, cuando: new Date(ahora()).toISOString()
+          };
+        } else {
+          lotesEstado[lote.id] = {
+            estado: r.definitivo ? "FALLIDO_DEFINITIVO" : "FALLIDO",
+            mensaje: r.mensaje, ms: r.ms, colecciones: lote.colecciones, cuando: new Date(ahora()).toISOString()
+          };
+          fallidos.push({ lote: lote.id, mensaje: r.mensaje, definitivo: r.definitivo });
+        }
+        procesados.push(r);
+        /* Se guarda el progreso DESPUÉS de cada lote: si la función muere de
+           golpe en el siguiente, este ya está registrado. */
+        await estado.guardar(corrida, {
+          corrida,
+          lotes: lotesEstado,
+          actualizadoEn: new Date(ahora()).toISOString(),
+          presupuestoMs: presupuesto,
+          porLote,
+          ...(snapshot ? { snapshotTime: snapshot } : {})
+        });
+        /* Un fallo definitivo o una exportación en curso detienen la corrida: el
+           servicio atiende de a una operación y seguir sólo alarga la cola. */
+        if (r.definitivo || r.congestion) break;
+      }
+
+      const resumen = resumir(plan.lotes, lotesEstado, corrida);
+      const todos = resumen.completadas === resumen.total && resumen.total > 0;
+      const definitivoFallido = fallidos.some((f) => f.definitivo);
+
+      if (todos) {
+        await lock.liberar("COMPLETADO");
+        log("[backup-lotes] corrida COMPLETADA", resumen);
+        return { ...resumen, estado: "COMPLETADO", corrida, nuevos, fallidos, msTotal: ahora() - inicioCorrida };
+      }
+      await lock.liberar(definitivoFallido ? "FALLIDO" : "PARCIAL");
+      const estadoFinal = definitivoFallido ? "FALLIDO" : "PARCIAL";
+      log(`[backup-lotes] corrida ${estadoFinal}`, resumen);
+      return {
+        ...resumen,
+        estado: estadoFinal,
+        corrida,
+        nuevos,
+        fallidos,
+        pendientes: resumen.total - resumen.completadas,
+        msTotal: ahora() - inicioCorrida,
+        requiereAlerta: definitivoFallido
+      };
+    } catch (e) {
+      await lock.liberar("ERROR_INTERNO");
+      throw e;
+    }
+  }
+
+  function resumir(lotesPlan, lotesEstado, corrida) {
+    const total = lotesPlan.length;
+    const completadas = lotesPlan.filter((l) => (lotesEstado[l.id] || {}).estado === "COMPLETADO").length;
+    const objetos = Object.values(lotesEstado).reduce((t, l) => t + (Number(l.objetos) || 0), 0);
+    const tiempos = Object.entries(lotesEstado)
+      .filter(([, v]) => v.estado === "COMPLETADO" && Number(v.ms) > 0)
+      .map(([id, v]) => ({ lote: id, ms: v.ms }))
+      .sort((a, b) => b.ms - a.ms);
+    return {
+      corrida,
+      total,
+      completadas,
+      objetos,
+      masLento: tiempos[0] || null,
+      prefijo: `daily/${corrida}`,
+      detalle: lotesPlan.map((l) => ({
+        lote: l.id,
+        colecciones: l.colecciones,
+        estado: (lotesEstado[l.id] || {}).estado || "PENDIENTE",
+        objetos: (lotesEstado[l.id] || {}).objetos || 0,
+        ms: (lotesEstado[l.id] || {}).ms || 0
+      }))
+    };
+  }
+
+  return { ejecutar, exportarLote, ejecutarLote, resumir, plan: (c) => planear(c, porLote) };
+}
+
+module.exports = {
+  COLECCION_ESTADO,
+  DOC_CERROJO,
+  COLECCION_CONFIG,
+  corridaDeFecha,
+  segmento,
+  planear,
+  crearBackupPorLotes
+};

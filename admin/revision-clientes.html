@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Revisión de clientes — UneFibra</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="../assets/css/admin.css" />
+  <script type="importmap">
+  { "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
+      "firebase/functions": "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js"
+  } }
+  </script>
+  <style>
+    /* Solo lo propio de esta pantalla: tarjetas de revisión. */
+    .rev__head { display: flex; flex-wrap: wrap; gap: 8px; align-items: baseline; justify-content: space-between; }
+    .rev__head h3 { font-family: var(--font-display); font-size: 1.05rem; }
+    .rev__datos { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 10px 0 0; font-size: 0.9rem; }
+    .rev__datos b { font-weight: 700; }
+    .rev__falta { margin-top: 12px; padding: 10px 12px; border-radius: 10px; background: rgba(251, 191, 36, 0.09); border: 1px solid rgba(251, 191, 36, 0.28); }
+    .rev__falta strong { display: block; font-size: 0.82rem; letter-spacing: 0.4px; text-transform: uppercase; margin-bottom: 4px; }
+    .rev__falta ul { margin: 0; padding-left: 18px; font-size: 0.9rem; }
+    .rev__form { display: grid; gap: 10px; grid-template-columns: 1fr; margin-top: 12px; }
+    @media (min-width: 640px) { .rev__form { grid-template-columns: repeat(3, 1fr); } }
+    .rev__acciones { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+    .rev__msg { margin-top: 10px; font-size: 0.9rem; }
+    .rev__msg.is-ok { color: #34d399; }
+    .rev__msg.is-error { color: #f87171; }
+    .rev__contador { font-size: 0.9rem; }
+    .aviso-lectura { margin-bottom: 16px; }
+    /* KZ-UNEF-033 · El formulario vive separado del resumen y solo aparece al pulsar
+       «Revisar cliente». */
+    .rev__editor { margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); }
+    /* Móvil: botones cómodos para el dedo y texto legible sin zoom. */
+    @media (max-width: 640px) {
+      .rev__acciones { flex-direction: column; }
+      .rev__acciones .btn { width: 100%; min-height: 48px; font-size: 1rem; }
+      .rev__datos { font-size: 0.95rem; gap: 4px 16px; }
+      .rev__head h3 { font-size: 1.1rem; }
+      .rev__falta ul { font-size: 0.95rem; }
+      .rev__form { grid-template-columns: 1fr; }
+      .rev__form input, .rev__form select { min-height: 44px; font-size: 1rem; }
+    }
+  </style>
+  <link rel="icon" href="../assets/icons/favicon.png" type="image/png" />
+</head>
+<body>
+  <div id="app-shell"></div>
+  <script src="../assets/js/config.js"></script>
+  <script src="../assets/js/admin/revision-reglas.js"></script>
+  <script type="module" src="revision-clientes.js"></script>
+</body>
+</html>

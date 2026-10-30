@@ -257,6 +257,50 @@ function crearExportador(deps = {}) {
 
 const porDefecto = crearExportador();
 
+/**
+ * Lista los objetos de un prefijo del bucket con las credenciales de la app.
+ * KZ-UNEF-028 · Lo necesita el respaldo por lotes (backup-lotes.js), que verifica
+ * cada lote por separado; antes esta función solo vivía dentro del exportador.
+ */
+async function listarObjetosDelBucket(prefijo) {
+  const t = await admin.getApp().options.credential.getAccessToken();
+  const r = await fetch(`https://storage.googleapis.com/storage/v1/b/${BUCKET}/o?prefix=${encodeURIComponent(prefijo)}&maxResults=500`, {
+    headers: { Authorization: "Bearer " + t.access_token }
+  });
+  if (r.status === 401 || r.status === 403) throw errorConEstado(r.status, "Sin permiso para leer el bucket de respaldos.", { definitivo: true });
+  if (!r.ok) throw errorConEstado(r.status, `No se pudo listar el bucket (${r.status}).`);
+  const j = await r.json();
+  return (j.items || []).map((o) => o.name);
+}
+
+/**
+ * Cerrojo del respaldo, con las mismas garantías que el del exportador antiguo:
+ * una sola corrida a la vez y caducidad para que un proceso muerto no lo bloquee
+ * para siempre.
+ */
+const lockPorDefecto = {
+  async adquirir(duracionMs) {
+    const db = getFirestore();
+    const ref = db.collection(COLECCION_CERROJO).doc(DOC_CERROJO);
+    return db.runTransaction(async (t) => {
+      const snap = await t.get(ref);
+      const ahoraMs = Date.now();
+      if (snap.exists) {
+        const d = snap.data() || {};
+        const expira = d.expiraEn && d.expiraEn.toMillis ? d.expiraEn.toMillis() : 0;
+        if (expira > ahoraMs) return { ok: false, motivo: "Ya hay un respaldo en curso." };
+      }
+      t.set(ref, { inicio: FieldValue.serverTimestamp(), expiraEn: Timestamp.fromMillis(ahoraMs + duracionMs), estado: "EN_CURSO" });
+      return { ok: true };
+    });
+  },
+  async liberar(resultado) {
+    const db = getFirestore();
+    await db.collection(COLECCION_CERROJO).doc(DOC_CERROJO)
+      .set({ estado: resultado, expiraEn: Timestamp.fromMillis(0) }, { merge: true });
+  }
+};
+
 /** Compatibilidad con el código anterior: lanza y devuelve la ruta. */
 async function exportarFirestore() {
   const r = await porDefecto.exportar();
@@ -271,10 +315,14 @@ async function exportarFirestore() {
 module.exports = {
   BUCKET,
   PROJECT_ID,
+  COLECCION_CERROJO,
+  DOC_CERROJO,
   crearExportador,
   exportarFirestore,
   exportarConDetalle: (opciones) => porDefecto.exportar(opciones),
   evaluarObjetos,
   esTransitorio,
-  esperaProgresiva
+  esperaProgresiva,
+  listarObjetosDelBucket,
+  lockPorDefecto
 };

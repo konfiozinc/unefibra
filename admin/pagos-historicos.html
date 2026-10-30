@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Conciliación de pagos históricos · UneFibra</title>
+<link rel="stylesheet" href="../assets/css/admin.css" />
+<link rel="icon" href="../assets/img/favicon.svg" />
+<style>
+  /* Indicadores: dos por fila en móvil, seis en escritorio (patrón del panel). */
+  #ph-indicadores { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; margin-bottom: 16px; }
+  @media (min-width: 900px) { #ph-indicadores { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  @media (min-width: 1200px) { #ph-indicadores { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+  #ph-indicadores .card { min-width: 0; }
+  #ph-indicadores .ph-num { font-size: 22px; font-weight: 700; line-height: 1.1; }
+  #ph-indicadores .ph-lbl { font-size: 12px; opacity: .75; }
+
+  .ph-toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; }
+  .ph-toolbar input[type="search"] { flex: 1 1 220px; min-width: 0; }
+  .ph-toolbar select, .ph-toolbar input[type="search"] { min-height: 40px; }
+
+  .ph-tabla-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .ph-badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; white-space: nowrap; }
+  .ph-ok { background: #dcfce7; color: #14532d; }
+  .ph-warn { background: #fef3c7; color: #78350f; }
+  .ph-bad { background: #fee2e2; color: #7f1d1d; }
+  .ph-info { background: #dbeafe; color: #1e3a8a; }
+
+  .ph-modal { position: fixed; inset: 0; background: rgba(11,18,32,.55); display: flex; align-items: center; justify-content: center; padding: 12px; z-index: 1000; }
+  .ph-modal[hidden] { display: none; }
+  .ph-caja { display: flex; flex-direction: column; background: #fff; border-radius: 12px; width: min(680px, 100%); max-height: calc(100dvh - 24px); overflow: hidden; }
+  .ph-cab { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-bottom: 1px solid #e5e7eb; background: #0b1220; color: #fff; }
+  .ph-cab h2 { font-size: 16px; margin: 0; }
+  .ph-cerrar { width: 36px; height: 36px; border: 0; border-radius: 8px; background: rgba(255,255,255,.12); color: #fff; font-size: 18px; cursor: pointer; }
+  .ph-cuerpo { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 16px; }
+  .ph-pie { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; padding: 12px 16px; border-top: 1px solid #e5e7eb; background: #f9fafb; }
+  .ph-dl { display: grid; grid-template-columns: minmax(120px, 38%) 1fr; gap: 6px 12px; margin: 0 0 14px; }
+  .ph-dl dt { font-weight: 600; opacity: .8; font-size: 13px; }
+  .ph-dl dd { margin: 0; font-size: 13px; word-break: break-word; }
+  .ph-aviso { padding: 10px 12px; border-radius: 8px; font-size: 13px; margin-bottom: 12px; }
+  .ph-aviso-peligro { background: #fef2f2; border: 1px solid #fecaca; color: #7f1d1d; }
+  .ph-aviso-info { background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; }
+  .ph-msg { min-height: 20px; font-size: 13px; margin-top: 8px; }
+  .ph-msg-error { color: #b91c1c; }
+  .ph-msg-ok { color: #15803d; }
+  .ph-hist { border-top: 1px dashed #e5e7eb; padding-top: 10px; margin-top: 10px; }
+  .ph-hist ul { margin: 6px 0 0; padding-left: 18px; font-size: 13px; }
+  @media (max-width: 480px) { .ph-dl { grid-template-columns: 1fr; } .ph-dl dt { margin-top: 8px; } }
+</style>
+</head>
+<body>
+<div id="app-shell"></div>
+
+<main id="app-content" class="content">
+  <h1>Conciliación de pagos históricos</h1>
+  <p class="muted">
+    Propuestas leídas del Excel del dueño (hojas 1 y 2). Nada está aprobado hasta que una persona
+    lo decide aquí, y aprobar una propuesta <strong>no cobra ni emite nada</strong>: solo deja constancia.
+  </p>
+
+  <div id="ph-indicadores"></div>
+
+  <div class="ph-toolbar">
+    <input id="ph-buscar" type="search" placeholder="Buscar por cliente, período, importe o motivo…" aria-label="Buscar propuestas" />
+    <select id="ph-clase" aria-label="Filtrar por clasificación">
+      <option value="">Todas las clasificaciones</option>
+      <option value="COINCIDENCIA_INEQUIVOCA">Coincidencia inequívoca</option>
+      <option value="POSIBLE_ABONO">Posible abono</option>
+      <option value="PAGO_EXTRAORDINARIO">Importe extraordinario</option>
+      <option value="CELDA_AMBIGUA">Ambiguo</option>
+      <option value="SIN_CLIENTE_UNICO">Sin cliente único</option>
+      <option value="DUPLICADO">Duplicado</option>
+      <option value="CLIENTE_CON_VARIAS_LINEAS">Cliente con varias líneas</option>
+    </select>
+    <select id="ph-estado" aria-label="Filtrar por estado">
+      <option value="">Todos los estados</option>
+      <option value="PROPUESTA">Pendientes</option>
+      <option value="APROBADA">Aprobadas</option>
+      <option value="RECHAZADA">Rechazadas</option>
+    </select>
+    <select id="ph-orden" aria-label="Ordenar">
+      <option value="periodo">Por período</option>
+      <option value="importe">Por importe</option>
+      <option value="clase">Por clasificación</option>
+    </select>
+    <button class="btn btn--ghost" id="ph-recargar" type="button">Recargar</button>
+  </div>
+
+  <div id="ph-aviso-entorno" class="ph-aviso ph-aviso-info" hidden></div>
+  <div id="ph-tabla"></div>
+  <p class="muted" id="ph-paginacion" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:12px"></p>
+
+  <section class="card" style="margin-top:24px">
+    <h2 style="font-size:16px;margin-top:0">Revisión de vencimientos contractuales</h2>
+    <p class="muted" style="font-size:13px">
+      Cambiar la fecha de vencimiento es una <strong>modificación contractual</strong>: exige justificación,
+      confirmación expresa y validación del servidor (<code>corregirVencimientoContractual</code>).
+      Esta vista compara la fecha actual del panel con la que se deduce del último período pagado.
+    </p>
+    <dl class="ph-dl" id="ph-venc-form">
+      <dt>Cliente</dt><dd><input id="ph-venc-cliente" type="text" placeholder="ID de cliente (solo pruebas)" style="min-height:40px;width:100%" /></dd>
+      <dt>Período pagado utilizado</dt><dd><input id="ph-venc-periodo" type="month" style="min-height:40px;width:100%" /></dd>
+      <dt>Fecha propuesta (calculada)</dt><dd><input id="ph-venc-fecha" type="date" style="min-height:40px;width:100%" /></dd>
+      <dt>Justificación</dt><dd><textarea id="ph-venc-motivo" rows="3" style="width:100%" placeholder="Mínimo 15 caracteres: por qué esta fecha es la contractual"></textarea></dd>
+    </dl>
+    <div class="ph-aviso ph-aviso-peligro">
+      Esta acción escribe en <code>clientes.fechaVencimiento</code>. No habilita el servicio, no cambia la
+      conciliación y no suspende a nadie. Requiere que el entorno de pruebas tenga
+      <code>PAGOS_HISTORICOS_HABILITADO=true</code>.
+    </div>
+    <button class="btn btn--primary" id="ph-venc-enviar" type="button">Revisar y aplicar corrección</button>
+    <div class="ph-msg" id="ph-venc-msg" role="status" aria-live="polite"></div>
+  </section>
+
+  <div class="ph-msg" id="ph-msg" role="status" aria-live="polite"></div>
+</main>
+
+<!-- Modal de detalle y de decisión -->
+<div class="ph-modal" id="ph-modal" hidden role="dialog" aria-modal="true" aria-labelledby="ph-modal-titulo">
+  <div class="ph-caja">
+    <div class="ph-cab">
+      <h2 id="ph-modal-titulo">Detalle de la propuesta</h2>
+      <button class="ph-cerrar" id="ph-modal-cerrar" type="button" aria-label="Cerrar">×</button>
+    </div>
+    <div class="ph-cuerpo" id="ph-modal-cuerpo"></div>
+    <div class="ph-pie" id="ph-modal-pie"></div>
+  </div>
+</div>
+
+<!-- KZ-UNEF-028 · La pagina no cargaba assets/js/config.js, asi que
+     window.UNEFIBRAS_CONFIG no existia: core.js no inicializaba Firebase y
+     callables.js lanzaba "Cannot read properties of null (reading 'container')".
+     La pantalla quedaba muerta en el navegador (sin datos y sin sesion). Se carga
+     igual que en el resto del panel, antes del modulo. -->
+<script src="../assets/js/config.js"></script>
+
+<script type="importmap">
+  { "imports": {
+      "firebase/app": "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js",
+      "firebase/auth": "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js",
+      "firebase/firestore": "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js",
+      "firebase/functions": "https://www.gstatic.com/firebasejs/10.12.2/firebase-functions.js"
+  } }
+  </script>
+<script type="module">
+/* core.js inicializa la app de Firebase; callables.js hace getFunctions(app) al cargarse, asi que debe ir primero. */
+import "../assets/js/admin/core.js";
+import { requireAuth } from "../assets/js/admin/shell.js";
+import { call } from "../assets/js/admin/callables.js";
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s == null ? "" : s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+const dinero = (n) => (typeof n === "number" ? "$" + n.toLocaleString("es-CO") : "—");
+const ETIQUETA = {
+  COINCIDENCIA_INEQUIVOCA: ["Coincidencia inequívoca", "ph-ok"],
+  POSIBLE_ABONO: ["Posible abono", "ph-warn"],
+  PAGO_EXTRAORDINARIO: ["Importe extraordinario", "ph-warn"],
+  CELDA_AMBIGUA: ["Ambiguo", "ph-bad"],
+  SIN_CLIENTE_UNICO: ["Sin cliente único", "ph-bad"],
+  DUPLICADO: ["Duplicado", "ph-info"],
+  CLIENTE_CON_VARIAS_LINEAS: ["Varias líneas", "ph-info"]
+};
+const NO_APROBABLES = ["CELDA_AMBIGUA", "SIN_CLIENTE_UNICO"];
+
+let propuestas = [];
+let filtradas = [];
+let pagina = 1;
+const POR_PAGINA = 20;
+let orden = { campo: "periodo", asc: true };
+
+function pintarIndicadores() {
+  const c = (f) => propuestas.filter(f).length;
+  const datos = [
+    ["Total de propuestas", propuestas.length],
+    ["Pendientes de revisión", c((p) => p.estado === "PROPUESTA")],
+    ["Aprobadas", c((p) => p.estado === "APROBADA")],
+    ["Rechazadas", c((p) => p.estado === "RECHAZADA")],
+    ["Ambiguas", c((p) => p.clase === "CELDA_AMBIGUA")],
+    ["Sin cliente único", c((p) => p.clase === "SIN_CLIENTE_UNICO")]
+  ];
+  $("ph-indicadores").innerHTML = datos.map(([l, n]) =>
+    `<div class="card"><div class="ph-num">${n}</div><div class="ph-lbl">${esc(l)}</div></div>`).join("");
+}
+
+function aplicarFiltros() {
+  const texto = $("ph-buscar").value.trim().toLowerCase();
+  const clase = $("ph-clase").value;
+  const estado = $("ph-estado").value;
+  filtradas = propuestas.filter((p) => {
+    if (clase && p.clase !== clase) return false;
+    if (estado && p.estado !== estado) return false;
+    if (!texto) return true;
+    return [p.clienteId, p.periodo, p.clase, p.motivo, p.monto, p.referenciaPrivada]
+      .join(" ").toLowerCase().includes(texto);
+  });
+  const dir = orden.asc ? 1 : -1;
+  filtradas.sort((a, b) => {
+    const va = orden.campo === "importe" ? (a.monto || 0) : String(a[orden.campo] || "");
+    const vb = orden.campo === "importe" ? (b.monto || 0) : String(b[orden.campo] || "");
+    return va < vb ? -dir : va > vb ? dir : 0;
+  });
+  pagina = 1;
+  pintarTabla();
+}
+
+function pintarTabla() {
+  const total = filtradas.length;
+  const paginas = Math.max(1, Math.ceil(total / POR_PAGINA));
+  if (pagina > paginas) pagina = paginas;
+  const trozo = filtradas.slice((pagina - 1) * POR_PAGINA, pagina * POR_PAGINA);
+
+  if (!total) {
+    $("ph-tabla").innerHTML = '<div class="empty">No hay propuestas con ese filtro.</div>';
+    $("ph-paginacion").innerHTML = "";
+    return;
+  }
+  const filas = trozo.map((p) => {
+    const [etiqueta, tono] = ETIQUETA[p.clase] || [p.clase, "ph-info"];
+    const estadoTono = p.estado === "APROBADA" ? "ph-ok" : p.estado === "RECHAZADA" ? "ph-bad" : "ph-warn";
+    const aprobable = p.aprobable === true;
+    return `<tr data-id="${esc(p.id)}">
+      <td title="${esc(p.clienteId || "")}">${esc((p.clienteId || "—").toString().slice(0, 10))}…</td>
+      <td>${esc(p.periodo)}</td>
+      <td>${dinero(p.monto)}</td>
+      <td><span class="ph-badge ${tono}">${esc(etiqueta)}</span></td>
+      <td><span class="ph-badge ${estadoTono}">${esc(p.estado)}</span></td>
+      <td style="white-space:nowrap">
+        <button class="btn btn--sm btn--ghost" data-ver="${esc(p.id)}" type="button">Detalle</button>
+        ${aprobable ? `<button class="btn btn--sm" data-aprobar="${esc(p.id)}" type="button">Aprobar</button>
+        <button class="btn btn--sm btn--ghost" data-rechazar="${esc(p.id)}" type="button">Rechazar</button>` : ""}
+      </td>
+    </tr>`;
+  }).join("");
+
+  $("ph-tabla").innerHTML = `
+    <div class="ph-tabla-wrap" tabindex="0" aria-label="Tabla de propuestas; desplazamiento horizontal disponible">
+      <table>
+        <thead><tr>
+          <th>Cliente</th><th>Período</th><th>Importe</th><th>Clasificación</th><th>Estado</th><th>Acciones</th>
+        </tr></thead>
+        <tbody>${filas}</tbody>
+      </table>
+    </div>`;
+  $("ph-paginacion").innerHTML = `
+    <button class="btn btn--sm btn--ghost" id="ph-prev" type="button" ${pagina <= 1 ? "disabled" : ""}>Anterior</button>
+    <span class="muted">Página ${pagina} de ${paginas} · ${total} propuestas</span>
+    <button class="btn btn--sm btn--ghost" id="ph-next" type="button" ${pagina >= paginas ? "disabled" : ""}>Siguiente</button>`;
+  $("ph-prev")?.addEventListener("click", () => { pagina--; pintarTabla(); });
+  $("ph-next")?.addEventListener("click", () => { pagina++; pintarTabla(); });
+  $("ph-tabla").querySelectorAll("[data-ver]").forEach((b) => b.addEventListener("click", () => abrirDetalle(b.dataset.ver)));
+  $("ph-tabla").querySelectorAll("[data-aprobar]").forEach((b) => b.addEventListener("click", () => abrirDecision(b.dataset.aprobar, "APROBAR")));
+  $("ph-tabla").querySelectorAll("[data-rechazar]").forEach((b) => b.addEventListener("click", () => abrirDecision(b.dataset.rechazar, "RECHAZAR")));
+}
+
+function abrirModal(titulo, cuerpo, pie) {
+  $("ph-modal-titulo").textContent = titulo;
+  $("ph-modal-cuerpo").innerHTML = cuerpo;
+  $("ph-modal-pie").innerHTML = pie || "";
+  $("ph-modal").hidden = false;
+  $("ph-modal-cerrar").focus();
+}
+function cerrarModal() { $("ph-modal").hidden = true; }
+
+function abrirDetalle(id) {
+  const p = propuestas.find((x) => x.id === id);
+  if (!p) return;
+  const [etiqueta] = ETIQUETA[p.clase] || [p.clase];
+  const historial = p.decididoPor
+    ? `<div class="ph-hist"><strong>Historial de decisiones</strong><ul>
+         <li>${esc(p.estado)} por <strong>${esc(p.decididoPor)}</strong>${p.decididoEn ? " el " + esc(p.decididoEn) : ""}</li>
+         ${p.motivoDecision ? `<li>Justificación: ${esc(p.motivoDecision)}</li>` : ""}
+       </ul></div>`
+    : `<div class="ph-hist"><strong>Historial de decisiones</strong><p class="muted">Sin decisiones todavía.</p></div>`;
+  abrirModal("Detalle de la propuesta", `
+    <dl class="ph-dl">
+      <dt>Identificador</dt><dd><code>${esc(p.id)}</code></dd>
+      <dt>Cliente</dt><dd><code>${esc(p.clienteId || "sin cliente único")}</code></dd>
+      <dt>Período</dt><dd>${esc(p.periodo)}</dd>
+      <dt>Importe</dt><dd><strong>${dinero(p.monto)}</strong></dd>
+      <dt>Clasificación</dt><dd>${esc(etiqueta)}</dd>
+      <dt>Estado</dt><dd>${esc(p.estado)}</dd>
+      <dt>Origen del registro</dt><dd>${esc(p.hoja || "—")}, fila ${esc(p.fila || "—")}</dd>
+      <dt>Referencia interna</dt><dd><code>${esc(p.referenciaPrivada || "—")}</code></dd>
+      <dt>Observaciones</dt><dd>${esc(p.motivo || "—")}</dd>
+    </dl>
+    ${NO_APROBABLES.includes(p.clase) ? '<div class="ph-aviso ph-aviso-peligro">Este registro <strong>no puede aprobarse</strong>: requiere corregir el origen en el Excel. El servidor también lo rechaza.</div>' : ""}
+    ${historial}`,
+    `<button class="btn btn--ghost" type="button" id="ph-det-cerrar">Cerrar</button>`);
+  $("ph-det-cerrar").addEventListener("click", cerrarModal);
+}
+
+function abrirDecision(id, accion) {
+  const p = propuestas.find((x) => x.id === id);
+  if (!p) return;
+  const verbo = accion === "APROBAR" ? "Aprobar" : "Rechazar";
+  abrirModal(verbo + " propuesta", `
+    <div class="ph-aviso ph-aviso-info">
+      ${accion === "APROBAR"
+        ? "Aprobar deja constancia de que el pago es correcto. <strong>No cobra, no emite recibo y no habilita el servicio.</strong>"
+        : "Rechazar deja la propuesta fuera de la importación. Se conserva para auditoría."}
+    </div>
+    <dl class="ph-dl">
+      <dt>Cliente</dt><dd><code>${esc(p.clienteId || "—")}</code></dd>
+      <dt>Período</dt><dd>${esc(p.periodo)}</dd>
+      <dt>Importe</dt><dd><strong>${dinero(p.monto)}</strong></dd>
+    </dl>
+    <label for="ph-just"><strong>Justificación (obligatoria, mínimo 10 caracteres)</strong></label>
+    <textarea id="ph-just" rows="3" style="width:100%;margin-top:6px" placeholder="Ej.: confirmado con el dueño por teléfono el 27/10"></textarea>
+    <p class="ph-msg ph-msg-error" id="ph-just-error" role="alert"></p>`,
+    `<button class="btn btn--ghost" type="button" id="ph-dec-cancelar">Cancelar</button>
+     <button class="btn btn--primary" type="button" id="ph-dec-confirmar">Confirmar ${verbo.toLowerCase()}</button>`);
+  $("ph-dec-cancelar").addEventListener("click", cerrarModal);
+  $("ph-dec-confirmar").addEventListener("click", async () => {
+    const motivo = $("ph-just").value.trim();
+    if (motivo.length < 10) {
+      $("ph-just-error").textContent = "La justificación debe tener al menos 10 caracteres.";
+      $("ph-just").focus();
+      return;
+    }
+    const boton = $("ph-dec-confirmar");
+    boton.disabled = true;
+    boton.textContent = "Enviando…";
+    try {
+      const fn = call("decidirPropuestasPagos");
+      const r = await fn({ decisiones: [{ id: p.id, accion, motivo }] });
+      const res = r.data.resultados[0];
+      if (res.resultado === "APROBADA" || res.resultado === "RECHAZADA") {
+        aviso(res.resultado === "APROBADA" ? "Propuesta aprobada y auditada." : "Propuesta rechazada y auditada.", "ok");
+        cerrarModal();
+        await cargar();
+      } else {
+        $("ph-just-error").textContent = "El servidor rechazó la operación: " + res.resultado;
+        boton.disabled = false;
+        boton.textContent = "Confirmar";
+      }
+    } catch (e) {
+      $("ph-just-error").textContent = (e && e.message) || "No se pudo completar la operación.";
+      boton.disabled = false;
+      boton.textContent = "Confirmar";
+    }
+  });
+  $("ph-just")?.focus();
+}
+
+function aviso(texto, tipo) {
+  const el = $("ph-msg");
+  el.textContent = texto;
+  el.className = "ph-msg " + (tipo === "ok" ? "ph-msg-ok" : "ph-msg-error");
+}
+
+async function cargar() {
+  $("ph-tabla").innerHTML = '<div class="empty">Cargando propuestas…</div>';
+  try {
+    const fn = call("listarPropuestasPagos");
+    const r = await fn({ limite: 200 });
+    propuestas = r.data.propuestas || [];
+    if (r.data.interruptorActivo === false) {
+      const avisoEntorno = $("ph-aviso-entorno");
+      avisoEntorno.hidden = false;
+      avisoEntorno.textContent = "Este entorno tiene las acciones de escritura deshabilitadas (PAGOS_HISTORICOS_HABILITADO). Puedes revisar, pero no decidir.";
+    }
+    pintarIndicadores();
+    aplicarFiltros();
+  } catch (e) {
+    $("ph-tabla").innerHTML = `<div class="empty">No fue posible cargar las propuestas: ${esc((e && e.message) || "error")}</div>`;
+    pintarIndicadores();
+  }
+}
+
+(async function main() {
+  const ctx = await requireAuth("pagos-historicos");
+  if (!ctx) return;
+  $("ph-buscar").addEventListener("input", aplicarFiltros);
+  $("ph-clase").addEventListener("change", aplicarFiltros);
+  $("ph-estado").addEventListener("change", aplicarFiltros);
+  $("ph-orden").addEventListener("change", (e) => {
+    orden = { campo: e.target.value, asc: e.target.value !== "importe" ? true : false };
+    aplicarFiltros();
+  });
+  $("ph-recargar").addEventListener("click", cargar);
+  $("ph-modal-cerrar").addEventListener("click", cerrarModal);
+  $("ph-modal").addEventListener("click", (e) => { if (e.target.id === "ph-modal") cerrarModal(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !$("ph-modal").hidden) cerrarModal(); });
+
+  $("ph-venc-enviar").addEventListener("click", async () => {
+    const clienteId = $("ph-venc-cliente").value.trim();
+    const periodo = $("ph-venc-periodo").value;
+    const fecha = $("ph-venc-fecha").value;
+    const motivo = $("ph-venc-motivo").value.trim();
+    const msg = $("ph-venc-msg");
+    if (!clienteId || !periodo || !fecha) { msg.textContent = "Completa cliente, período y fecha."; msg.className = "ph-msg ph-msg-error"; return; }
+    if (motivo.length < 15) { msg.textContent = "La justificación debe tener al menos 15 caracteres."; msg.className = "ph-msg ph-msg-error"; return; }
+    if (!window.confirm(`Vas a modificar la fecha de vencimiento contractual de ${clienteId} a ${fecha}. ¿Confirmas?`)) return;
+    msg.textContent = "Enviando…"; msg.className = "ph-msg";
+    try {
+      const fn = call("corregirVencimientoContractual");
+      const r = await fn({ clienteId, fechaPropuesta: fecha, periodoUtilizado: periodo, justificacion: motivo, confirmado: true });
+      msg.textContent = `Corregido: ${r.data.anterior || "(sin fecha)"} → ${r.data.nuevo}. Servicios tocados: ${r.data.serviciosTocados}.`;
+      msg.className = "ph-msg ph-msg-ok";
+    } catch (e) {
+      msg.textContent = (e && e.message) || "No se pudo corregir el vencimiento.";
+      msg.className = "ph-msg ph-msg-error";
+    }
+  });
+
+  await cargar();
+})();
+</script>
+</body>
+</html>
