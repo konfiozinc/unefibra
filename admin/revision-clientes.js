@@ -147,6 +147,8 @@ function tarjeta(f) {
       <label class="field"><span>Fecha de cobro</span>
         <input type="date" data-campo="fechaVencimiento" value="${esc(fechaPropuesta)}" /></label>
     </div>
+    <label class="field" style="margin-top:10px"><span>Motivo del cambio (obligatorio si el cliente ya tiene pagos)</span>
+      <input data-campo="motivo" maxlength="200" placeholder="Ej.: el cliente cambió al corte 15" /></label>
     <div class="rev__acciones">
       <button class="btn btn--primary btn--sm" data-accion="guardar">Guardar y confirmar</button>
       <a class="btn btn--ghost btn--sm" href="cliente.html?id=${encodeURIComponent(f.servicio.clienteId || "")}">Ver cliente</a>
@@ -200,12 +202,15 @@ async function guardar(card) {
   if (precio && Number(precio) !== f.precio) correcciones.precioMensual = Number(precio);
   if (ciclo && String(ciclo) !== String(f.ciclo)) correcciones.cicloCorte = String(ciclo);
   if (fecha && fecha !== f.fecha) correcciones.fechaVencimiento = fecha;
+  /* El motivo viaja siempre que se escriba: el servidor lo exige si el cliente ya
+     tiene pagos y el cambio toca la fecha, y lo guarda en el historial. */
+  const motivo = String(leer("motivo") || "").trim();
 
   boton.disabled = true;
   boton.textContent = "Guardando…";
   msg.hidden = true;
   try {
-    const r = await call("confirmarRevisionComercial")({ servicioId, correcciones });
+    const r = await call("confirmarRevisionComercial")({ servicioId, correcciones, motivo: motivo || null });
     msg.hidden = false;
     msg.className = "rev__msg is-ok";
     msg.textContent = (r.data && r.data.mensaje) || "Guardado.";
