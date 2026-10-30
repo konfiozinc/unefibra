@@ -211,6 +211,38 @@ function renovarPorCiclo(opciones = {}) {
   };
 }
 
+/**
+ * Renueva AL DÍA DE CORTE, aunque la fecha actual esté desviada.
+ *
+ * KZ-UNEF-032 · El defecto que corrige: renovar sumando la duración (30 días) saca
+ * al cliente de su ciclo cuando el mes tiene 31 días. Un cliente del corte 30 que
+ * pagaba el 30-nov renovaba al 29-dic, y desde ahí seguía corriendo un día por mes;
+ * nunca volvía solo a su corte. Aquí el vencimiento nuevo es SIEMPRE el siguiente
+ * día de corte (15 o 30, y en febrero o meses de 30 días el último día real).
+ *
+ * @param {object} opciones { ciclo, base }  base = fecha desde la que se renueva
+ * @returns {{periodo:string, periodoInicio:string, periodoFin:string, vencimiento:string}|null}
+ */
+function renovarAlCorte(opciones = {}) {
+  const ciclo = normalizarCiclo(opciones.ciclo);
+  const base = opciones.base;
+  if (ciclo === null || !esFechaISO(base)) return null;
+
+  let [anio, mes] = base.split("-").map(Number);
+  let periodo = anio + "-" + String(mes).padStart(2, "0");
+  let corte = fechaDeCorte(anio, mes, ciclo);
+  /* El corte del mes de la base ya pasó (o es hoy): el período que se cobra es el
+     siguiente, para no renovar hacia atrás. */
+  if (corte <= base) {
+    periodo = desplazarPeriodo(periodo, 1);
+    const partes = periodo.split("-").map(Number);
+    corte = fechaDeCorte(partes[0], partes[1], ciclo);
+  }
+  const rango = cubiertoPor(periodo, ciclo);
+  if (!rango || !corte) return null;
+  return { periodo, periodoInicio: rango.desde, periodoFin: rango.hasta, vencimiento: corte };
+}
+
 module.exports = {
   CICLOS_VALIDOS,
   normalizarCiclo,
@@ -222,5 +254,7 @@ module.exports = {
   vencimientoDesdeAlta,
   periodoDePago,
   proponerVencimiento,
-  renovarPorCiclo
+  renovarPorCiclo,
+  renovarAlCorte
 };
+

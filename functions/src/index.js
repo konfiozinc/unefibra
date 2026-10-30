@@ -1404,18 +1404,22 @@ exports.confirmarPago = functions.https.onCall(async (data, context) => {
       duracion: plan.duracion
     });
 
-    /* KZ-UNEF-029 · HALLAZGO REPORTADO, NO APLICADO.
-       Renovar sumando 30 días fijos saca la fecha de su día de corte en los meses
-       de 31 días (15-dic + 30 = 14-ene) y de ahí ya no vuelve sola: tras 6
-       renovaciones la simulación acababa en 2027-05-14 y 2027-05-29, fuera del
-       ciclo. La corrección está escrita y probada (vencimientos.renovarPorCiclo,
-       test/renovacion-ciclo.test.js 11/11) pero NO se activa aquí: cambiar el
-       período que se le cobra a un cliente es una decisión comercial del
-       propietario, y la certificación KZ-UNEF-002 fija hoy «hoy + 30 días».
-       Para activarla: sustituir las tres asignaciones `periodoFin` por
-       `periodoCobrado.*` (el período pasa a terminar el día anterior al corte y el
-       vencimiento vuelve a caer en el día del ciclo). */
-    const periodoCobrado = { inicio: periodoInicio, fin: periodoFin, vencimiento: periodoFin };
+    /* KZ-UNEF-032 · LA RENOVACIÓN RESPETA EL DÍA DE CORTE DEL CLIENTE.
+       Antes el período se calculaba sumando la duración del plan (30 días fijos):
+       un cliente del corte 30 que pagaba el 30-nov renovaba al 29-dic, y desde ahí
+       corría un día por mes sin volver nunca a su corte. Ahora, si el cliente tiene
+       ciclo, el vencimiento nuevo es el SIGUIENTE día de corte (15 o 30, y en
+       febrero o meses de 30 días el último día real del mes). Si no tiene ciclo se
+       conserva el cálculo anterior, para no cambiar el comportamiento de quien
+       todavía no tiene corte asignado. */
+    const hoyDeRenovacion = hoyISO();
+    const baseDeRenovacion = cliente.fechaVencimiento && cliente.fechaVencimiento > hoyDeRenovacion
+      ? cliente.fechaVencimiento
+      : hoyDeRenovacion;
+    const alCorte = require("./vencimientos").renovarAlCorte({ ciclo: cliente.cicloCorte, base: baseDeRenovacion });
+    const periodoCobrado = alCorte
+      ? { inicio: alCorte.periodoInicio, fin: alCorte.periodoFin, vencimiento: alCorte.vencimiento }
+      : { inicio: periodoInicio, fin: periodoFin, vencimiento: periodoFin };
 
     // Actualizar pago. `fechaPago` NO se reescribe: es la fecha en que el
     // cliente pagó, no la fecha en que un operador hizo clic en confirmar.

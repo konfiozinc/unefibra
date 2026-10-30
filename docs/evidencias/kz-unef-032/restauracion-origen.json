@@ -1,0 +1,21 @@
+{
+  "prefijo": "gs://unefibra-firestore-backups/daily/2026-10-29/auditoria/",
+  "objetos": [
+    {
+      "name": "daily/2026-10-29/auditoria/all_namespaces/kind_auditoria/all_namespaces_kind_auditoria.export_metadata",
+      "size": "1662",
+      "updated": "2026-10-29T09:08:40.121Z"
+    },
+    {
+      "name": "daily/2026-10-29/auditoria/all_namespaces/kind_auditoria/output-0",
+      "size": "10997",
+      "updated": "2026-10-29T09:08:39.484Z"
+    },
+    {
+      "name": "daily/2026-10-29/auditoria/auditoria.overall_export_metadata",
+      "size": "116",
+      "updated": "2026-10-29T09:08:40.305Z"
+    }
+  ],
+  "bajadoEn": "2026-10-30T06:51:59.266Z"
+}
