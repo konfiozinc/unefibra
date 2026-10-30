@@ -90,3 +90,23 @@ La restauración de una colección existente **sobrescribe** los documentos con 
 2. El respaldo del 29-oct quedó **PARCIAL** (2 de 10 colecciones con objetos completos: `auditoria` y `backups`).
 3. La copia íntegra más reciente es del **28-oct 08:00Z**, anterior al cambio del motor de vencimientos de las 15:00Z (CLAUDIA VERGARA: ACTIVO → POR_VENCER).
 4. Sin `snapshotTime`, el respaldo no es consistente entre colecciones.
+
+---
+
+## Anexo KZ-UNEF-035 · Recuperación autorizada ejecutada (30-oct-2026)
+
+**Copia nueva creada:** `gs://unefibra-firestore-backups/daily/2026-10-30/` con las cuatro colecciones comerciales que faltaban.
+
+| Colección | Duración | Objetos | Datos | Verificación |
+|---|---|---|---|---|
+| `clientes` (358) | 43 s | 3 | 332 KB | **restaurada en aislado: 358 documentos = producción** |
+| `servicios` (332) | 54 s | 3 | 232 KB | ids reales 3/3 · valores 12/12 dentro del archivo |
+| `historial_estados` (10) | 54 s | 3 | 4 KB | ids reales 3/3 · valores 12/12 |
+| `clientes_hoja3_4_backup` (60) | 64 s | 3 | 68 KB | ids reales 3/3 · valores 12/12 |
+
+- **Nada se sobrescribió**: `daily/2026-10-29/` (6 objetos), `pre-kz-030/` (18) y `daily/2026-10-28T08-00-20-935Z/` (12) siguen con **0 objetos escritos hoy**.
+- **No se reanudó** ninguna programación: `backupFirestore` y `continuarBackup` siguen **PAUSED**. Las exportaciones se lanzaron manualmente, una a la vez, esperando a que no hubiera ninguna activa (0 de 36 al empezar).
+- **Por qué no se reanudó `continuarBackup`**: la versión desplegada (v4, hash `729e4a90e09b` = commit `4396d74`) todavía usa el **plan de 10 lotes con `backups`**; la exclusión del manifiesto entró en `dece80e` y **no está desplegada**.
+- **Los tiempos cayeron a ~1 minuto por colección** (el 29-oct tardaban 5-20 min porque la cola estaba saturada por reintentos propios). Con la cola limpia, el respaldo de un día completo cabe en minutos.
+
+**Reactivación recomendada:** cuando se autorice, `:resume` de `continuarBackup`. La corrida del 30-oct **adoptará** los cuatro prefijos ya exportados (el `lote-id` coincide con el nombre de la colección) y solo exportará los que falten: **estimado 10-25 min**. Después de que el día cierre `COMPLETADO`, reactivar `backupFirestore`.
