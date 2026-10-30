@@ -110,3 +110,37 @@ La restauración de una colección existente **sobrescribe** los documentos con 
 - **Los tiempos cayeron a ~1 minuto por colección** (el 29-oct tardaban 5-20 min porque la cola estaba saturada por reintentos propios). Con la cola limpia, el respaldo de un día completo cabe en minutos.
 
 **Reactivación recomendada:** cuando se autorice, `:resume` de `continuarBackup`. La corrida del 30-oct **adoptará** los cuatro prefijos ya exportados (el `lote-id` coincide con el nombre de la colección) y solo exportará los que falten: **estimado 10-25 min**. Después de que el día cierre `COMPLETADO`, reactivar `backupFirestore`.
+
+---
+
+## Anexo KZ-UNEF-036 · Funciones de respaldo actualizadas (30-oct-2026)
+
+**Desplegado (solo estas dos, con autorización):**
+
+| Función | Antes | Ahora | Hash | Estado |
+|---|---|---|---|---|
+| `backupFirestore` | v11 (`4396d74`) | **v12** | `9b14e4da3705` | ACTIVE · 2026-10-30T08:51:49Z |
+| `continuarBackup` | v4 (`4396d74`) | **v5** | `9b14e4da3705` | ACTIVE · 2026-10-30T08:51:52Z |
+
+De las **28 funciones** del proyecto, **solo esas dos** cambiaron; la siguiente más reciente sigue siendo del 26-oct.
+
+**Qué cambia en el comportamiento:**
+
+1. **Plan de 9 lotes:** de las 10 colecciones raíz se excluye `backups` (el manifiesto del propio respaldo). Verificado con los datos reales: el plan son `auditoria, clientes, clientes_hoja3_4_backup, configuracion, historial_estados, metodos_pago, planes, servicios, usuarios` y **no incluye `backups`**.
+2. **Adopción por fecha + colección:** el lote se adopta solo si existen `*.overall_export_metadata` + datos en `daily/<fecha>/<colección>/`. Prueba nueva: objetos del 29-oct **no** se adoptan en una corrida del 30-oct (`backup-lotes` 25/25).
+3. **Una exportación activa nunca es un fallo:** 503, «otra exportación en curso» y plazo agotado dejan el lote `PENDIENTE` sin alerta ni duplicado.
+4. **`snapshotTime` apagado:** no se pasa desde `index.js`; queda como mejora opcional a medir.
+5. **Manifiestos separados por fecha:** `backups/2026-10-29` (10 lotes, histórica, intacta) y `backups/2026-10-30` (no existe aún: nada se ha ejecutado).
+
+**Adopción posible en la próxima corrida del 30-oct (verificado con el bucket real):** 4 lotes adoptables (`clientes`, `servicios`, `historial_estados`, `clientes_hoja3_4_backup`) y **5 por exportar** (`auditoria`, `configuracion`, `metodos_pago`, `planes`, `usuarios`).
+
+**Programadores:** `backupFirestore` **PAUSED** y `continuarBackup` **PAUSED**, antes y después del despliegue. **Desplegar no es autorizar la ejecución programada:** el respaldo automático **no está funcionando** hasta que se reanude.
+
+**Reversión (procedimiento limitado a las funciones de respaldo):**
+
+```
+git checkout 4396d74 -- functions/src functions/package.json
+firebase deploy --only functions:backupFirestore,functions:continuarBackup --project une-fibra
+git checkout HEAD -- functions/src functions/package.json   # dejar el árbol limpio
+```
+No toca datos, manifiestos, respaldos, el panel publicado ni las otras 26 funciones. Alternativa sin tocar el árbol: redesplegar desde un clon del commit anterior.
