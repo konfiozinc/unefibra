@@ -32,6 +32,7 @@ const NAV = [
   { key: "notificaciones", label: "Recordatorios", href: "notificaciones.html", min: "ADMIN", grupo: "principal", icono: "🔔" },
   { key: "planes", label: "Planes", href: "planes.html", min: "ADMIN", grupo: "principal", icono: "📶" },
 
+  { key: "revision", label: "Revisión de clientes", href: "revision-clientes.html", min: "ADMIN", grupo: "mas" },
   { key: "solicitudes", label: "Solicitudes de clientes", href: "solicitudes.html", min: "OPERADOR", grupo: "mas" },
   { key: "corte15", label: "Lista de cobro · corte 15", href: "lista-corte-15.html", min: "OPERADOR", grupo: "mas" },
   { key: "corte30", label: "Lista de cobro · corte 30", href: "lista-corte-30.html", min: "OPERADOR", grupo: "mas" },

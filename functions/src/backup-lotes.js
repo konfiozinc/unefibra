@@ -97,6 +97,14 @@ function crearBackupPorLotes(deps = {}) {
      ~30 s entra en el camino caliente. */
   const baseMs = deps.baseMsRetroceso || 30000;
   const techoMs = deps.techoMsRetroceso || 60000;
+  /* KZ-031 · `incluirEstado` permite exportar la colección del manifiesto. Por
+     defecto NO se exporta: ver `ejecutar`. */
+  const incluirEstado = deps.incluirEstado === true;
+  /* KZ-031 · `usarSnapshot` fija UNA sola referencia temporal para todos los lotes
+     de la corrida, para que el respaldo sea consistente entre colecciones. Queda
+     apagado por defecto: cambia el comportamiento de la API de exportación y su
+     coste no está medido en este proyecto. Encenderlo es `usarSnapshot: true`. */
+  const usarSnapshot = deps.usarSnapshot === true;
 
   const listarColecciones = deps.listarColecciones;
   const listarObjetos = deps.listarObjetos;
@@ -179,10 +187,15 @@ function crearBackupPorLotes(deps = {}) {
   }
 
   /** Lanza la exportación de UN lote y espera a que termine de verdad. */
-  async function exportarLote(token, lote, destino) {
+  async function exportarLote(token, lote, destino, snapshot) {
+    const cuerpo = { outputUriPrefix: destino, collectionIds: lote.colecciones };
+    /* KZ-031 · Misma referencia temporal para todos los lotes: sin ella, cada
+       colección se copia en un instante distinto y el respaldo no representa una
+       sola foto de la base. */
+    if (snapshot) cuerpo.snapshotTime = snapshot;
     const inicio = await pedir(token, `https://firestore.googleapis.com/v1/projects/${proyectoId}/databases/(default):exportDocuments`, {
       method: "POST",
-      body: JSON.stringify({ outputUriPrefix: destino, collectionIds: lote.colecciones })
+      body: JSON.stringify(cuerpo)
     });
     if (inicio.status === 401 || inicio.status === 403) {
       throw errorConEstado(inicio.status, "Sin permiso para exportar Firestore (revisar el rol de la cuenta de servicio).", { definitivo: true });
@@ -236,7 +249,7 @@ function crearBackupPorLotes(deps = {}) {
   }
 
   /** Ejecuta un lote con reintentos y verifica que los objetos existan. */
-  async function ejecutarLote(lote, prefijoCorrida) {
+  async function ejecutarLote(lote, prefijoCorrida, snapshot) {
     const destino = `gs://${bucket}/${prefijoCorrida}/${lote.id}`;
     const prefijo = `${prefijoCorrida}/${lote.id}/`;
     const inicioMs = ahora();
@@ -265,7 +278,7 @@ function crearBackupPorLotes(deps = {}) {
           log(`[backup-lotes] ${lote.id}: su exportación sigue en curso; se adopta en la próxima corrida`);
           return { exito: false, congestion: true, ms: ahora() - inicioMs, mensaje: "Exportación en curso: se adopta cuando termine." };
         }
-        await exportarLote(token, lote, destino);
+        await exportarLote(token, lote, destino, snapshot);
         const objetos = await listarObjetos(prefijo);
         const evaluacion = evaluarObjetos(objetos);
         if (!evaluacion.completo) {
@@ -313,11 +326,32 @@ function crearBackupPorLotes(deps = {}) {
       if (!Array.isArray(colecciones) || !colecciones.length) {
         throw errorConEstado(500, "No se pudo leer la lista de colecciones de Firestore.", { definitivo: true });
       }
-      const plan = planear(colecciones, porLote);
+      /* KZ-031 · `backups` guarda el manifiesto de este mismo respaldo. Exportarla
+         es autorreferente: cambia mientras se copia, nunca coincide consigo misma y
+         ocupa un turno de una cola que es el cuello de botella real (medido:
+         5-20 min por colección). Se excluye del plan; el manifiesto se puede
+         reconstruir de Firestore y no es dato comercial. */
+      const paraExportar = incluirEstado
+        ? colecciones
+        : colecciones.filter((c) => String(c) !== COLECCION_ESTADO);
+      if (paraExportar.length !== colecciones.length) {
+        log(`[backup-lotes] se excluye ${COLECCION_ESTADO} del plan (es el manifiesto del respaldo)`);
+      }
+      if (!paraExportar.length) {
+        throw errorConEstado(500, "No hay colecciones que exportar (solo existe el manifiesto).", { definitivo: true });
+      }
+      const plan = planear(paraExportar, porLote);
 
       /* 2) Estado previo de la corrida (permite reanudar). */
       const previo = (await estado.leer(corrida)) || { lotes: {} };
       const lotesEstado = { ...(previo.lotes || {}) };
+
+      /* Referencia temporal común: si la corrida ya tenía una, se reutiliza para
+         que los lotes de hoy sean la misma foto de la base. */
+      let snapshot = null;
+      if (usarSnapshot) {
+        snapshot = previo.snapshotTime || new Date(ahora() - 60000).toISOString();
+      }
 
       /* Un lote nuevo aparece si alguien creó una colección desde la última
          ejecución: se añade como pendiente en lugar de quedarse fuera del
@@ -349,7 +383,7 @@ function crearBackupPorLotes(deps = {}) {
           break;
         }
         log(`[backup-lotes] ${lote.id} (${lote.colecciones.join(", ")})`);
-        const r = await ejecutarLote(lote, `daily/${corrida}`);
+        const r = await ejecutarLote(lote, `daily/${corrida}`, snapshot);
         if (r.exito) {
           lotesEstado[lote.id] = {
             estado: "COMPLETADO", uri: r.uri, objetos: r.objetos, ms: r.ms,
@@ -378,7 +412,8 @@ function crearBackupPorLotes(deps = {}) {
           lotes: lotesEstado,
           actualizadoEn: new Date(ahora()).toISOString(),
           presupuestoMs: presupuesto,
-          porLote
+          porLote,
+          ...(snapshot ? { snapshotTime: snapshot } : {})
         });
         /* Un fallo definitivo o una exportación en curso detienen la corrida: el
            servicio atiende de a una operación y seguir sólo alarga la cola. */

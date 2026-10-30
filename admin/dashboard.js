@@ -70,6 +70,12 @@ async function contarPorCiclo(ciclo) {
   return (await getCountFromServer(q)).data().count;
 }
 
+/** Servicios importados que todavía esperan revisión comercial (KZ-UNEF-031). */
+async function contarRevisionPendiente() {
+  const q = query(collection(db, "servicios"), where("conciliacion.estado", "==", "PENDIENTE_VALIDACION"));
+  return (await getCountFromServer(q)).data().count;
+}
+
 // ---- Render ----
 function card(label, value, opts = {}) {
   return `
@@ -111,6 +117,9 @@ function card(label, value, opts = {}) {
 
     const proximo15 = fmtFecha(proximoCorteDe("15"));
     const proximo30 = fmtFecha(proximoCorteDe("30"));
+    /* KZ-UNEF-031 · Cuántos servicios esperan revisión comercial. Si falla, no
+       rompe el tablero: se muestra sin el número. */
+    const porRevisar = await contarRevisionPendiente().catch(() => null);
 
     content.innerHTML = `
       <div class="cards">
@@ -160,6 +169,16 @@ function card(label, value, opts = {}) {
         <div style="margin-top:14px;">
           <a class="btn btn--ghost" href="notificaciones.html">Ver recordatorios enviados</a>
         </div>
+      </div>
+
+      <div class="panel" style="margin-top:16px;">
+        <h2>Datos comerciales por revisar</h2>
+        <p class="muted" style="font-size:0.88rem;margin-bottom:12px;">
+          ${porRevisar === null
+            ? "No se pudo contar ahora mismo cuántos servicios esperan revisión."
+            : `Hay <strong>${porRevisar}</strong> servicio(s) importados a los que les falta confirmar el valor mensual, el día de corte o la fecha de cobro. Confirmar un dato no activa el cobro.`}
+        </p>
+        <a class="btn btn--primary" href="revision-clientes.html">Revisar y confirmar datos</a>
       </div>`;
   } catch (err) {
     console.error("Error al cargar el dashboard:", err);

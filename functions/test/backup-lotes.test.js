@@ -336,6 +336,41 @@ t('el id del lote es un segmento seguro de ruta en el bucket', () => {
     assert.ok(!r.requiereAlerta, 'no es motivo de alerta');
   });
 
+  console.log('\n=== 8. Referencia temporal común y exclusión del manifiesto ===');
+
+  await ta('la colección backups (el propio manifiesto) no se exporta', async () => {
+    const s = simulador({ colecciones: ['clientes', 'pagos', 'backups'], msPorLote: 1000 });
+    const backup = crearBackupPorLotes(s.deps);
+    const r = await backup.ejecutar({ presupuestoMs: 600000, fecha: '2026-10-29' });
+    assert.strictEqual(r.total, 2, 'el plan debe quedar sin la colección del manifiesto');
+    assert.strictEqual(r.estado, 'COMPLETADO');
+    const exportados = s.peticiones.filter((p) => p.body && p.body.collectionIds).map((p) => p.body.collectionIds[0]);
+    assert.deepStrictEqual(exportados.sort(), ['clientes', 'pagos']);
+  });
+
+  await ta('todos los lotes usan la MISMA referencia temporal', async () => {
+    const s = simulador({ colecciones: ['a', 'b', 'c'], msPorLote: 1000 });
+    const backup = crearBackupPorLotes({ ...s.deps, usarSnapshot: true });
+    await backup.ejecutar({ presupuestoMs: 600000, fecha: '2026-10-29' });
+    const snaps = s.peticiones.filter((p) => p.body && p.body.snapshotTime).map((p) => p.body.snapshotTime);
+    assert.strictEqual(snaps.length, 3, 'cada lote lleva la referencia');
+    assert.strictEqual(new Set(snaps).size, 1, 'una sola marca de tiempo para toda la corrida');
+    assert.ok(Date.parse(snaps[0]) < s.reloj(), 'la referencia debe estar en el pasado');
+  });
+
+  await ta('al reanudar se conserva la referencia de la corrida', async () => {
+    const s = simulador({ colecciones: ['a', 'b', 'c'], msPorLote: 30000 });
+    const backup = crearBackupPorLotes({ ...s.deps, usarSnapshot: true });
+    const r1 = await backup.ejecutar({ presupuestoMs: 60000, fecha: '2026-10-29' });
+    assert.strictEqual(r1.estado, 'PARCIAL');
+    assert.ok(r1.completadas < 3, 'la primera invocación no alcanza las tres colecciones');
+    const primero = s.peticiones.filter((p) => p.body && p.body.snapshotTime)[0].body.snapshotTime;
+    await backup.ejecutar({ presupuestoMs: 600000, fecha: '2026-10-29' });
+    const todos = s.peticiones.filter((p) => p.body && p.body.snapshotTime).map((p) => p.body.snapshotTime);
+    assert.strictEqual(todos.length, 3, 'las tres colecciones se exportaron entre las dos invocaciones');
+    assert.ok(todos.every((x) => x === primero), 'toda la corrida mantiene su foto inicial');
+  });
+
   console.log('\n== Resumen ==');
   console.log('  comprobaciones: ' + (ok + fail) + ' · PASA ' + ok + ' · FALLA ' + fail);
   if (fail) { console.log('  fallos: ' + fallos.join(' | ')); process.exit(1); }

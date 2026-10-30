@@ -1064,6 +1064,112 @@ exports.actualizarCliente = functions.https.onCall(async (data, context) => {
   return { clienteId, cambios: Object.keys(despuesMap), ignorados };
 });
 
+/* ============================================================
+ * MÓDULO: REVISIÓN COMERCIAL (KZ-UNEF-031)
+ * ------------------------------------------------------------
+ * El propietario confirma o corrige los datos comerciales de un servicio migrado
+ * (valor mensual, día de corte, plan y fecha de cobro) sin hojas de cálculo.
+ *
+ * DECISIONES QUE IMPORTAN
+ *  · NO se toca `conciliacion.estado`: los servicios siguen PENDIENTE_VALIDACION y
+ *    el motor sigue ignorándolos. Confirmar el dato NO es habilitar el cobro;
+ *    habilitar es un acto aparte (`habilitarServicio`), deliberado.
+ *  · NO se tocan `pagos` ni `notificaciones`: el historial de pagos no se reescribe.
+ *  · Si el cliente ya tiene pagos, mover la fecha exige un motivo escrito.
+ *  · Repetir la misma confirmación no escribe dos veces (idempotente).
+ * ============================================================ */
+exports.confirmarRevisionComercial = functions.https.onCall(async (data, context) => {
+  const usuario = await verificarRol(context, ["ADMIN", "SUPERADMIN"]);
+  const revision = require("./revision-comercial");
+
+  const servicioId = data && data.servicioId;
+  if (!servicioId) throw new functions.https.HttpsError("invalid-argument", "Se requiere servicioId.");
+
+  const correcciones = (data && data.correcciones) || {};
+  const nota = String((data && data.motivo) || "").trim().slice(0, 500);
+
+  const refServicio = db.collection("servicios").doc(servicioId);
+  const snapServicio = await refServicio.get();
+  if (!snapServicio.exists) throw new functions.https.HttpsError("not-found", "El servicio no existe.");
+  const servicio = snapServicio.data();
+
+  const clienteId = servicio.clienteId || (data && data.clienteId);
+  if (!clienteId) throw new functions.https.HttpsError("failed-precondition", "El servicio no tiene cliente asociado.");
+  const refCliente = db.collection("clientes").doc(clienteId);
+  const snapCliente = await refCliente.get();
+  if (!snapCliente.exists) throw new functions.https.HttpsError("failed-precondition", "El cliente del servicio no existe.");
+  const cliente = snapCliente.data();
+
+  const planesSnap = await db.collection("planes").get();
+  const planes = planesSnap.docs.map((d) => ({ id: d.id, ...d.data() }));
+
+  const resultado = revision.aplicarCorrecciones({ servicio, cliente, correcciones, planes });
+  if (resultado.errores.length) {
+    throw new functions.https.HttpsError("invalid-argument", resultado.errores.map((e) => e.error).join(" "));
+  }
+
+  /* Con pagos ya registrados, mover la fecha sin explicación dejaría el historial
+     contando otra cosa. Se exige el motivo, no se adivina. */
+  const pagos = await db.collection("pagos").where("clienteId", "==", clienteId).get();
+  const cambioFecha = resultado.aplicadas.some((a) => a.campo === "fechaVencimiento");
+  if (pagos.size > 0 && cambioFecha && !nota) {
+    throw new functions.https.HttpsError(
+      "failed-precondition",
+      "Este cliente ya tiene " + pagos.size + " pago(s) registrados. Escribe el motivo del cambio de fecha para dejarlo en el historial."
+    );
+  }
+
+  const CAMPOS_SERVICIO = ["fechaVencimiento", "precioMensual", "cicloCorte", "planId"];
+  const antesS = {}, despuesS = {};
+  for (const campo of CAMPOS_SERVICIO) {
+    const previo = servicio[campo] === undefined ? null : servicio[campo];
+    const nuevo = resultado.servicio[campo] === undefined ? null : resultado.servicio[campo];
+    if (previo !== nuevo) { antesS[campo] = previo; despuesS[campo] = nuevo; }
+  }
+  const yaConfirmado = servicio.revisionComercial && servicio.revisionComercial.estado === "CONFIRMADA";
+  if (!Object.keys(despuesS).length && yaConfirmado) {
+    return { servicioId, clienteId, cambiado: false, campos: [], mensaje: "Ese servicio ya estaba confirmado con estos datos." };
+  }
+
+  const en = FieldValue.serverTimestamp();
+  const sello = {
+    estado: "CONFIRMADA",
+    por: context.auth.uid,
+    porNombre: usuario.nombre || context.auth.uid,
+    en,
+    nota: nota || null,
+    cambio: Object.keys(despuesS)
+  };
+  const actualizacionServicio = { ...despuesS, revisionComercial: sello, updatedAt: en };
+  const actualizacionCliente = {};
+  for (const campo of CAMPOS_SERVICIO) {
+    if (despuesS[campo] !== undefined) actualizacionCliente[campo] = despuesS[campo];
+  }
+  if (Object.keys(actualizacionCliente).length) actualizacionCliente.updatedAt = en;
+
+  await db.runTransaction(async (tx) => {
+    const actual = await tx.get(refServicio);
+    if (!actual.exists) throw new functions.https.HttpsError("not-found", "El servicio desapareció mientras se confirmaba.");
+    tx.update(refServicio, actualizacionServicio);
+    if (Object.keys(actualizacionCliente).length) tx.update(refCliente, actualizacionCliente);
+  });
+
+  await auditar(context.auth.uid, usuario.nombre || context.auth.uid,
+    "CONFIRMAR_REVISION_COMERCIAL", "servicios", servicioId,
+    { ...antesS, revisionComercial: servicio.revisionComercial || null },
+    { ...despuesS, revisionComercial: { estado: "CONFIRMADA", por: context.auth.uid, nota: nota || null } });
+
+  const huboCambio = Object.keys(despuesS).length > 0;
+  return {
+    servicioId, clienteId, cambiado: huboCambio, campos: Object.keys(despuesS),
+    fechaVencimiento: resultado.servicio.fechaVencimiento || null,
+    precioMensual: resultado.servicio.precioMensual || null,
+    cicloCorte: resultado.servicio.cicloCorte || null,
+    mensaje: (huboCambio ? "Datos guardados." : "Confirmado.") +
+      " El servicio sigue sin cobrarse hasta que lo habilites."
+  };
+});
+
 /**
  * Elimina un cliente (ADMIN o SUPERADMIN).
  *
