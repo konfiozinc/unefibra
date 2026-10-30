@@ -1,0 +1,18 @@
+﻿# Evidencia de la restauración aislada ejecutada hoy
+| Colección | Restaurado (8090) | Producción | ¿Igual? |
+|---|---|---|---|
+| clientes | 358 | 358 | sí |
+| servicios | 332 | 332 | sí |
+| auditoria | 16 | 16 | sí |
+| planes | 10 | 10 | sí |
+| metodos_pago | 5 | 5 | sí |
+| usuarios | 2 | 2 | sí |
+| clientes_hoja3_4_backup | 60 | 60 | sí |
+| configuracion | 4 | 4 | sí |
+| historial_estados | 9 | 10 | no · el registro 10 se creó el 28-oct 15:00:34Z, después del export |
+| backups | 0 | 1 | no · el manifiesto del 29-oct se creó después del export |
+
+Origen: gs://unefibra-firestore-backups/daily/2026-10-28T08-00-20-935Z/ (12 objetos, 654 KB), bajado en solo lectura.
+Entorno: emulador Firestore aislado en 127.0.0.1:8090, proyecto demo-restauracion, --import de la carpeta descargada.
+Contenido verificado: clientes/0HSIE29hDb3PMUL53UP6 = NORFA MOSQUERA RAMIREZ · plan · 50000 · ciclo 30 · vencimiento 2026-03-26 · ACTIVO.
+Fecha: 2026-10-30. Ejecutado por el agente KZ-034. Sin contacto con la base de producción.
