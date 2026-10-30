@@ -37,6 +37,9 @@ const estado = {
 };
 
 const CICLOS = ["15", "30"];
+/* KZ-UNEF-033 · Recuerda el último guardado para que, al repintar la lista, esa
+   tarjeta vuelva a mostrarse abierta con su mensaje (antes el aviso desaparecía). */
+let ultimoGuardado = null;
 
 function nombreDeCliente(id) {
   const c = estado.clientes.get(id);
@@ -112,6 +115,7 @@ function contadores() {
 
 function tarjeta(f) {
   const c = f.cliente || {};
+  const recien = !!(ultimoGuardado && ultimoGuardado.servicioId === f.servicio.id);
   const nombre = esc(c.nombreCompleto || c.nombre || "(sin nombre)");
   const planTxt = f.plan.nombre ? esc(f.plan.nombre) : '<span class="muted">sin plan</span>';
   const valorTxt = typeof f.precio === "number" && f.precio > 0 ? fmtMoney(f.precio) : '<span class="muted">sin valor</span>';
@@ -127,6 +131,9 @@ function tarjeta(f) {
     ? `<div class="rev__falta"><strong>Qué falta confirmar</strong><ul>${f.motivos.map((m) => `<li>${esc(R.TEXTO[m] || m)}</li>`).join("")}</ul></div>`
     : `<div class="rev__falta" style="background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.3)"><strong>Datos completos</strong><div class="muted">Ya está confirmado con estos valores.</div></div>`;
 
+  /* KZ-UNEF-033 · La tarjeta muestra SOLO el resumen (nombre, plan, valor, corte,
+     fecha, estado y qué falta). El formulario se abre con «Revisar cliente», para
+     que el propietario pueda recorrer la lista sin seis controles por tarjeta. */
   return `<article class="card" data-servicio="${esc(f.servicio.id)}">
     <div class="rev__head">
       <h3>${nombre}</h3>
@@ -139,21 +146,27 @@ function tarjeta(f) {
       <span>Fecha de cobro: <b>${fechaTxt}</b></span>
     </div>
     ${falta}
-    <div class="rev__form">
-      <label class="field"><span>Valor mensual (COP)</span>
-        <input type="number" min="1" step="1000" inputmode="numeric" data-campo="precioMensual" value="${esc(valorInput)}" /></label>
-      <label class="field"><span>Día de corte</span>
-        <select class="sel" data-campo="cicloCorte">${CICLOS.map((v) => `<option value="${v}" ${String(f.ciclo) === v ? "selected" : ""}>Día ${v}</option>`).join("")}</select></label>
-      <label class="field"><span>Fecha de cobro</span>
-        <input type="date" data-campo="fechaVencimiento" value="${esc(fechaPropuesta)}" /></label>
-    </div>
-    <label class="field" style="margin-top:10px"><span>Motivo del cambio (obligatorio si el cliente ya tiene pagos)</span>
-      <input data-campo="motivo" maxlength="200" placeholder="Ej.: el cliente cambió al corte 15" /></label>
     <div class="rev__acciones">
-      <button class="btn btn--primary btn--sm" data-accion="guardar">Guardar y confirmar</button>
-      <a class="btn btn--ghost btn--sm" href="cliente.html?id=${encodeURIComponent(f.servicio.clienteId || "")}">Ver cliente</a>
+      <button class="btn btn--primary" data-accion="revisar" aria-expanded="${recien ? "true" : "false"}" aria-controls="editor-${esc(f.servicio.id)}">${recien ? "Ocultar formulario" : "Revisar cliente"}</button>
+      <a class="btn btn--ghost" href="cliente.html?id=${encodeURIComponent(f.servicio.clienteId || "")}">Ver ficha</a>
     </div>
-    <p class="rev__msg" hidden></p>
+    <div class="rev__editor" id="editor-${esc(f.servicio.id)}"${recien ? "" : " hidden"}>
+      <div class="rev__form">
+        <label class="field"><span>Valor mensual (COP)</span>
+          <input type="number" min="1" step="1000" inputmode="numeric" data-campo="precioMensual" value="${esc(valorInput)}" /></label>
+        <label class="field"><span>Día de corte</span>
+          <select class="sel" data-campo="cicloCorte">${CICLOS.map((v) => `<option value="${v}" ${String(f.ciclo) === v ? "selected" : ""}>Día ${v}</option>`).join("")}</select></label>
+        <label class="field"><span>Fecha de cobro</span>
+          <input type="date" data-campo="fechaVencimiento" value="${esc(fechaPropuesta)}" /></label>
+      </div>
+      <label class="field" style="margin-top:10px"><span>Motivo del cambio (obligatorio si el cliente ya tiene pagos)</span>
+        <input data-campo="motivo" maxlength="200" placeholder="Ej.: el cliente cambió al corte 15" /></label>
+      <div class="rev__acciones">
+        <button class="btn btn--primary" data-accion="guardar">Guardar y confirmar</button>
+        <button class="btn btn--ghost" type="button" data-accion="cerrar">Cancelar</button>
+      </div>
+      <p class="rev__msg${recien ? " is-ok" : ""}"${recien ? "" : " hidden"}>${recien ? esc(ultimoGuardado.mensaje) : ""}</p>
+    </div>
   </article>`;
 }
 
@@ -182,6 +195,33 @@ function render() {
 
   lista.querySelectorAll("[data-accion='guardar']").forEach((btn) => {
     btn.addEventListener("click", () => guardar(btn.closest(".card")));
+  });
+
+  /* «Revisar cliente» abre el formulario de ESA tarjeta; «Cancelar» lo cierra sin
+     guardar nada (protección contra cambios accidentales). */
+  lista.querySelectorAll("[data-accion='revisar']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".card");
+      const editor = card.querySelector(".rev__editor");
+      if (!editor) return;
+      editor.hidden = !editor.hidden;
+      btn.setAttribute("aria-expanded", String(!editor.hidden));
+      btn.textContent = editor.hidden ? "Revisar cliente" : "Ocultar formulario";
+      if (!editor.hidden) {
+        const primero = editor.querySelector("input, select");
+        if (primero) primero.focus({ preventScroll: true });
+        editor.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      }
+    });
+  });
+  lista.querySelectorAll("[data-accion='cerrar']").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const card = btn.closest(".card");
+      const editor = card.querySelector(".rev__editor");
+      const abrir = card.querySelector("[data-accion='revisar']");
+      if (editor) editor.hidden = true;
+      if (abrir) { abrir.setAttribute("aria-expanded", "false"); abrir.textContent = "Revisar cliente"; }
+    });
   });
 }
 
@@ -214,6 +254,9 @@ async function guardar(card) {
     msg.hidden = false;
     msg.className = "rev__msg is-ok";
     msg.textContent = (r.data && r.data.mensaje) || "Guardado.";
+    /* El repintado de la lista borraría el aviso: se recuerda para que esa tarjeta
+       vuelva a aparecer abierta, con el mensaje a la vista. */
+    ultimoGuardado = { servicioId, mensaje: msg.textContent };
     // Refresca solo el servicio tocado, sin recargar la pantalla entera.
     const snap = await getDoc(doc(db, "servicios", servicioId));
     if (snap.exists()) {
