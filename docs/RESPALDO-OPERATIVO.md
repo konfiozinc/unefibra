@@ -144,3 +144,27 @@ firebase deploy --only functions:backupFirestore,functions:continuarBackup --pro
 git checkout HEAD -- functions/src functions/package.json   # dejar el árbol limpio
 ```
 No toca datos, manifiestos, respaldos, el panel publicado ni las otras 26 funciones. Alternativa sin tocar el árbol: redesplegar desde un clon del commit anterior.
+
+---
+
+## Anexo KZ-UNEF-037 · Respaldo del 30-oct certificado y programaciones reactivadas
+
+**Estado final (2026-10-30T09:17Z):**
+
+| Elemento | Estado |
+|---|---|
+| Manifiesto `backups/2026-10-30` | **9/9 `COMPLETADO`** · 27 objetos en `daily/2026-10-30/` |
+| Colecciones | 9 (sin `backups`): auditoria, clientes, clientes_hoja3_4_backup, configuracion, historial_estados, metodos_pago, planes, servicios, usuarios |
+| Exportaciones activas | 0 |
+| Cerrojo | `COMPLETADO` → LIBRE |
+| Respaldos anteriores | intactos (0 objetos escritos hoy en los prefijos del 28 y 29-oct) |
+| `backupFirestore` | **ENABLED** · `0 3 * * *` America/Bogota · próxima **2026-10-31T08:00Z** |
+| `continuarBackup` | **ENABLED** · `*/30 * * * *` America/Bogota |
+
+**Cómo se completó:** la corrida del día adoptó los 4 lotes exportados en KZ-035 y exportó los 5 restantes, en **275 s**. Duración medida por colección hoy: **~1 minuto** (con la cola limpia), frente a los 5-20 min del 29-oct.
+
+**Hallazgo importante:** `continuarBackup` **no inicia corridas**; solo continúa un manifiesto existente («nada pendiente para 2026-10-30»). Para crear el manifiesto del día se ejecutó **una corrida supervisada de `backupFirestore`** (misma función y mismo camino que su cron), con su programación **PAUSED** hasta certificar. Esto **corrige** lo afirmado en el informe KZ-036.
+
+**Pendiente obligatorio:** comprobar la corrida diaria del **31-oct 03:00 Bogotá**: `backups/2026-10-31` debe llegar a 9/9 `COMPLETADO`. Hasta entonces **no** se declara el respaldo automático en funcionamiento.
+
+**Riesgo declarado:** la copia del 30-oct mezcla dos instantes (4 lotes de 08:16-08:19Z y 5 de 09:11-09:16Z). Para una foto consistente entre colecciones hay que activar `snapshotTime` (`usarSnapshot: true`), ya implementado y probado, pero sin medir su coste en este proyecto.
