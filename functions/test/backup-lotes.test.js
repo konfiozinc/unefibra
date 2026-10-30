@@ -1,4 +1,4 @@
-'use strict';
+﻿'use strict';
 /* ============================================================
  * KZ-UNEF-028 · Respaldo por lotes: pruebas sin bucket ni Firestore reales
  * ------------------------------------------------------------
@@ -371,7 +371,21 @@ t('el id del lote es un segmento seguro de ruta en el bucket', () => {
     assert.ok(todos.every((x) => x === primero), 'toda la corrida mantiene su foto inicial');
   });
 
+  await ta('la adopción usa la FECHA del lote, no solo el nombre de la colección', async () => {
+    // Hay objetos de clientes del 29-oct; la corrida es del 30-oct: NO debe adoptarlos.
+    const s = simulador({ colecciones: ['clientes'], msPorLote: 1000, previos: ['daily/2026-10-29/clientes/'] });
+    const backup = crearBackupPorLotes(s.deps);
+    const r = await backup.ejecutar({ presupuestoMs: 600000, fecha: '2026-10-30' });
+    assert.strictEqual(r.estado, 'COMPLETADO');
+    const exportados = s.peticiones.filter((p) => p.body && p.body.collectionIds);
+    assert.strictEqual(exportados.length, 1, 'debe exportar clientes al prefijo del 30-oct');
+    assert.strictEqual(exportados[0].body.outputUriPrefix, 'gs://unefibra-firestore-backups/daily/2026-10-30/clientes');
+    const guardado = s.estado.get('2026-10-30');
+    assert.ok(!guardado.lotes.clientes.adoptado, 'no puede adoptar lo del día anterior');
+  });
+
   console.log('\n== Resumen ==');
   console.log('  comprobaciones: ' + (ok + fail) + ' · PASA ' + ok + ' · FALLA ' + fail);
   if (fail) { console.log('  fallos: ' + fallos.join(' | ')); process.exit(1); }
 })();
+
