@@ -4,6 +4,7 @@
    UNA sola vez (fechaVencimiento = inicio + duración) y no se duplica.
    Contra Functions+Firestore+Auth Emulator (mismos puertos que pagos-integracion). */
 const FS='http://127.0.0.1:8080', FN='http://127.0.0.1:5001', AUTH='http://127.0.0.1:9199', P='demo-unefibra', K='clave-ficticia';
+const { hoyISO, sumarDias } = require('../src/renovacion');
 const u=r=>`${FS}/v1/projects/${P}/databases/(default)/documents/${r}`;
 const s=v=>({stringValue:v}), n=v=>({integerValue:String(v)}), b=v=>({booleanValue:v});
 const pedir=async(m,url,c,t)=>{const h={'Content-Type':'application/json'};if(t)h.Authorization='Bearer '+t;const r=await fetch(url,{method:m,headers:h,body:c===undefined?undefined:JSON.stringify(c)});const txt=await r.text();let j=null;try{j=JSON.parse(txt);}catch(e){}return {st:r.status,j,txt};};
@@ -18,9 +19,11 @@ let ok=0,fail=0;const chk=(nm,c,d)=>{if(c){ok++;console.log('  PASA   '+nm.padEn
   const ad=await alta('con@i.test');
   await crear('usuarios',ad.uid,{email:s('con@i.test'),rol:s('ADMIN'),activo:b(true)});
   await crear('planes','p1',{nombre:s('Plan Ficticio'),precio:n(99900),duracion:n(30),estado:s('ACTIVO')});
-  // Cliente CON servicio activo (simula la salida de crearCliente): vence 2026-11-01.
-  await crear('clientes','c1',{nombre:s('Cliente Ficticio'),telefono:s('3001112233'),estadoCliente:s('ACTIVO'),planId:s('p1'),fechaVencimiento:s('2026-11-01')});
-  await crear('servicios','s1',{clienteId:s('c1'),planId:s('p1'),fechaInicio:s('2026-10-01'),fechaVencimiento:s('2026-11-01'),estado:s('ACTIVO')});
+  // Futuro relativo; sin ciclo conserva el caso de renovación por duración.
+  const vencimientoInicial = sumarDias(hoyISO(), 10);
+  const vencimientoEsperado = sumarDias(vencimientoInicial, 30);
+  await crear('clientes','c1',{nombre:s('Cliente Ficticio'),telefono:s('3001112233'),estadoCliente:s('ACTIVO'),planId:s('p1'),fechaVencimiento:s(vencimientoInicial)});
+  await crear('servicios','s1',{clienteId:s('c1'),planId:s('p1'),fechaInicio:s(hoyISO()),fechaVencimiento:s(vencimientoInicial),estado:s('ACTIVO')});
 
   const r=await callable('registrarPago',{clienteId:'c1',monto:99900,metodoPago:'Nequi'},ad.tok);
   const pagoId=r.j&&r.j.result&&r.j.result.id;
@@ -36,10 +39,10 @@ let ok=0,fail=0;const chk=(nm,c,d)=>{if(c){ok++;console.log('  PASA   '+nm.padEn
   chk('Exactamente UNA confirmación simultánea tiene éxito', confirmados===1, `200=${confirmados} 4xx=${rechazados}`);
   chk('La otra confirmación simultánea es rechazada', rechazados===1, `4xx=${rechazados}`);
 
-  // El servicio debe renovarse UNA sola vez: fechaVencimiento = 2026-11-01 + 30 = 2026-12-01.
+  // El servicio debe renovarse UNA sola vez desde el vencimiento inicial.
   const sv = await leer('servicios/s1');
   const venc = sv.j && sv.j.fields && sv.j.fields.fechaVencimiento && sv.j.fields.fechaVencimiento.stringValue;
-  chk('Servicio renovado UNA vez (vencimiento 2026-12-01)', venc==='2026-12-01', `vence=${venc}`);
+  chk('Servicio renovado UNA vez', venc===vencimientoEsperado, `vence=${venc}, esperado=${vencimientoEsperado}`);
 
   // No se duplicó el servicio.
   const servicios = await listar('servicios');

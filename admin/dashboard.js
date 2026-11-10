@@ -7,9 +7,11 @@
 
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
+import "../assets/js/admin/consistencia-comercial.js";
+const Comercial = globalThis.ConsistenciaComercial;
 import { proximoCorteDe, fmtFecha, recordatoriosDelCorte } from "../assets/js/admin/ui.js";
 import {
-  collection, query, where, getCountFromServer, getAggregateFromServer, sum
+  collection, query, where, getCountFromServer, getAggregateFromServer, sum, getDocs
 } from "firebase/firestore";
 
 // ---- Utilidades de fecha (zona Colombia, UTC-5) ----
@@ -23,11 +25,6 @@ function fechaISO(d) {
 }
 function hoyColombia() {
   return fechaISO(new Date(Date.now() + COLOMBIA_UTC_OFFSET_MS));
-}
-function sumarDias(fechaStr, dias) {
-  const [y, m, d] = fechaStr.split("-").map(Number);
-  const base = new Date(Date.UTC(y, m - 1, d));
-  return fechaISO(new Date(base.getTime() + dias * 86400000));
 }
 function inicioMes() {
   const h = new Date(Date.now() + COLOMBIA_UTC_OFFSET_MS);
@@ -55,13 +52,10 @@ async function pagosDelMes() {
   return { cantidad, total: agg.data().total || 0 };
 }
 
-async function contarVencimientosEnRango(desde, hasta) {
-  const q = query(
-    collection(db, "clientes"),
-    where("fechaVencimiento", ">=", desde),
-    where("fechaVencimiento", "<=", hasta)
-  );
-  return (await getCountFromServer(q)).data().count;
+async function resumenComercial(hoy) {
+  const datos = await Promise.all(["clientes", "servicios", "pagos"].map((nombre) => getDocs(collection(db, nombre))));
+  const [clientes, servicios, pagos] = datos.map((snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() })));
+  return Comercial.resumen(Comercial.prepararTodos(clientes, servicios, pagos, hoy));
 }
 
 /** Clientes asignados a un ciclo de corte ("15" o "30"). */
@@ -95,22 +89,18 @@ function card(label, value, opts = {}) {
 
   try {
     const hoy = hoyColombia();
-    const manana = sumarDias(hoy, 1);
-    const en7Dias = sumarDias(hoy, 7);
 
     const [
-      activos, porVencer, pendientes, suspendidos, inactivos,
-      pagosMes, vencimientosHoy, vencimientosProximos,
+      activos, pendientes, suspendidos, inactivos,
+      pagosMes, comercial,
       corte15, corte30
     ] = await Promise.all([
       contarPorEstado("ACTIVO"),
-      contarPorEstado("POR_VENCER"),
       contarPorEstado("PENDIENTE_PAGO"),
       contarPorEstado("SUSPENDIDO"),
       contarPorEstado("INACTIVO"),
       pagosDelMes(),
-      contarVencimientosEnRango(hoy, hoy),
-      contarVencimientosEnRango(manana, en7Dias),
+      resumenComercial(hoy),
       contarPorCiclo("15"),
       contarPorCiclo("30")
     ]);
@@ -126,16 +116,14 @@ function card(label, value, opts = {}) {
         ${card("Clientes Corte 15", corte15, { tone: "tone-cyan", accent: true, hint: `Próximo corte: ${proximo15}` })}
         ${card("Clientes Corte 30", corte30, { tone: "tone-cyan", accent: true, hint: `Próximo corte: ${proximo30}` })}
 
-        ${card("Clientes activos", activos, { tone: "tone-green", hint: "Servicio habilitado y al día" })}
-        ${card("Por vencer", porVencer, { tone: "tone-amber", hint: "Próximos 7 días" })}
-        ${card("Pendientes de pago", pendientes, { tone: "tone-red", hint: "Vencidos sin pago que cubra el periodo" })}
+        ${card("Estado administrativo: activo", activos, { tone: "tone-green", hint: "Estado guardado; no certifica pagos" })}
+        ${card("Estado administrativo: pendiente de pago", pendientes, { tone: "tone-amber", hint: "Estado guardado; requiere evidencia comercial" })}
         ${card("Suspendidos", suspendidos, { tone: "tone-red", hint: "Servicio suspendido" })}
         ${card("Inactivos", inactivos, { tone: "tone-violet", hint: "Retirados o cancelados" })}
 
         ${card("Pagos del mes", pagosMes.cantidad, { tone: "tone-cyan", accent: true, hint: "Pagos confirmados este mes" })}
         ${card("Ingresos del mes", fmtMoney(pagosMes.total), { tone: "tone-cyan", accent: true, hint: "Suma de pagos confirmados" })}
-        ${card("Vencen hoy", vencimientosHoy, { tone: "tone-amber", hint: `Fecha de referencia: ${hoy}` })}
-        ${card("Vencen próximos 7 días", vencimientosProximos, { tone: "tone-amber", hint: `${manana} a ${en7Dias}` })}
+        ${Comercial.GRUPOS.map((g) => card(g.titulo, comercial[g.key], { tone: "tone-amber", hint: g.ayuda })).join("")}
       </div>
 
       <div class="panel" style="margin-top:16px;">
@@ -148,14 +136,14 @@ function card(label, value, opts = {}) {
           El corte del ciclo 30 cae el último día del mes cuando el mes no llega a 30 (febrero).
         </p>
         <div style="margin-top:14px;">
-          <a class="btn btn--primary" href="vencimientos.html">Ver quién está al día y quién debe</a>
+          <a class="btn btn--primary" href="vencimientos.html">Consultar vencimientos y validación</a>
         </div>
       </div>
 
       <div class="panel" style="margin-top:16px;">
-        <h2>Avisos de cobro que vienen</h2>
+        <h2>Calendario de avisos por corte</h2>
         <p class="muted" style="font-size:0.88rem;margin-bottom:12px;">
-          Cada cliente recibe dos avisos, a las 10:00 a.m.: tres días antes de su corte y el día del corte.
+          Fechas previstas: tres días antes del corte y el día del corte, a las 10:00 a.m. La programación no confirma deuda ni entrega del aviso.
         </p>
         <div class="kv">
           ${[
