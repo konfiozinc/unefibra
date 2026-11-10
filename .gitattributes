@@ -16,3 +16,7 @@
 *.jpeg binary
 *.jpg  binary
 *.png  binary
+
+# UNEFIBRA-044: capturas públicas verificadas por hash, sin conversión de bytes.
+docs/evidencias/unefibra-044/blog-publicado.html -text
+docs/evidencias/unefibra-044/sitemap-publicado.xml -text

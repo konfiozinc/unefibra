@@ -48,6 +48,11 @@ function clienteNombre(id) {
 function renderToolbar() {
   const canWrite = ["ADMIN", "SUPERADMIN"].includes(ctx.rol);
   return `
+    <div class="panel">
+      <h1>Pagos operativos</h1>
+      <p>Este listado muestra los pagos registrados en el sistema. Las propuestas del Excel se revisan por separado y no cuentan como pagos confirmados.</p>
+      ${canWrite ? '<a class="btn btn--ghost" href="pagos-historicos.html">Revisar pagos históricos del Excel</a>' : '<p class="muted">La revisión del Excel requiere un administrador.</p>'}
+    </div>
     <div class="toolbar">
       <div class="toolbar__left">
         <div class="search"><input id="buscar" type="search" placeholder="Buscar cliente…" value="${busqueda}" /></div>
@@ -95,7 +100,7 @@ function renderTabla() {
 
   const list = filtrar();
   if (!list.length) {
-    cont.innerHTML = '<div class="empty">No hay pagos en este filtro.</div>';
+    cont.innerHTML = '<div class="empty">No hay pagos operativos para esta búsqueda y filtro. Las propuestas históricas del Excel no se incluyen aquí.</div>';
     return;
   }
 

@@ -9,7 +9,8 @@
 import { db } from "../assets/js/admin/core.js";
 import { requireAuth } from "../assets/js/admin/shell.js";
 import { collection, getDocs, addDoc, doc, updateDoc, serverTimestamp } from "firebase/firestore";
-import { fmtMoney, badgeEstado, msgError, esc } from "../assets/js/admin/ui.js";
+import { badgeEstado, msgError, esc } from "../assets/js/admin/ui.js";
+import "../assets/js/admin/consistencia-comercial.js";
 
 let ctx = null;
 let planes = [];
@@ -21,7 +22,8 @@ function renderToolbar() {
       <span class="muted">El precio y la duración se usan al calcular vencimientos.</span>
       ${canWrite ? '<button class="btn btn--primary" id="btn-nuevo">+ Nuevo plan</button>' : ""}
     </div>
-    <div class="table-wrap" id="tabla"></div>
+    <p class="planes-scroll-hint muted" id="planes-scroll-hint">Desliza la tabla hacia los lados para ver Duración, Estado y Acciones. Con teclado, enfoca la tabla y usa las flechas.</p>
+    <div class="table-wrap" id="tabla" tabindex="0" role="region" aria-label="Planes configurados" aria-describedby="planes-scroll-hint"></div>
     <div id="modal-root"></div>`;
 }
 
@@ -38,7 +40,7 @@ function renderTabla() {
     <tr data-id="${p.id}">
       <td>${esc(p.nombre || "—")}</td>
       <td>${esc(p.velocidad || "—")}</td>
-      <td>${fmtMoney(p.precio)}</td>
+      <td>${globalThis.ConsistenciaComercial.precioTexto(p.precio)}</td>
       <td>${p.duracion} ${p.unidadDuracion || "días"}</td>
       <td>${badgeEstado(p.estado)}</td>
       <td>${canWrite ? `

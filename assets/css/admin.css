@@ -328,3 +328,29 @@ td .btn--sm { margin-left: 6px; }
 .detail-grid { min-width: 0; }
 .detail-grid > * { min-width: 0; }
 .panel { min-width: 0; }
+/* UNEFIBRA-041: cada registro conserva todos sus campos visibles en móvil. */
+@media (max-width: 600px) {
+  .comercial-tabla { min-width: 0; width: 100%; }
+  .comercial-tabla thead { display: none; }
+  .comercial-tabla tbody, .comercial-tabla tr { display: block; }
+  .comercial-tabla td {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr);
+    gap: 12px;
+    white-space: normal;
+    overflow-wrap: anywhere;
+  }
+  .comercial-tabla td::before { content: attr(data-label); color: var(--muted, #a3b6d6); font-size: .78rem; }
+  .comercial-tabla td ul { margin: 8px 0 0; padding-left: 16px; }
+}
+/* UNEFIBRA-042: orientación de tabla y encabezado legible en móvil. */
+.planes-scroll-hint { display: none; }
+#tabla:focus-visible { outline: 2px solid var(--cyan, #00bfff); outline-offset: 3px; }
+@media (max-width: 768px) {
+  .planes-scroll-hint { display: block; font-size: .85rem; }
+  .topbar { flex-wrap: wrap; }
+  .topbar__user {
+    flex-basis: 100%; max-width: none; white-space: normal;
+    overflow: visible; text-overflow: clip; overflow-wrap: anywhere;
+  }
+}
