@@ -1,0 +1,204 @@
+{
+  "mision": "UNEFIBRA-043",
+  "fecha": "2026-11-10",
+  "base": "9ccbb85459189b9097e49daa05aade55b9f81d35",
+  "rama": "fix/unefibra-041-consistencia-comercial",
+  "paquete": [
+    {
+      "archivo": "admin/dashboard.js",
+      "sha256": "59ae9b5b34c6c6848ad3a463cf29badbf526eea862a1cfcd16f68385829dd3f3"
+    },
+    {
+      "archivo": "admin/pagos.js",
+      "sha256": "d10c56f9bdc1d570490d7385e0fd1f9f5c2aba25d548f780cbfb444d97563733"
+    },
+    {
+      "archivo": "admin/planes.js",
+      "sha256": "5d3a92a36bc7562c1cf2b8142cefd798aea008332bda2a6859fa614879a89113"
+    },
+    {
+      "archivo": "admin/vencimientos.js",
+      "sha256": "0790db25f7622499253ce8ca5e82fdd4a0243af29c532a7d302930009de2b847"
+    },
+    {
+      "archivo": "assets/css/admin.css",
+      "sha256": "96cfe769577dd05fe9cd754630785c4c0fbae126d3e8fed4d6625e09fa48a0c4"
+    },
+    {
+      "archivo": "assets/js/admin/consistencia-comercial.js",
+      "sha256": "dc58bfe4a7870caa395cffbd7bf419de6e7410fc2a6194ca6c477d27c6f26c5b"
+    },
+    {
+      "archivo": "functions/test/pagos-concurrencia.test.js",
+      "sha256": "59266184546fd632bfe20ae3cbbf0c1f266294caf66256bb026c82ba6b63cbf7"
+    },
+    {
+      "archivo": "functions/test/consistencia-comercial.test.js",
+      "sha256": "5de149abbdb8f66e8924a7337c80412bf98d462230d87813b18506d14900f7aa"
+    },
+    {
+      "archivo": "tools/qa-unefibra-041.cjs",
+      "sha256": "34bdc1a2b2b87b3fdb40f91b08fdc3258660c63bb2bed1414a6396d7b5bd49e1"
+    },
+    {
+      "archivo": "tools/unefibra-041-network-guard.cjs",
+      "sha256": "a05d14c99bdbb712f73b2d96a54ccb6efba69a8590153427bb624b2fb9c1bc1d"
+    },
+    {
+      "archivo": "docs/misiones/INFORME-UNEFIBRA-041.md",
+      "sha256": "909f5fe72b5126558e20fe066880ae45e0b269a7a7f5d644430a55c0c28c4a87"
+    },
+    {
+      "archivo": "docs/misiones/INFORME-UNEFIBRA-042.md",
+      "sha256": "1fc90171fbfaeb5ef2e17e51f7d24a920dc4a2c2852e6008161f2ae34960b051"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-041/escritorio-dashboard.png",
+      "sha256": "1a904aad0ff3a2877315f7bf1b2ee2a874c2250a49c09b6c2eb1a71f825d3f8c"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-041/escritorio-pagos.png",
+      "sha256": "6c97fb98cd9d0b52a29102203357c0b92416002a0926fd174310d82a7c2bd62c"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-041/escritorio-planes.png",
+      "sha256": "14b9cb4459192c7da42ec999823fc34b368f4d1a186e4fc5addbebe82f974864"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-041/escritorio-vencimientos.png",
+      "sha256": "b3dd2183eecb0d31739ceef261b7a134cdb609e3ce3877195f8e1f46a90642fe"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-041/movil-dashboard.png",
+      "sha256": "eb3e78029952ae9b8f32c9389756cb10161cbccd7f80e1848259fc9875dfe864"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-041/movil-pagos.png",
+      "sha256": "bc781dbf0866581d9ecbbe7ce47c1fee77ba1afb10779865142078e36f8421eb"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-041/movil-planes.png",
+      "sha256": "eaab9da1a8f13337585ca460b5c53536d2248a76066fbaa70767d603eb4d205a"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-041/movil-vencimientos.png",
+      "sha256": "05cfab8098992ee8bb3a4b9de3b57e4cff5bcfa10fb96b995dd0590cf8bc2bc9"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/escritorio-dashboard.png",
+      "sha256": "1a904aad0ff3a2877315f7bf1b2ee2a874c2250a49c09b6c2eb1a71f825d3f8c"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/escritorio-pagos.png",
+      "sha256": "6c97fb98cd9d0b52a29102203357c0b92416002a0926fd174310d82a7c2bd62c"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/escritorio-planes.png",
+      "sha256": "14b9cb4459192c7da42ec999823fc34b368f4d1a186e4fc5addbebe82f974864"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/escritorio-vencimientos.png",
+      "sha256": "b3dd2183eecb0d31739ceef261b7a134cdb609e3ce3877195f8e1f46a90642fe"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-320-dashboard.png",
+      "sha256": "c19f774126e70d2ee56587f0326f1837fb097aeac51f08b6bc478910b7111206"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-320-pagos.png",
+      "sha256": "01c16953062958a3ffcc23e9ce9c4dd234a788923aa738040a8a30c69da8abd4"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-320-planes-columnas-finales.png",
+      "sha256": "ed598acc0b1e66d0f79b6759aeac21f436877c676b00c9c966a082b44e2e8779"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-320-planes.png",
+      "sha256": "e66e2d27048bd330cbabf9033f583a3a05f8bdac14cb1c375e387ac1da60fd41"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-320-vencimientos.png",
+      "sha256": "d957f9c05ae2d94fc4c44f5b1724d81c69ebe4b0aa6c9d08ced5ab86863f8d9d"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-dashboard.png",
+      "sha256": "c45f1a83ab0a9c572613a5c30b391429b7bfc24ec438e0f61cdd7b93404c6273"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-pagos.png",
+      "sha256": "9eef17d8976e1b9334fc0922819aeee05166956ad9eafa38e04c74a9bf89417a"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-planes-columnas-finales.png",
+      "sha256": "f71e66816937a2c8625db80f45c5880896e6ef232ee179387f3480d47d1afad1"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-planes.png",
+      "sha256": "4db265b6680d2b9970fb5f5ee26d49a528f226cc896feda1e90a36cfaa6de7ea"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/movil-vencimientos.png",
+      "sha256": "4879a6646e25f4b5f978102775ab15101ac1e1a489fc4d0e8fe42af27724dfab"
+    }
+  ],
+  "preservados": [
+    {
+      "archivo": "UNEFIBRA-041-EVIDENCIAS.zip",
+      "sha256": "0d3155be63386cc1cafb017f1b7cea8e0a64a4143975d2aab0b9360893e294c7",
+      "bytes": 845708
+    },
+    {
+      "archivo": "_respaldos/unefibra/2026-10-30-kz-037/feat-kz-unef-021-pagos-historicos.bundle",
+      "sha256": "119dbf0217e9a5a701e93668ce3882490ff760897489b88f05c2d6bfecf6ef82",
+      "bytes": 69581963
+    }
+  ],
+  "nodePortable": {
+    "archivo": "node_modules/.unefibra-042-node22/node-v22.23.4-win-x64/node.exe",
+    "sha256": "dccc52de28d8df2ee22d2062424f8c563070d95d8ad70c54c4bf01d590dec14f"
+  },
+  "revisionSensibles": {
+    "alertas": 0,
+    "alcance": "Lista cerrada de 34 archivos para el commit; tres registros locales revisados tambi?n en UTF-16, excluidos y preservados. Firmas de secretos y revisi?n de fixtures; no auditor?a general."
+  },
+  "registrosLocalesPreservados": [
+    {
+      "archivo": "docs/evidencias/unefibra-042/emuladores-node22-intento1.txt",
+      "sha256": "97fb7be0135fc7b37e177b8dd8dea9e79bc8959fe18e845ae71cc2fd65f4a7ee"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/emuladores-node22.txt",
+      "sha256": "f8bf67ce1509e9c44126cd704cdfddb4177474f515ed2bb7b70783ac99102de6"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-042/pruebas-node22.txt",
+      "sha256": "d9e0ca22e7a4dcf901aa949e2203fec2a88ebb9ea0e8b0d6f9e67fba88774778"
+    }
+  ],
+  "commitPaquete": "7e7e28a93285587e6700ee29412e9894ea5a08fd",
+  "verificaciones043": {
+    "node": "22.23.4",
+    "suites": {
+      "consistencia-comercial": {
+        "pass": 12,
+        "fail": 0
+      },
+      "revision-reglas-paridad": {
+        "pass": 8,
+        "fail": 0
+      },
+      "pagos-guardas": {
+        "pass": 20,
+        "fail": 0
+      }
+    },
+    "sintaxis": {
+      "archivos": 9,
+      "fail": 0
+    },
+    "diffCheck": "PASS",
+    "commitCoincideConLista": true,
+    "preservacionSHA256": "PASS",
+    "main": "9ccbb85459189b9097e49daa05aade55b9f81d35"
+  }
+}
