@@ -7,14 +7,16 @@
  *                    despliegue nuevo no quede "congelado")
  *   · Imágenes/fuentes → cache-first
  *
- * OJO AL DESPLEGAR: el JS se sirve con stale-while-revalidate, o sea que tras
- * publicar un cambio en admin/*.js la PRIMERA carga todavía entrega el archivo
+ * El panel y sus módulos usan red sin caché desde UNEFIBRA-044.
+ * Para el resto del sitio, el JS se sirve con stale-while-revalidate: tras
+ * publicar un cambio en scripts públicos la PRIMERA carga entrega el archivo
  * viejo (y el nuevo entra en la siguiente). Para que un cambio se vea de una,
  * HAY QUE SUBIR `CACHE` (v7 → v8 …): al activarse, `activate` borra las cachés
- * con otro nombre, así que la siguiente carga ya pide todo de la red.
+ * anteriores del sitio. Las pestañas abiertas deben recargarse una vez
+ * activado el nuevo worker; no se fuerza recarga ni se borra la sesión.
  * ============================================================ */
 
-const CACHE = "unefibras-v8";
+const CACHE = "unefibras-v9-041-042";
 const ASSETS = [
   "./",
   "./index.html",
@@ -40,7 +42,7 @@ self.addEventListener("install", (event) => {
 self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
-      Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k)))
+      Promise.all(keys.filter((k) => k.startsWith("unefibras-") && k !== CACHE).map((k) => caches.delete(k)))
     ).then(() => self.clients.claim())
   );
 });
@@ -52,6 +54,16 @@ self.addEventListener("fetch", (event) => {
   // Solo gestionar peticiones del mismo origen
   const url = new URL(request.url);
   if (url.origin !== location.origin) return;
+
+  // UNEFIBRA-044: el panel requiere archivos actuales y no usa caché offline.
+  // No se interceptan servicios externos de Auth/Firestore ni sus almacenes.
+  const base = new URL(".", self.location.href).pathname;
+  const ruta = url.pathname.slice(base.length);
+  if (url.pathname.startsWith(base) && (ruta.startsWith("admin/")
+    || ruta.startsWith("assets/js/admin/") || ruta === "assets/css/admin.css")) {
+    event.respondWith(fetch(request, { cache: "no-store" }));
+    return;
+  }
 
   // Navegaciones: network-first con fallback a caché
   if (request.mode === "navigate") {

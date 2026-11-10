@@ -1,0 +1,108 @@
+{
+  "mision": "UNEFIBRA-044",
+  "fecha": "2026-11-10",
+  "rama": "fix/unefibra-041-consistencia-comercial",
+  "base": "ab296b4666e97e0f61a3c8d265a95316cb20698e",
+  "main": "9ccbb85459189b9097e49daa05aade55b9f81d35",
+  "archivos": [
+    {
+      "archivo": "sw.js",
+      "sha256": "a8e2874cd74b104aa484302b1cb6ab5360f5816de242ac272f52b07aa0b3236b"
+    },
+    {
+      "archivo": ".github/workflows/deploy.yml",
+      "sha256": "5d9af4d6969a2eb4941193f2394df8498dc10020a4d565a258fd1e035509b99c"
+    },
+    {
+      "archivo": "tools/preservar-blog-publicado.cjs",
+      "sha256": "35645104f061ef34478aac95229860dd767d517695480d9c66a3e0f75f2ac0f4"
+    },
+    {
+      "archivo": "tools/unefibra-blog-publicado.json",
+      "sha256": "6bddb1d8ebb22f194eaa54f888d28added420640e70550f690e07720ccbd48a7"
+    },
+    {
+      "archivo": "tools/test-unefibra-044.cjs",
+      "sha256": "2127a69effce9414c61f7412870b4e06fef56660f0f483318040d2107a702a3d"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-044/blog-publicado.html",
+      "sha256": "d1fe2e132d8e4e3cf14ec0591d7c0cc4c8a06fb20f01e009209767ba8db68264"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-044/sitemap-publicado.xml",
+      "sha256": "454e7802d7cfba06b3ade3c0ec9e73c5b598e231316e47bae8725ec98c416be7"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-044/actualizacion-worker-ficticia.png",
+      "sha256": "b8d632a34f5f4f51322dcff05a5740dfcafc177ac3af8c75d889cec805e7de92"
+    },
+    {
+      "archivo": "docs/evidencias/unefibra-044/pruebas-especificas.txt",
+      "sha256": "d19de817b147070e1b84939fd36a3440e1eb1df75401e67ee8609db6fc7faf33"
+    },
+    {
+      "archivo": ".gitattributes",
+      "sha256": "8e95c912ae3a859fea2d6833f7e22e1f2ab10a3530fb6a47da669d9049b2966a"
+    }
+  ],
+  "comparacionPublica": {
+    "origen": "https://konfiozinc.github.io/unefibra/",
+    "blog": {
+      "local": "fa5c6e860c76380708a9587e53b869bba3a286487a52b1bcfb457e035153198b",
+      "publico": "d1fe2e132d8e4e3cf14ec0591d7c0cc4c8a06fb20f01e009209767ba8db68264",
+      "iguales": false
+    },
+    "sitemap": {
+      "local": "454e7802d7cfba06b3ade3c0ec9e73c5b598e231316e47bae8725ec98c416be7",
+      "publico": "454e7802d7cfba06b3ade3c0ec9e73c5b598e231316e47bae8725ec98c416be7",
+      "iguales": true
+    },
+    "swPublicadoSHA256": "76e9f8b2a96f4bc3ddbdc061532f6f8d44cb7ab7e6e517a557f28f49fef5db54"
+  },
+  "pruebas": {
+    "node": "22.23.4",
+    "chromium": "153.0.8010.12",
+    "especificas": {
+      "pass": 40,
+      "fail": 0
+    },
+    "regresion": {
+      "consistencia-comercial": 12,
+      "revision-reglas-paridad": 8,
+      "pagos-guardas": 20
+    },
+    "total": 80,
+    "fail": 0
+  },
+  "preservacion": {
+    "sha256Previos": "PASS",
+    "archivosComprobados": 40,
+    "preservados": [
+      {
+        "archivo": "UNEFIBRA-041-EVIDENCIAS.zip",
+        "sha256": "0d3155be63386cc1cafb017f1b7cea8e0a64a4143975d2aab0b9360893e294c7",
+        "bytes": 845708
+      },
+      {
+        "archivo": "_respaldos/unefibra/2026-10-30-kz-037/feat-kz-unef-021-pagos-historicos.bundle",
+        "sha256": "119dbf0217e9a5a701e93668ce3882490ff760897489b88f05c2d6bfecf6ef82",
+        "bytes": 69581963
+      }
+    ],
+    "registrosLocalesPreservados": [
+      {
+        "archivo": "docs/evidencias/unefibra-042/emuladores-node22-intento1.txt",
+        "sha256": "97fb7be0135fc7b37e177b8dd8dea9e79bc8959fe18e845ae71cc2fd65f4a7ee"
+      },
+      {
+        "archivo": "docs/evidencias/unefibra-042/emuladores-node22.txt",
+        "sha256": "f8bf67ce1509e9c44126cd704cdfddb4177474f515ed2bb7b70783ac99102de6"
+      },
+      {
+        "archivo": "docs/evidencias/unefibra-042/pruebas-node22.txt",
+        "sha256": "d9e0ca22e7a4dcf901aa949e2203fec2a88ebb9ea0e8b0d6f9e67fba88774778"
+      }
+    ]
+  }
+}

@@ -1,0 +1,42 @@
+﻿PASS referencia corresponde a captura pública
+PASS artefacto conserva blog y sitemap byte a byte
+PASS solo GET públicos esperados
+PASS otros archivos del artefacto intactos
+PASS segunda preparación es idempotente
+PASS cambio de hash detiene sin cambiar artefacto
+PASS HTTP 404 detiene sin cambiar artefacto
+PASS fallo de red detiene sin cambiar artefacto
+PASS segunda descarga inválida detiene sin cambiar artefacto
+PASS rechaza destino fuera del artefacto
+PASS rechaza origen distinto
+PASS rechaza archivos ajenos en blog
+PASS generación reservada al evento schedule
+PASS push y manual preservan blog publicado
+PASS preservación se ejecuta antes de cargar artefacto
+PASS fuente blog no coincide con publicación y no se sobrescribe
+PASS YAML de workflow válido y conserva eventos
+PASS workflow fija el runtime probado
+PASS regeneración solo programada en YAML efectivo
+PASS fallo de preservación bloquea el deploy
+PASS generador existente funciona sin producción
+PASS inventario exacto de regeneración ficticia
+Chromium 153.0.8010.12
+PASS worker anterior reproduce contenido obsoleto
+PASS actualización activa nueva caché y retira la anterior
+PASS no fuerza navegación ni interrumpe borrador
+PASS conserva caché ajena
+PASS archivo actual tras actualización: admin/dashboard.js
+PASS archivo actual tras actualización: admin/pagos.js
+PASS archivo actual tras actualización: admin/planes.js
+PASS archivo actual tras actualización: admin/vencimientos.js
+PASS archivo actual tras actualización: assets/css/admin.css
+PASS archivo actual tras actualización: assets/js/admin/consistencia-comercial.js
+PASS recursos administrativos no se almacenan en caché
+PASS cookie, localStorage y borrador conservados
+PASS IndexedDB de sesión intacto
+PASS módulo nuevo accesible en primera petición
+PASS offline no devuelve un panel anterior
+PASS reversión usa nueva versión de caché
+PASS sesión conservada durante reversión
+PASS sin solicitudes externas ni SDK productivo
+TOTAL 40 PASS / 0 FAIL; v22.23.4

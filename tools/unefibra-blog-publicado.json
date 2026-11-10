@@ -1,0 +1,9 @@
+{
+  "mision": "UNEFIBRA-044",
+  "fechaVerificacion": "2026-11-10",
+  "origen": "https://konfiozinc.github.io/unefibra/",
+  "archivos": [
+    { "ruta": "blog/index.html", "sha256": "d1fe2e132d8e4e3cf14ec0591d7c0cc4c8a06fb20f01e009209767ba8db68264" },
+    { "ruta": "sitemap.xml", "sha256": "454e7802d7cfba06b3ade3c0ec9e73c5b598e231316e47bae8725ec98c416be7" }
+  ]
+}

@@ -31,13 +31,14 @@ jobs:
       - name: Configurar Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22.23.4"
 
       # Escribe blog/index.html y blog/<slug>/index.html con los artículos
       # publicados, y actualiza sitemap.xml. El script siempre termina con
       # código 0: si Firestore no responde deja una página honesta en lugar de
       # romper el despliegue del sitio. Por eso `continue-on-error`.
-      - name: Generar el blog estático
+      - name: Generar el blog estático (solo actualización programada)
+        if: github.event_name == 'schedule'
         continue-on-error: true
         run: node tools/generar-blog.js
 
@@ -53,6 +54,12 @@ jobs:
           mkdir -p _sitio
           cp index.html politica-de-privacidad.html terminos-y-condiciones.html manifest.json sw.js robots.txt sitemap.xml _sitio/
           cp -r assets admin blog _sitio/
+
+      # Push/manual: publicar el panel sin regenerar ni cambiar el blog público.
+      # Un cambio del blog respecto a la referencia aprobada detiene la ejecución.
+      - name: Preservar blog publicado (publicación controlada)
+        if: github.event_name != 'schedule'
+        run: node tools/preservar-blog-publicado.cjs --out=_sitio
 
       - name: Configurar Pages
         uses: actions/configure-pages@v5
